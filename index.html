@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>ProConstrucción MX - Tus aliados mayoristas en materiales para la construcción</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #ffffff; 
+            color: #1a1a2e; 
+            line-height: 1.5; 
+            overflow-x: hidden;
+        }
+        html { scroll-behavior: smooth; }
+        :root {
+            --primary-dark: #0A2540;
+            --primary-blue: #1a4d8c;
+            --accent-orange: #F5A623;
+            --gray-light: #F8F9FA;
+            --text-gray: #4a5568;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .navbar {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
+            z-index: 1000;
+            padding: 0.8rem 2rem;
+            transition: all 0.3s ease;
+        }
+        .nav-container {
+            max-width: 1280px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-blue) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            transition: all 0.3s;
+        }
+        .logo-text span { color: var(--accent-orange); background: none; }
+        .nav-links { display: flex; gap: 2rem; align-items: center; flex-wrap: wrap; }
+        .nav-links a { 
+            text-decoration: none; 
+            color: var(--text-gray); 
+            font-weight: 500; 
+            transition: all 0.3s;
+            position: relative;
+        }
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--accent-orange);
+            transition: width 0.3s ease;
+        }
+        .nav-links a:hover::after { width: 100%; }
+        .nav-links a:hover { color: var(--accent-orange); }
+        
+        .whatsapp-float {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #25D366;
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4);
+            z-index: 999;
+            transition: all 0.3s;
+            text-decoration: none;
+            animation: float 3s ease-in-out infinite;
+        }
+        .whatsapp-float:hover { transform: scale(1.1); background: #128C7E; }
+
+        .hero {
+            min-height: 100vh;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 6rem 2rem 4rem;
+            background: url('https://images.unsplash.com/photo-1504307651254-35680f356dfd?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80') no-repeat center center;
+            background-size: cover;
+            background-attachment: fixed;
+        }
+        .hero::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(10, 37, 64, 0.8) 0%, rgba(26, 77, 140, 0.7) 100%);
+        }
+        .hero-content { position: relative; z-index: 2; max-width: 900px; }
+        .hero-content h1 { 
+            font-size: 3.8rem; 
+            font-weight: 800; 
+            color: white; 
+            margin-bottom: 1.5rem; 
+            background: linear-gradient(135deg, #fff, #e0e0e0);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: fadeInUp 0.8s ease-out;
+        }
+        .hero-content p { 
+            font-size: 1.25rem; 
+            color: rgba(255, 255, 255, 0.95); 
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+        }
+        .btn-primary {
+            display: inline-block;
+            background: rgba(245, 166, 35, 0.9);
+            backdrop-filter: blur(4px);
+            color: var(--primary-dark);
+            padding: 1rem 2.5rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            transition: all 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            animation: fadeInUp 0.8s ease-out 0.4s both;
+        }
+        .btn-primary:hover { background: rgba(245, 166, 35, 1); transform: translateY(-3px); box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .scroll-indicator {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            animation: bounce 2s infinite;
+        }
+        @keyframes bounce { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(10px); } }
+
+        .concepts-section {
+            padding: 1.5rem 2rem;
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-blue) 100%);
+        }
+        .concepts-container {
+            max-width: 1280px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .concept-item {
+            text-align: center;
+            padding: 0.5rem 1.5rem;
+            border-right: 1px solid rgba(255,255,255,0.2);
+            flex: 1;
+            min-width: 140px;
+            transition: all 0.3s;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInUp 0.6s ease-out forwards;
+        }
+        .concept-item:nth-child(1) { animation-delay: 0.1s; }
+        .concept-item:nth-child(2) { animation-delay: 0.2s; }
+        .concept-item:nth-child(3) { animation-delay: 0.3s; }
+        .concept-item:last-child { border-right: none; }
+        .concept-icon { font-size: 1.5rem; color: var(--accent-orange); margin-bottom: 0.3rem; }
+        .concept-title { font-size: 0.9rem; font-weight: 700; color: white; letter-spacing: 1px; }
+        .concept-subtitle { font-size: 0.7rem; color: rgba(255,255,255,0.6); }
+
+        .about-section { padding: 5rem 2rem; background: var(--gray-light); }
+        .about-container { max-width: 1280px; margin: 0 auto; text-align: center; }
+        .about-title { 
+            font-size: 2.2rem; 
+            font-weight: 700; 
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary-blue));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 1.5rem;
+        }
+        .about-description { 
+            font-size: 1.1rem; 
+            color: var(--text-gray); 
+            line-height: 1.6; 
+            max-width: 900px; 
+            margin: 0 auto 1rem auto;
+            transition: all 0.5s;
+        }
+        .about-highlights { display: flex; justify-content: center; flex-wrap: wrap; gap: 2rem; margin-top: 2rem; }
+        .highlight-item {
+            background: white;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            color: var(--primary-dark);
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .highlight-item:hover { background: var(--accent-orange); color: white; transform: translateY(-3px) scale(1.05); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
+
+        .brands-section { padding: 2rem; background: white; overflow: hidden; }
+        .marquee { width: 100%; overflow: hidden; white-space: nowrap; }
+        .marquee-content { display: inline-block; animation: scrollMarquee 50s linear infinite; }
+        .marquee-content:hover { animation-play-state: paused; }
+        .brand-logo {
+            display: inline-block;
+            margin: 0 1rem;
+            height: 60px;
+            width: auto;
+            max-width: 130px;
+            object-fit: contain;
+            vertical-align: middle;
+            transition: all 0.3s ease;
+        }
+        .brand-logo:hover { transform: scale(1.08) rotate(2deg); filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1)); }
+        @keyframes scrollMarquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+        .distributors-section {
+            padding: 5rem 2rem;
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-blue) 100%);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .distributors-section .svg-montacargas {
+            position: absolute;
+            left: 2%;
+            bottom: 5%;
+            width: 280px;
+            height: auto;
+            opacity: 0.15;
+            pointer-events: none;
+        }
+        .distributors-section .svg-tarima {
+            position: absolute;
+            right: 2%;
+            top: 10%;
+            width: 260px;
+            height: auto;
+            opacity: 0.15;
+            pointer-events: none;
+        }
+        .distributors-container { max-width: 900px; margin: 0 auto; position: relative; z-index: 2; }
+        .distributors-title { font-size: 2rem; font-weight: 700; color: white; margin-bottom: 1.5rem; }
+        .distributors-text { font-size: 1.1rem; color: rgba(255,255,255,0.9); margin-bottom: 2rem; line-height: 1.6; }
+        .btn-distributors {
+            display: inline-block;
+            background: #25D366;
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            transition: all 0.3s;
+        }
+        .btn-distributors:hover { background: #128C7E; transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.2); }
+
+        .products-section { padding: 5rem 2rem; background: white; }
+        .products-title { 
+            font-size: 2.2rem; 
+            font-weight: 700; 
+            text-align: center; 
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary-blue));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .products-subtitle { text-align: center; color: var(--text-gray); max-width: 700px; margin: 0 auto 3rem auto; font-size: 1.1rem; }
+        .stage-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 4rem;
+            max-width: 75%;
+            margin: 0 auto;
+        }
+        .stage-card {
+            background: var(--gray-light);
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            transition: all 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        }
+        .stage-card:hover {
+            transform: translateY(-8px) scale(1.01);
+            box-shadow: 0 25px 40px rgba(0,0,0,0.12);
+        }
+        .stage-header {
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-blue) 100%);
+            padding: 1.5rem 2rem;
+            color: white;
+            transition: all 0.3s;
+        }
+        .stage-header h3 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .stage-header p { font-size: 0.95rem; opacity: 0.85; }
+
+        .image-marquee-container {
+            padding: 2rem;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        .image-marquee {
+            display: inline-block;
+            animation: scrollImages 35s linear infinite;
+        }
+        .image-marquee:hover { animation-play-state: paused; }
+        .carousel-img {
+            display: inline-block;
+            width: 210px;
+            height: 150px;
+            margin: 0 0.6rem;
+            border-radius: 16px;
+            object-fit: contain;
+            background-color: white;
+            transition: all 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            vertical-align: middle;
+        }
+        .carousel-img:hover {
+            transform: scale(1.08) rotate(1deg);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+        }
+        @keyframes scrollImages { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+        /* Mensaje de miles de productos */
+        .more-products {
+            text-align: center;
+            padding: 1rem 2rem 3rem 2rem;
+            background: white;
+        }
+        .more-products p {
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: var(--primary-dark);
+        }
+        .more-products a {
+            color: var(--accent-orange);
+            text-decoration: none;
+            font-weight: 700;
+            transition: all 0.3s;
+        }
+        .more-products a:hover {
+            text-decoration: underline;
+            color: var(--accent-orange-dark);
+        }
+
+        .contact-section {
+            padding: 5rem 2rem;
+            background: var(--gray-light);
+            text-align: center;
+        }
+        .contact-container { max-width: 800px; margin: 0 auto; }
+        .contact-title { 
+            font-size: 2rem; 
+            font-weight: 700; 
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary-blue));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 1rem;
+        }
+        .contact-subtitle { font-size: 1rem; color: var(--text-gray); margin-bottom: 2rem; }
+        .contact-buttons { display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; }
+        .contact-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .contact-btn-whatsapp { background: #25D366; color: white; }
+        .contact-btn-whatsapp:hover { background: #128C7E; transform: translateY(-3px) scale(1.05); }
+        .contact-btn-email { background: var(--primary-dark); color: white; }
+        .contact-btn-email:hover { background: var(--primary-blue); transform: translateY(-3px) scale(1.05); }
+        .contact-info { margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #ddd; }
+        .contact-info p { color: var(--text-gray); margin-bottom: 0.5rem; }
+
+        .footer {
+            background: var(--primary-dark);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+        .footer-logo { font-size: 1.8rem; font-weight: 800; margin-bottom: 1rem; }
+        .footer-logo span { color: var(--accent-orange); }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        }
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @media (max-width: 768px) {
+            .nav-links { width: 100%; justify-content: center; margin-top: 0.5rem; gap: 1rem; }
+            .hero-content h1 { font-size: 2rem; }
+            .hero { background-attachment: scroll; }
+            .concept-item { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.2); }
+            .brand-logo { height: 40px; max-width: 90px; margin: 0 0.5rem; }
+            .carousel-img { width: 140px; height: 100px; }
+            .stage-cards { max-width: 100%; }
+            .distributors-section .svg-montacargas { width: 150px; left: -20px; bottom: 0; opacity: 0.1; }
+            .distributors-section .svg-tarima { width: 140px; right: -20px; top: auto; bottom: 0; opacity: 0.1; }
+            .distributors-title { font-size: 1.5rem; }
+            .contact-buttons { flex-direction: column; align-items: center; }
+            .whatsapp-float { width: 50px; height: 50px; font-size: 1.5rem; }
+            .more-products p { font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo-text">ProConstrucción <span>MX</span></div>
+            <div class="nav-links">
+                <a href="#inicio">Inicio</a>
+                <a href="#about">Nosotros</a>
+                <a href="#soluciones">Soluciones</a>
+                <a href="#contacto">Contacto</a>
+            </div>
+        </div>
+    </nav>
+    <a href="#" id="whatsappFloatBtn" class="whatsapp-float"><i class="fab fa-whatsapp"></i></a>
+
+    <section id="inicio" class="hero">
+        <div class="hero-content">
+            <h1>Tus aliados mayoristas en materiales para la construcción</h1>
+            <p>Desde la cimentación hasta el último detalle</p>
+            <a href="#" class="btn-primary" id="heroBtn">Cotizar ahora <i class="fas fa-arrow-right"></i></a>
+        </div>
+        <div class="scroll-indicator"><i class="fas fa-chevron-down"></i></div>
+    </section>
+
+    <div class="concepts-section">
+        <div class="concepts-container">
+            <div class="concept-item"><div class="concept-icon"><i class="fas fa-truck"></i></div><div class="concept-title">SUMINISTRO</div><div class="concept-subtitle">Garantizado y oportuno</div></div>
+            <div class="concept-item"><div class="concept-icon"><i class="fas fa-hard-hat"></i></div><div class="concept-title">ASESORÍA</div><div class="concept-subtitle">Especializada y técnica</div></div>
+            <div class="concept-item"><div class="concept-icon"><i class="fas fa-lightbulb"></i></div><div class="concept-title">SOLUCIONES</div><div class="concept-subtitle">Integrales a tu medida</div></div>
+        </div>
+    </div>
+
+    <section id="about" class="about-section">
+        <div class="about-container">
+            <h2 class="about-title reveal">¿Quiénes somos?</h2>
+            <p class="about-description reveal">Somos una empresa <strong>especializada en el suministro integral de materiales para la construcción, de principio a fin (cimentación, obra negra, acabados y decoración)</strong>. Atendemos proyectos de todos los tamaños: <strong>residenciales, comerciales, hoteleros e industriales</strong>.</p>
+            <p class="about-description reveal">Nuestra fortaleza es una <strong>red de fabricantes y distribuidores estratégicos</strong> que garantizan disponibilidad, calidad y servicio. Nuestro enfoque: <strong>optimizar costos y asegurar el suministro oportuno</strong> para cada proyecto.</p>
+            <div class="about-highlights reveal">
+                <span class="highlight-item">🏗️ Cobertura nacional</span>
+                <span class="highlight-item">⚡ Logística garantizada</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- CARRUSEL DE MARCAS -->
+    <div class="brands-section reveal">
+        <div class="marquee">
+            <div class="marquee-content">
+                <img class="brand-logo" src="https://i.imgur.com/Kec0qh9.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/Bz3UQkr.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/LKyXWNB.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/xMWFahO.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/UMErnUl.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/vAR5osW.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/m6qG2XI.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/KeYywQj.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/r96iEkq.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/2MXAAOa.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/vsZCpvc.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/HWYmC1x.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/rEjyr4t.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/3aX9ZZo.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/9MH8Mt5.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/yd6amhl.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/XnK7vhK.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/RUxmwzc.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/ImS6vs1.png" alt="Logo" onerror="this.style.display='none'">
+            </div>
+            <div class="marquee-content">
+                <img class="brand-logo" src="https://i.imgur.com/Kec0qh9.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/Bz3UQkr.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/LKyXWNB.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/xMWFahO.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/UMErnUl.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/vAR5osW.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/m6qG2XI.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/KeYywQj.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/r96iEkq.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/2MXAAOa.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/vsZCpvc.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/HWYmC1x.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/rEjyr4t.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/3aX9ZZo.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/9MH8Mt5.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/yd6amhl.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/XnK7vhK.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/RUxmwzc.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/ImS6vs1.png" alt="Logo" onerror="this.style.display='none'">
+            </div>
+        </div>
+    </div>
+
+    <!-- SECCIÓN DISTRIBUIDORES -->
+    <section class="distributors-section reveal">
+        <svg class="svg-montacargas" viewBox="0 0 400 300" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="60" y="120" width="100" height="120" rx="5" fill="none" stroke="white"/>
+            <rect x="70" y="80" width="50" height="45" rx="3" fill="none" stroke="white"/>
+            <rect x="75" y="85" width="40" height="25" rx="2" fill="none" stroke="white" stroke-width="1.5"/>
+            <line x1="160" y1="220" x2="250" y2="220" stroke="white"/>
+            <line x1="160" y1="235" x2="250" y2="235" stroke="white"/>
+            <rect x="255" y="195" width="35" height="25" rx="2" fill="none" stroke="white"/>
+            <line x1="255" y1="207" x2="290" y2="207" stroke="white" stroke-width="1"/>
+            <rect x="255" y="170" width="35" height="25" rx="2" fill="none" stroke="white"/>
+            <line x1="255" y1="182" x2="290" y2="182" stroke="white" stroke-width="1"/>
+            <rect x="255" y="145" width="35" height="25" rx="2" fill="none" stroke="white"/>
+            <line x1="255" y1="157" x2="290" y2="157" stroke="white" stroke-width="1"/>
+            <circle cx="85" cy="245" r="15" fill="none" stroke="white"/>
+            <circle cx="85" cy="245" r="5" fill="none" stroke="white"/>
+            <circle cx="135" cy="245" r="15" fill="none" stroke="white"/>
+            <circle cx="135" cy="245" r="5" fill="none" stroke="white"/>
+            <circle cx="250" cy="200" r="4" fill="none" stroke="white"/>
+        </svg>
+
+        <svg class="svg-tarima" viewBox="0 0 380 280" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="40" y="220" width="300" height="15" rx="2" fill="none" stroke="white"/>
+            <line x1="60" y1="235" x2="60" y2="250" stroke="white"/>
+            <line x1="140" y1="235" x2="140" y2="250" stroke="white"/>
+            <line x1="220" y1="235" x2="220" y2="250" stroke="white"/>
+            <line x1="300" y1="235" x2="300" y2="250" stroke="white"/>
+            <line x1="340" y1="235" x2="340" y2="250" stroke="white"/>
+            <rect x="50" y="190" width="55" height="30" rx="2" fill="none" stroke="white"/>
+            <rect x="110" y="190" width="55" height="30" rx="2" fill="none" stroke="white"/>
+            <rect x="170" y="190" width="55" height="30" rx="2" fill="none" stroke="white"/>
+            <rect x="230" y="190" width="55" height="30" rx="2" fill="none" stroke="white"/>
+            <rect x="290" y="190" width="55" height="30" rx="2" fill="none" stroke="white"/>
+            <rect x="50" y="155" width="55" height="30" rx="2" fill="none" stroke="white"/>
+            <rect x="110" y="155" width="55" height="30" rx="2" fill="none" stroke="white"/>
+            <rect x="170" y="155" width="55" height="30" rx="2" fill="none" stroke="white"/>
+            <rect x="230" y="155" width="55" height="30" rx="2" fill="none" stroke="white"/>
+            <rect x="290" y="155" width="55" height="30" rx="2" fill="none" stroke="white"/>
+            <rect x="80" y="120" width="55" height="30" rx="2" fill="none" stroke="white"/>
+            <rect x="140" y="120" width="55" height="30" rx="2" fill="none" stroke="white"/>
+            <rect x="200" y="120" width="55" height="30" rx="2" fill="none" stroke="white"/>
+            <rect x="260" y="120" width="55" height="30" rx="2" fill="none" stroke="white"/>
+            <line x1="77" y1="190" x2="77" y2="220" stroke="white" stroke-width="1"/>
+            <line x1="137" y1="190" x2="137" y2="220" stroke="white" stroke-width="1"/>
+            <line x1="197" y1="190" x2="197" y2="220" stroke="white" stroke-width="1"/>
+            <line x1="257" y1="190" x2="257" y2="220" stroke="white" stroke-width="1"/>
+            <line x1="317" y1="190" x2="317" y2="220" stroke="white" stroke-width="1"/>
+            <path d="M 350 80 L 370 80 L 370 100" stroke="white" fill="none"/>
+            <polygon points="370,105 375,95 365,95" fill="none" stroke="white"/>
+        </svg>
+
+        <div class="distributors-container">
+            <h2 class="distributors-title">¿Tienes una casa de materiales o tlapalería?</h2>
+            <p class="distributors-text">También distribuimos a casas de materiales y tlapalerías con los productos de las mejores marcas del país.<br><br><strong>✅ Suministro garantizado</strong><br><strong>✅ Precios competitivos</strong><br><strong>✅ Entrega oportuna</strong></p>
+            <a href="#" class="btn-distributors" id="distributorsBtn"><i class="fab fa-whatsapp"></i> Contáctanos para más información</a>
+        </div>
+    </section>
+
+    <!-- SECCIÓN DE SOLUCIONES CON TODOS LOS CARRUSELES -->
+    <section id="soluciones" class="products-section">
+        <div class="container">
+            <h2 class="products-title reveal">Soluciones para cada etapa de la construcción</h2>
+            <p class="products-subtitle reveal">Productos de alta calidad para cada fase de tu proyecto</p>
+            
+            <div class="stage-cards">
+                <!-- Etapa 1: Cimentación y Obra Negra -->
+                <div class="stage-card reveal">
+                    <div class="stage-header">
+                        <h3><i class="fas fa-dungeon"></i> Cimentación y Obra Negra</h3>
+                        <p>Cemento, block, arena, grava, acero, morteros, aditivos para concreto.</p>
+                    </div>
+                    <div class="image-marquee-container">
+                        <div class="image-marquee">
+                            <img class="carousel-img" src="https://i.imgur.com/5TQipNG.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/oONnCFq.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/3EUm2vb.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/f6Gm8Qk.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/RPImb1A.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/Du6KW1h.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/Lnk3afT.png" alt="Producto" onerror="this.style.display='none'">
+                        </div>
+                        <div class="image-marquee">
+                            <img class="carousel-img" src="https://i.imgur.com/5TQipNG.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/oONnCFq.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/3EUm2vb.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/f6Gm8Qk.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/RPImb1A.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/Du6KW1h.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/Lnk3afT.png" alt="Producto" onerror="this.style.display='none'">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Etapa 2: Anclajes y Especialidades -->
+                <div class="stage-card reveal">
+                    <div class="stage-header">
+                        <h3><i class="fas fa-anchor"></i> Anclajes y Especialidades</h3>
+                        <p>Anclajes químicos, grouts, adhesivos estructurales, morteros de reparación, epóxicos, impermeabilizantes.</p>
+                    </div>
+                    <div class="image-marquee-container">
+                        <div class="image-marquee">
+                            <img class="carousel-img" src="https://i.imgur.com/1qVuW3B.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/8kAip4O.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/xWBEUAs.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/D6C0RSn.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/04UisWg.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/R9ITrFE.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/9V7Nilj.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/fwlMoKN.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/zeu4bjj.png" alt="Producto" onerror="this.style.display='none'">
+                        </div>
+                        <div class="image-marquee">
+                            <img class="carousel-img" src="https://i.imgur.com/1qVuW3B.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/8kAip4O.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/xWBEUAs.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/D6C0RSn.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/04UisWg.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/R9ITrFE.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/9V7Nilj.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/fwlMoKN.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/zeu4bjj.png" alt="Producto" onerror="this.style.display='none'">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Etapa 3: Obra Gris y Sistemas -->
+                <div class="stage-card reveal">
+                    <div class="stage-header">
+                        <h3><i class="fas fa-border-all"></i> Obra Gris y Sistemas</h3>
+                        <p>Panel yeso, Durock, estructuras metálicas, aislantes, pastas y recubrimientos.</p>
+                    </div>
+                    <div class="image-marquee-container">
+                        <div class="image-marquee">
+                            <img class="carousel-img" src="https://i.imgur.com/PJv4ex9.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/fLG0PlP.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/jHhwYaS.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/JiLi8Uy.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/kWsuwmZ.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/VmKyN6D.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/Q69bwb4.png" alt="Producto" onerror="this.style.display='none'">
+                        </div>
+                        <div class="image-marquee">
+                            <img class="carousel-img" src="https://i.imgur.com/PJv4ex9.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/fLG0PlP.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/jHhwYaS.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/JiLi8Uy.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/kWsuwmZ.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/VmKyN6D.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/Q69bwb4.png" alt="Producto" onerror="this.style.display='none'">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Etapa 4: Madera -->
+                <div class="stage-card reveal">
+                    <div class="stage-header">
+                        <h3><i class="fas fa-tree"></i> Madera</h3>
+                        <p>Polines, barrotes, tablones, tarima, triplay, chaflán.</p>
+                    </div>
+                    <div class="image-marquee-container">
+                        <div class="image-marquee">
+                            <img class="carousel-img" src="https://i.imgur.com/kU9FeHE.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/5z7e4Tk.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/dxnVQbA.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/0EESgdl.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/128OWnW.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/OTa1Ow2.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/NHo18G4.png" alt="Producto" onerror="this.style.display='none'">
+                        </div>
+                        <div class="image-marquee">
+                            <img class="carousel-img" src="https://i.imgur.com/kU9FeHE.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/5z7e4Tk.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/dxnVQbA.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/0EESgdl.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/128OWnW.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/OTa1Ow2.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/NHo18G4.png" alt="Producto" onerror="this.style.display='none'">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Etapa 5: Acabados y Decoración -->
+                <div class="stage-card reveal">
+                    <div class="stage-header">
+                        <h3><i class="fas fa-palette"></i> Acabados y Decoración</h3>
+                        <p>Porcelanatos, pisos, azulejos, pinturas, sanitarios, grifería, calentadores, equipamiento para baño y cocina.</p>
+                    </div>
+                    <div class="image-marquee-container">
+                        <div class="image-marquee">
+                            <img class="carousel-img" src="https://i.imgur.com/14aDxli.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/NSm3nj3.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/7vWr2hZ.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/cK7l1Nv.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/OxnRSNI.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/dBTzKbU.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/0wH5Slu.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/eIAvvBG.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/GKg6HsB.png" alt="Producto" onerror="this.style.display='none'">
+                        </div>
+                        <div class="image-marquee">
+                            <img class="carousel-img" src="https://i.imgur.com/14aDxli.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/NSm3nj3.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/7vWr2hZ.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/cK7l1Nv.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/OxnRSNI.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/dBTzKbU.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/0wH5Slu.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/eIAvvBG.png" alt="Producto" onerror="this.style.display='none'">
+                            <img class="carousel-img" src="https://i.imgur.com/GKg6HsB.png" alt="Producto" onerror="this.style.display='none'">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Mensaje de miles de productos más -->
+    <div class="more-products reveal">
+        <p>✨ ... y miles de productos más - <a href="#contacto">¡Contáctanos!</a> ✨</p>
+    </div>
+
+    <!-- SECCIÓN DE CONTACTO -->
+    <section id="contacto" class="contact-section reveal">
+        <div class="contact-container">
+            <h2 class="contact-title">¿Necesitas cotizar o tienes dudas?</h2>
+            <p class="contact-subtitle">Estamos para ayudarte. Contáctanos por WhatsApp o correo electrónico</p>
+            <div class="contact-buttons">
+                <a href="#" class="contact-btn contact-btn-whatsapp" id="contactWhatsappBtn">
+                    <i class="fab fa-whatsapp"></i> WhatsApp
+                </a>
+                <a href="mailto:ventas@proconstruccionmx.com" class="contact-btn contact-btn-email">
+                    <i class="fas fa-envelope"></i> ventas@proconstruccionmx.com
+                </a>
+            </div>
+            <div class="contact-info">
+                <p><i class="fas fa-map-marker-alt"></i> Servicio a todo México</p>
+                <p><i class="fas fa-clock"></i> Lunes a Viernes: 8:00 am - 6:00 pm | Sábados: 9:00 am - 2:00 pm</p>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="footer-logo">ProConstrucción <span>MX</span></div>
+        <p>Tu aliado estratégico en construcción.</p>
+        <p style="margin-top: 1rem;"><strong>Suministro | Asesoría | Soluciones</strong></p>
+        <p style="margin-top: 2rem; font-size: 0.8rem;">&copy; 2026 ProConstrucción MX - Todos los derechos reservados</p>
+    </footer>
+
+    <script>
+        const whatsappNumber = "5623414465";
+        const msgCliente = "Hola, me interesa cotizar materiales para mi proyecto o negocio.";
+        const msgDistribuidor = "Hola, quiero información para suministro de material en mi negocio";
+        const openWhatsapp = (msg) => window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(msg)}`, '_blank');
+        
+        document.querySelectorAll('#whatsappFloatBtn, #heroBtn, #contactWhatsappBtn').forEach(btn => btn.addEventListener('click', (e) => { e.preventDefault(); openWhatsapp(msgCliente); }));
+        document.getElementById('distributorsBtn').addEventListener('click', (e) => { e.preventDefault(); openWhatsapp(msgDistribuidor); });
+        
+        document.querySelectorAll('.nav-links a[href^="#"]').forEach(anchor => anchor.addEventListener('click', function(e) { e.preventDefault(); document.querySelector(this.getAttribute('href')).scrollIntoView({ behavior: 'smooth' }); }));
+        window.addEventListener('scroll', () => document.querySelector('.navbar').style.background = window.scrollY > 50 ? 'rgba(255,255,255,0.98)' : 'rgba(255,255,255,0.95)');
+        
+        const revealElements = document.querySelectorAll('.reveal');
+        const revealOnScroll = () => {
+            revealElements.forEach(el => {
+                const rect = el.getBoundingClientRect();
+                const windowHeight = window.innerHeight;
+                if (rect.top < windowHeight - 100) {
+                    el.classList.add('active');
+                }
+            });
+        };
+        window.addEventListener('scroll', revealOnScroll);
+        revealOnScroll();
+    </script>
+</body>
+</html>
