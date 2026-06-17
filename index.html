@@ -232,21 +232,24 @@
         }
         .highlight-item:hover { background: var(--accent-orange); color: white; transform: translateY(-3px) scale(1.05); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
 
+        /* CARRUSEL DE MARCAS (32 logos: 19 antiguos + 13 nuevos) */
         .brands-section { padding: 2rem; background: white; overflow: hidden; }
         .marquee { width: 100%; overflow: hidden; white-space: nowrap; }
-        .marquee-content { display: inline-block; animation: scrollMarquee 50s linear infinite; }
+        .marquee-content { display: inline-block; animation: scrollMarquee 70s linear infinite; }
         .marquee-content:hover { animation-play-state: paused; }
         .brand-logo {
             display: inline-block;
-            margin: 0 1rem;
-            height: 60px;
+            margin: 0 1.2rem;
+            height: 65px;
             width: auto;
-            max-width: 130px;
+            max-width: 140px;
             object-fit: contain;
             vertical-align: middle;
             transition: all 0.3s ease;
+            filter: grayscale(0%);
+            opacity: 0.9;
         }
-        .brand-logo:hover { transform: scale(1.08) rotate(2deg); filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1)); }
+        .brand-logo:hover { transform: scale(1.1); filter: drop-shadow(0 4px 12px rgba(0,0,0,0.1)); }
         @keyframes scrollMarquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 
         .distributors-section {
@@ -289,7 +292,7 @@
         }
         .btn-distributors:hover { background: #128C7E; transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.2); }
 
-        /* --- NUEVO DISEÑO DE SOLUCIONES CON TABS --- */
+        /* NUEVO DISEÑO DE SOLUCIONES CON ACORDEÓN (sin números de productos) */
         .products-section {
             padding: 5rem 2rem;
             background: white;
@@ -312,67 +315,85 @@
             font-size: 1.1rem; 
         }
 
-        /* Contenedor de pestañas */
-        .tabs-container {
+        .accordion-container {
             max-width: 75%;
             margin: 0 auto;
-        }
-        .tabs-nav {
             display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 0.5rem;
-            margin-bottom: 2rem;
-            padding: 0.5rem;
-            background: var(--gray-light);
-            border-radius: 60px;
-            box-shadow: inset 0 2px 6px rgba(0,0,0,0.04);
+            flex-direction: column;
+            gap: 1rem;
         }
-        .tab-btn {
-            padding: 0.8rem 1.8rem;
-            border: none;
-            background: transparent;
-            font-family: 'Inter', sans-serif;
-            font-weight: 600;
-            font-size: 0.95rem;
-            color: var(--text-gray);
-            border-radius: 40px;
-            cursor: pointer;
+
+        .accordion-item {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.04);
             transition: all 0.3s ease;
+            border: 1px solid rgba(0,0,0,0.04);
+        }
+        .accordion-item:hover {
+            box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+        }
+
+        .accordion-header {
             display: flex;
             align-items: center;
-            gap: 0.6rem;
-        }
-        .tab-btn i { font-size: 1.1rem; }
-        .tab-btn:hover { color: var(--primary-dark); background: rgba(255,255,255,0.6); }
-        .tab-btn.active {
-            background: var(--primary-dark);
-            color: white;
-            box-shadow: 0 4px 15px rgba(10, 37, 64, 0.25);
-        }
-        .tab-btn.active:hover { background: var(--primary-dark); }
-
-        /* Contenido de las pestañas */
-        .tab-content {
-            display: none;
-            animation: fadeInUp 0.5s ease forwards;
-        }
-        .tab-content.active {
-            display: block;
-        }
-        .tab-description {
-            text-align: center;
-            font-size: 1rem;
-            color: var(--text-gray);
-            margin-bottom: 1.5rem;
-            padding: 0.5rem;
+            justify-content: space-between;
+            padding: 1.2rem 2rem;
+            cursor: pointer;
+            transition: background 0.3s ease;
             background: var(--gray-light);
-            border-radius: 12px;
+            border-radius: 16px;
+        }
+        .accordion-header:hover {
+            background: #eef0f2;
+        }
+        .accordion-header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .accordion-header i {
+            font-size: 1.5rem;
+            color: var(--accent-orange);
+            width: 2rem;
+            text-align: center;
+        }
+        .accordion-header h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary-dark);
+        }
+        .accordion-header .toggle-icon {
+            font-size: 1.2rem;
+            color: var(--text-gray);
+            transition: transform 0.3s ease;
+        }
+        .accordion-item.active .accordion-header .toggle-icon {
+            transform: rotate(180deg);
         }
 
-        /* Carrusel de imágenes (mismo estilo) */
+        .accordion-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease, padding 0.3s ease;
+            padding: 0 2rem;
+        }
+        .accordion-item.active .accordion-body {
+            max-height: 500px;
+            padding: 0 2rem 2rem 2rem;
+        }
+
+        .accordion-body .tab-description {
+            font-size: 0.95rem;
+            color: var(--text-gray);
+            margin-bottom: 1rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px dashed rgba(0,0,0,0.06);
+        }
+
+        /* Carrusel dentro del acordeón */
         .image-marquee-container {
-            padding: 1rem 0;
             overflow: hidden;
             white-space: nowrap;
         }
@@ -421,7 +442,7 @@
             color: var(--accent-orange-dark);
         }
 
-        /* --- NUEVA SECCIÓN: MARCAS LÍDERES EN MOSAICO --- */
+        /* MOSAICO DE MARCAS (32 logos: 19 antiguos + 13 nuevos) */
         .brands-grid-section {
             padding: 3rem 2rem 5rem 2rem;
             background: var(--gray-light);
@@ -442,9 +463,9 @@
         }
         .brands-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-            gap: 1.2rem;
-            max-width: 1000px;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1.5rem;
+            max-width: 1100px;
             margin: 0 auto;
         }
         .brand-grid-item {
@@ -457,18 +478,18 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.04);
             transition: all 0.3s ease;
             border: 1px solid rgba(0,0,0,0.04);
-            min-height: 80px;
+            min-height: 90px;
         }
         .brand-grid-item img {
-            max-height: 50px;
+            max-height: 55px;
             max-width: 100%;
             object-fit: contain;
-            filter: grayscale(20%);
-            opacity: 0.8;
+            filter: grayscale(10%);
+            opacity: 0.9;
             transition: all 0.3s ease;
         }
         .brand-grid-item:hover {
-            transform: translateY(-5px);
+            transform: translateY(-6px);
             box-shadow: 0 12px 30px rgba(0,0,0,0.08);
             border-color: var(--accent-orange);
         }
@@ -476,15 +497,6 @@
             filter: grayscale(0%);
             opacity: 1;
         }
-        .brand-grid-placeholder {
-            font-weight: 600;
-            color: var(--primary-dark);
-            font-size: 0.9rem;
-            text-align: center;
-            line-height: 1.2;
-        }
-
-        /* --- FIN NUEVAS SECCIONES --- */
 
         .contact-section {
             padding: 5rem 2rem;
@@ -546,11 +558,12 @@
             .concept-item { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.2); }
             .brand-logo { height: 40px; max-width: 90px; margin: 0 0.5rem; }
             .carousel-img { width: 140px; height: 100px; }
-            .tabs-container { max-width: 100%; }
-            .tabs-nav { border-radius: 20px; gap: 0.3rem; }
-            .tab-btn { padding: 0.5rem 1rem; font-size: 0.8rem; }
-            .tab-btn i { font-size: 0.9rem; }
-            .brands-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.8rem; }
+            .accordion-container { max-width: 100%; }
+            .accordion-header { padding: 1rem 1.2rem; }
+            .accordion-header h3 { font-size: 1rem; }
+            .accordion-body { padding: 0 1.2rem; }
+            .accordion-item.active .accordion-body { padding: 0 1.2rem 1.5rem 1.2rem; }
+            .brands-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 0.8rem; }
             .brand-grid-item { min-height: 60px; padding: 0.8rem; }
             .brand-grid-item img { max-height: 35px; }
             .distributors-section .svg-montacargas { width: 150px; left: -20px; bottom: 0; opacity: 0.1; }
@@ -606,10 +619,11 @@
         </div>
     </section>
 
-    <!-- CARRUSEL DE MARCAS -->
+    <!-- CARRUSEL DE MARCAS (19 antiguos + 13 nuevos) -->
     <div class="brands-section reveal">
         <div class="marquee">
             <div class="marquee-content">
+                <!-- Antiguos logos -->
                 <img class="brand-logo" src="https://i.imgur.com/Kec0qh9.png" alt="Logo" onerror="this.style.display='none'">
                 <img class="brand-logo" src="https://i.imgur.com/Bz3UQkr.png" alt="Logo" onerror="this.style.display='none'">
                 <img class="brand-logo" src="https://i.imgur.com/LKyXWNB.png" alt="Logo" onerror="this.style.display='none'">
@@ -629,8 +643,23 @@
                 <img class="brand-logo" src="https://i.imgur.com/XnK7vhK.png" alt="Logo" onerror="this.style.display='none'">
                 <img class="brand-logo" src="https://i.imgur.com/RUxmwzc.png" alt="Logo" onerror="this.style.display='none'">
                 <img class="brand-logo" src="https://i.imgur.com/ImS6vs1.png" alt="Logo" onerror="this.style.display='none'">
+                <!-- Nuevos logos -->
+                <img class="brand-logo" src="https://i.imgur.com/BhiD3Mj.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/uaUmWtL.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/pbWJ3ww.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/4yzoXTu.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/g7bhX6V.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/QSDHfNf.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/QFGe0k3.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/xKGVKFI.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/jfcqrLP.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/P6flm3l.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/eJ2Ou18.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/u1Qd8KC.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/FDR0ag8.png" alt="Logo" onerror="this.style.display='none'">
             </div>
             <div class="marquee-content">
+                <!-- Antiguos logos -->
                 <img class="brand-logo" src="https://i.imgur.com/Kec0qh9.png" alt="Logo" onerror="this.style.display='none'">
                 <img class="brand-logo" src="https://i.imgur.com/Bz3UQkr.png" alt="Logo" onerror="this.style.display='none'">
                 <img class="brand-logo" src="https://i.imgur.com/LKyXWNB.png" alt="Logo" onerror="this.style.display='none'">
@@ -650,6 +679,20 @@
                 <img class="brand-logo" src="https://i.imgur.com/XnK7vhK.png" alt="Logo" onerror="this.style.display='none'">
                 <img class="brand-logo" src="https://i.imgur.com/RUxmwzc.png" alt="Logo" onerror="this.style.display='none'">
                 <img class="brand-logo" src="https://i.imgur.com/ImS6vs1.png" alt="Logo" onerror="this.style.display='none'">
+                <!-- Nuevos logos -->
+                <img class="brand-logo" src="https://i.imgur.com/BhiD3Mj.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/uaUmWtL.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/pbWJ3ww.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/4yzoXTu.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/g7bhX6V.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/QSDHfNf.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/QFGe0k3.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/xKGVKFI.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/jfcqrLP.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/P6flm3l.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/eJ2Ou18.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/u1Qd8KC.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/FDR0ag8.png" alt="Logo" onerror="this.style.display='none'">
             </div>
         </div>
     </div>
@@ -712,151 +755,187 @@
         </div>
     </section>
 
-    <!-- SECCIÓN DE SOLUCIONES CON TABS -->
+    <!-- SECCIÓN DE SOLUCIONES CON ACORDEÓN (sin números) -->
     <section id="soluciones" class="products-section">
         <div class="container">
             <h2 class="products-title reveal">Soluciones para cada etapa de la construcción</h2>
             <p class="products-subtitle reveal">Explora nuestras categorías y descubre los productos que necesitas para tu proyecto.</p>
 
-            <div class="tabs-container">
-                <!-- Navegación de pestañas -->
-                <div class="tabs-nav">
-                    <button class="tab-btn active" data-tab="tab1"><i class="fas fa-dungeon"></i> Cimentación</button>
-                    <button class="tab-btn" data-tab="tab2"><i class="fas fa-anchor"></i> Anclajes</button>
-                    <button class="tab-btn" data-tab="tab3"><i class="fas fa-border-all"></i> Obra Gris</button>
-                    <button class="tab-btn" data-tab="tab4"><i class="fas fa-tree"></i> Madera</button>
-                    <button class="tab-btn" data-tab="tab5"><i class="fas fa-palette"></i> Acabados</button>
-                </div>
-
-                <!-- Contenido: Cimentación -->
-                <div id="tab1" class="tab-content active">
-                    <div class="tab-description">Cemento, block, arena, grava, acero, morteros, aditivos para concreto.</div>
-                    <div class="image-marquee-container">
-                        <div class="image-marquee">
-                            <img class="carousel-img" src="https://i.imgur.com/5TQipNG.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/oONnCFq.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/3EUm2vb.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/f6Gm8Qk.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/RPImb1A.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/Du6KW1h.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/Lnk3afT.png" alt="Producto" onerror="this.style.display='none'">
+            <div class="accordion-container">
+                <!-- Categoría 1: Cimentación -->
+                <div class="accordion-item active">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-left">
+                            <i class="fas fa-dungeon"></i>
+                            <h3>Cimentación y Obra Negra</h3>
                         </div>
-                        <div class="image-marquee">
-                            <img class="carousel-img" src="https://i.imgur.com/5TQipNG.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/oONnCFq.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/3EUm2vb.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/f6Gm8Qk.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/RPImb1A.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/Du6KW1h.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/Lnk3afT.png" alt="Producto" onerror="this.style.display='none'">
+                        <span class="toggle-icon"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="accordion-body">
+                        <div class="tab-description">Cemento, block, arena, grava, acero, morteros, aditivos para concreto.</div>
+                        <div class="image-marquee-container">
+                            <div class="image-marquee">
+                                <img class="carousel-img" src="https://i.imgur.com/5TQipNG.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/oONnCFq.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/3EUm2vb.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/f6Gm8Qk.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/RPImb1A.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/Du6KW1h.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/Lnk3afT.png" alt="Producto" onerror="this.style.display='none'">
+                            </div>
+                            <div class="image-marquee">
+                                <img class="carousel-img" src="https://i.imgur.com/5TQipNG.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/oONnCFq.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/3EUm2vb.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/f6Gm8Qk.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/RPImb1A.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/Du6KW1h.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/Lnk3afT.png" alt="Producto" onerror="this.style.display='none'">
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Contenido: Anclajes -->
-                <div id="tab2" class="tab-content">
-                    <div class="tab-description">Anclajes químicos, grouts, adhesivos estructurales, morteros de reparación, epóxicos, impermeabilizantes.</div>
-                    <div class="image-marquee-container">
-                        <div class="image-marquee">
-                            <img class="carousel-img" src="https://i.imgur.com/1qVuW3B.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/8kAip4O.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/xWBEUAs.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/D6C0RSn.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/04UisWg.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/R9ITrFE.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/9V7Nilj.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/fwlMoKN.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/zeu4bjj.png" alt="Producto" onerror="this.style.display='none'">
+                <!-- Categoría 2: Anclajes -->
+                <div class="accordion-item">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-left">
+                            <i class="fas fa-anchor"></i>
+                            <h3>Anclajes y Especialidades</h3>
                         </div>
-                        <div class="image-marquee">
-                            <img class="carousel-img" src="https://i.imgur.com/1qVuW3B.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/8kAip4O.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/xWBEUAs.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/D6C0RSn.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/04UisWg.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/R9ITrFE.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/9V7Nilj.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/fwlMoKN.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/zeu4bjj.png" alt="Producto" onerror="this.style.display='none'">
+                        <span class="toggle-icon"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="accordion-body">
+                        <div class="tab-description">Anclajes químicos, grouts, adhesivos estructurales, morteros de reparación, epóxicos, impermeabilizantes.</div>
+                        <div class="image-marquee-container">
+                            <div class="image-marquee">
+                                <img class="carousel-img" src="https://i.imgur.com/1qVuW3B.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/8kAip4O.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/xWBEUAs.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/D6C0RSn.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/04UisWg.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/R9ITrFE.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/9V7Nilj.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/fwlMoKN.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/zeu4bjj.png" alt="Producto" onerror="this.style.display='none'">
+                            </div>
+                            <div class="image-marquee">
+                                <img class="carousel-img" src="https://i.imgur.com/1qVuW3B.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/8kAip4O.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/xWBEUAs.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/D6C0RSn.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/04UisWg.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/R9ITrFE.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/9V7Nilj.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/fwlMoKN.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/zeu4bjj.png" alt="Producto" onerror="this.style.display='none'">
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Contenido: Obra Gris -->
-                <div id="tab3" class="tab-content">
-                    <div class="tab-description">Panel yeso, Durock, estructuras metálicas, aislantes, pastas y recubrimientos.</div>
-                    <div class="image-marquee-container">
-                        <div class="image-marquee">
-                            <img class="carousel-img" src="https://i.imgur.com/PJv4ex9.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/fLG0PlP.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/jHhwYaS.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/JiLi8Uy.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/kWsuwmZ.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/VmKyN6D.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/Q69bwb4.png" alt="Producto" onerror="this.style.display='none'">
+                <!-- Categoría 3: Obra Gris -->
+                <div class="accordion-item">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-left">
+                            <i class="fas fa-border-all"></i>
+                            <h3>Obra Gris y Sistemas</h3>
                         </div>
-                        <div class="image-marquee">
-                            <img class="carousel-img" src="https://i.imgur.com/PJv4ex9.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/fLG0PlP.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/jHhwYaS.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/JiLi8Uy.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/kWsuwmZ.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/VmKyN6D.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/Q69bwb4.png" alt="Producto" onerror="this.style.display='none'">
+                        <span class="toggle-icon"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="accordion-body">
+                        <div class="tab-description">Panel yeso, Durock, estructuras metálicas, aislantes, pastas y recubrimientos.</div>
+                        <div class="image-marquee-container">
+                            <div class="image-marquee">
+                                <img class="carousel-img" src="https://i.imgur.com/PJv4ex9.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/fLG0PlP.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/jHhwYaS.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/JiLi8Uy.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/kWsuwmZ.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/VmKyN6D.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/Q69bwb4.png" alt="Producto" onerror="this.style.display='none'">
+                            </div>
+                            <div class="image-marquee">
+                                <img class="carousel-img" src="https://i.imgur.com/PJv4ex9.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/fLG0PlP.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/jHhwYaS.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/JiLi8Uy.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/kWsuwmZ.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/VmKyN6D.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/Q69bwb4.png" alt="Producto" onerror="this.style.display='none'">
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Contenido: Madera -->
-                <div id="tab4" class="tab-content">
-                    <div class="tab-description">Polines, barrotes, tablones, tarima, triplay, chaflán.</div>
-                    <div class="image-marquee-container">
-                        <div class="image-marquee">
-                            <img class="carousel-img" src="https://i.imgur.com/kU9FeHE.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/5z7e4Tk.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/dxnVQbA.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/0EESgdl.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/128OWnW.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/OTa1Ow2.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/NHo18G4.png" alt="Producto" onerror="this.style.display='none'">
+                <!-- Categoría 4: Madera -->
+                <div class="accordion-item">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-left">
+                            <i class="fas fa-tree"></i>
+                            <h3>Madera</h3>
                         </div>
-                        <div class="image-marquee">
-                            <img class="carousel-img" src="https://i.imgur.com/kU9FeHE.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/5z7e4Tk.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/dxnVQbA.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/0EESgdl.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/128OWnW.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/OTa1Ow2.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/NHo18G4.png" alt="Producto" onerror="this.style.display='none'">
+                        <span class="toggle-icon"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="accordion-body">
+                        <div class="tab-description">Polines, barrotes, tablones, tarima, triplay, chaflán.</div>
+                        <div class="image-marquee-container">
+                            <div class="image-marquee">
+                                <img class="carousel-img" src="https://i.imgur.com/kU9FeHE.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/5z7e4Tk.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/dxnVQbA.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/0EESgdl.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/128OWnW.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/OTa1Ow2.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/NHo18G4.png" alt="Producto" onerror="this.style.display='none'">
+                            </div>
+                            <div class="image-marquee">
+                                <img class="carousel-img" src="https://i.imgur.com/kU9FeHE.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/5z7e4Tk.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/dxnVQbA.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/0EESgdl.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/128OWnW.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/OTa1Ow2.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/NHo18G4.png" alt="Producto" onerror="this.style.display='none'">
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Contenido: Acabados -->
-                <div id="tab5" class="tab-content">
-                    <div class="tab-description">Porcelanatos, pisos, azulejos, pinturas, sanitarios, grifería, calentadores, equipamiento para baño y cocina.</div>
-                    <div class="image-marquee-container">
-                        <div class="image-marquee">
-                            <img class="carousel-img" src="https://i.imgur.com/14aDxli.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/NSm3nj3.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/7vWr2hZ.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/cK7l1Nv.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/OxnRSNI.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/dBTzKbU.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/0wH5Slu.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/eIAvvBG.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/GKg6HsB.png" alt="Producto" onerror="this.style.display='none'">
+                <!-- Categoría 5: Acabados -->
+                <div class="accordion-item">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <div class="accordion-header-left">
+                            <i class="fas fa-palette"></i>
+                            <h3>Acabados y Decoración</h3>
                         </div>
-                        <div class="image-marquee">
-                            <img class="carousel-img" src="https://i.imgur.com/14aDxli.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/NSm3nj3.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/7vWr2hZ.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/cK7l1Nv.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/OxnRSNI.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/dBTzKbU.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/0wH5Slu.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/eIAvvBG.png" alt="Producto" onerror="this.style.display='none'">
-                            <img class="carousel-img" src="https://i.imgur.com/GKg6HsB.png" alt="Producto" onerror="this.style.display='none'">
+                        <span class="toggle-icon"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="accordion-body">
+                        <div class="tab-description">Porcelanatos, pisos, azulejos, pinturas, sanitarios, grifería, calentadores, equipamiento para baño y cocina.</div>
+                        <div class="image-marquee-container">
+                            <div class="image-marquee">
+                                <img class="carousel-img" src="https://i.imgur.com/14aDxli.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/NSm3nj3.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/7vWr2hZ.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/cK7l1Nv.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/OxnRSNI.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/dBTzKbU.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/0wH5Slu.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/eIAvvBG.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/GKg6HsB.png" alt="Producto" onerror="this.style.display='none'">
+                            </div>
+                            <div class="image-marquee">
+                                <img class="carousel-img" src="https://i.imgur.com/14aDxli.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/NSm3nj3.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/7vWr2hZ.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/cK7l1Nv.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/OxnRSNI.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/dBTzKbU.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/0wH5Slu.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/eIAvvBG.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/GKg6HsB.png" alt="Producto" onerror="this.style.display='none'">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -869,44 +948,45 @@
         <p>✨ ... y miles de productos más - <a href="#contacto">¡Contáctanos!</a> ✨</p>
     </div>
 
-    <!-- NUEVA SECCIÓN: MARCAS LÍDERES EN MOSAICO -->
+    <!-- MOSAICO DE MARCAS (19 antiguos + 13 nuevos) -->
     <section class="brands-grid-section reveal">
         <h2 class="brands-grid-title">Distribuimos las marcas líderes del mercado</h2>
         <p class="brands-grid-subtitle">Contamos con un amplio catálogo de productos de las mejores marcas para tu proyecto.</p>
         <div class="brands-grid">
-            <!-- Imágenes de marcas (usa las mismas URLs del carrusel, pero en grid) -->
-            <div class="brand-grid-item"><img src="https://i.imgur.com/Kec0qh9.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>VITROMEX</span></div>'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/Bz3UQkr.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>American Standard</span></div>'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/LKyXWNB.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>Rotoplas</span></div>'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/xMWFahO.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>Corona</span></div>'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/UMErnUl.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>Mabe</span></div>'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/vAR5osW.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>TOTO</span></div>'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/m6qG2XI.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>MAPEI</span></div>'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/KeYywQj.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>MOEN</span></div>'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/r96iEkq.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>Rheem</span></div>'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/2MXAAOa.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>Rinnai</span></div>'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/vsZCpvc.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>Hansgrohe</span></div>'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/HWYmC1x.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>SLOAN</span></div>'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/rEjyr4t.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>HELVEX</span></div>'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/3aX9ZZo.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>URRERA</span></div>'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/9MH8Mt5.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>CALOREX</span></div>'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/yd6amhl.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>RuGo</span></div>'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/XnK7vhK.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>nIasa</span></div>'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/RUxmwzc.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>UNIBLOCK</span></div>'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/ImS6vs1.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>Dica</span></div>'"></div>
-            <!-- Agrega más marcas si tienes imágenes extras, o usa placeholders -->
-            <div class="brand-grid-item"><span class="brand-grid-placeholder">TEKA</span></div>
-            <div class="brand-grid-item"><span class="brand-grid-placeholder">CREST</span></div>
-            <div class="brand-grid-item"><span class="brand-grid-placeholder">Bexel</span></div>
-            <div class="brand-grid-item"><span class="brand-grid-placeholder">Proyecta</span></div>
-            <div class="brand-grid-item"><span class="brand-grid-placeholder">Jika</span></div>
-            <div class="brand-grid-item"><span class="brand-grid-placeholder">Kolorines</span></div>
-            <div class="brand-grid-item"><span class="brand-grid-placeholder">CINSA</span></div>
-            <div class="brand-grid-item"><span class="brand-grid-placeholder">coflex</span></div>
-            <div class="brand-grid-item"><span class="brand-grid-placeholder">AMANCO</span></div>
-            <div class="brand-grid-item"><span class="brand-grid-placeholder">WAVIN</span></div>
-            <div class="brand-grid-item"><span class="brand-grid-placeholder">ARISTON</span></div>
-            <div class="brand-grid-item"><span class="brand-grid-placeholder">mexichem</span></div>
+            <!-- Antiguos logos -->
+            <div class="brand-grid-item"><img src="https://i.imgur.com/Kec0qh9.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/Bz3UQkr.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/LKyXWNB.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/xMWFahO.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/UMErnUl.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/vAR5osW.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/m6qG2XI.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/KeYywQj.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/r96iEkq.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/2MXAAOa.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/vsZCpvc.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/HWYmC1x.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/rEjyr4t.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/3aX9ZZo.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/9MH8Mt5.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/yd6amhl.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/XnK7vhK.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/RUxmwzc.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/ImS6vs1.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <!-- Nuevos logos -->
+            <div class="brand-grid-item"><img src="https://i.imgur.com/BhiD3Mj.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/uaUmWtL.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/pbWJ3ww.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/4yzoXTu.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/g7bhX6V.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/QSDHfNf.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/QFGe0k3.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/xKGVKFI.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/jfcqrLP.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/P6flm3l.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/eJ2Ou18.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/u1Qd8KC.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/FDR0ag8.png" alt="Logo" onerror="this.style.display='none'"></div>
         </div>
     </section>
 
@@ -938,22 +1018,25 @@
     </footer>
 
     <script>
-        // ---- TABS ----
-        const tabs = document.querySelectorAll('.tab-btn');
-        const contents = document.querySelectorAll('.tab-content');
+        // ---- ACORDEÓN ----
+        function toggleAccordion(header) {
+            const item = header.closest('.accordion-item');
+            const isActive = item.classList.contains('active');
 
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                // Quitar active de todos los tabs
-                tabs.forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                // Ocultar todos los contenidos
-                contents.forEach(c => c.classList.remove('active'));
-                // Mostrar el contenido correspondiente
-                const target = document.getElementById(tab.dataset.tab);
-                if (target) target.classList.add('active');
+            // Cerrar todos los demás (opcional, para que solo uno esté abierto)
+            document.querySelectorAll('.accordion-item').forEach(el => {
+                if (el !== item) {
+                    el.classList.remove('active');
+                }
             });
-        });
+
+            // Toggle el actual
+            if (isActive) {
+                item.classList.remove('active');
+            } else {
+                item.classList.add('active');
+            }
+        }
 
         // ---- WHATSAPP ----
         const whatsappNumber = "5623414465";
