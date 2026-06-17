@@ -20,6 +20,7 @@
             --primary-dark: #0A2540;
             --primary-blue: #1a4d8c;
             --accent-orange: #F5A623;
+            --accent-orange-dark: #e09515;
             --gray-light: #F8F9FA;
             --text-gray: #4a5568;
         }
@@ -288,7 +289,11 @@
         }
         .btn-distributors:hover { background: #128C7E; transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.2); }
 
-        .products-section { padding: 5rem 2rem; background: white; }
+        /* --- NUEVO DISEÑO DE SOLUCIONES CON TABS --- */
+        .products-section {
+            padding: 5rem 2rem;
+            background: white;
+        }
         .products-title { 
             font-size: 2.2rem; 
             font-weight: 700; 
@@ -299,36 +304,75 @@
             background-clip: text;
             color: transparent;
         }
-        .products-subtitle { text-align: center; color: var(--text-gray); max-width: 700px; margin: 0 auto 3rem auto; font-size: 1.1rem; }
-        .stage-cards {
-            display: flex;
-            flex-direction: column;
-            gap: 4rem;
+        .products-subtitle { 
+            text-align: center; 
+            color: var(--text-gray); 
+            max-width: 700px; 
+            margin: 0 auto 3rem auto; 
+            font-size: 1.1rem; 
+        }
+
+        /* Contenedor de pestañas */
+        .tabs-container {
             max-width: 75%;
             margin: 0 auto;
         }
-        .stage-card {
+        .tabs-nav {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            padding: 0.5rem;
             background: var(--gray-light);
-            border-radius: 24px;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-            transition: all 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            border-radius: 60px;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.04);
         }
-        .stage-card:hover {
-            transform: translateY(-8px) scale(1.01);
-            box-shadow: 0 25px 40px rgba(0,0,0,0.12);
+        .tab-btn {
+            padding: 0.8rem 1.8rem;
+            border: none;
+            background: transparent;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text-gray);
+            border-radius: 40px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
         }
-        .stage-header {
-            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-blue) 100%);
-            padding: 1.5rem 2rem;
+        .tab-btn i { font-size: 1.1rem; }
+        .tab-btn:hover { color: var(--primary-dark); background: rgba(255,255,255,0.6); }
+        .tab-btn.active {
+            background: var(--primary-dark);
             color: white;
-            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(10, 37, 64, 0.25);
         }
-        .stage-header h3 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
-        .stage-header p { font-size: 0.95rem; opacity: 0.85; }
+        .tab-btn.active:hover { background: var(--primary-dark); }
 
+        /* Contenido de las pestañas */
+        .tab-content {
+            display: none;
+            animation: fadeInUp 0.5s ease forwards;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .tab-description {
+            text-align: center;
+            font-size: 1rem;
+            color: var(--text-gray);
+            margin-bottom: 1.5rem;
+            padding: 0.5rem;
+            background: var(--gray-light);
+            border-radius: 12px;
+        }
+
+        /* Carrusel de imágenes (mismo estilo) */
         .image-marquee-container {
-            padding: 2rem;
+            padding: 1rem 0;
             overflow: hidden;
             white-space: nowrap;
         }
@@ -358,7 +402,7 @@
         /* Mensaje de miles de productos */
         .more-products {
             text-align: center;
-            padding: 1rem 2rem 3rem 2rem;
+            padding: 1rem 2rem 2rem 2rem;
             background: white;
         }
         .more-products p {
@@ -376,6 +420,71 @@
             text-decoration: underline;
             color: var(--accent-orange-dark);
         }
+
+        /* --- NUEVA SECCIÓN: MARCAS LÍDERES EN MOSAICO --- */
+        .brands-grid-section {
+            padding: 3rem 2rem 5rem 2rem;
+            background: var(--gray-light);
+        }
+        .brands-grid-title {
+            text-align: center;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary-dark);
+            margin-bottom: 0.5rem;
+        }
+        .brands-grid-subtitle {
+            text-align: center;
+            color: var(--text-gray);
+            max-width: 600px;
+            margin: 0 auto 2.5rem auto;
+            font-size: 1rem;
+        }
+        .brands-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 1.2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .brand-grid-item {
+            background: white;
+            border-radius: 16px;
+            padding: 1.2rem 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(0,0,0,0.04);
+            min-height: 80px;
+        }
+        .brand-grid-item img {
+            max-height: 50px;
+            max-width: 100%;
+            object-fit: contain;
+            filter: grayscale(20%);
+            opacity: 0.8;
+            transition: all 0.3s ease;
+        }
+        .brand-grid-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+            border-color: var(--accent-orange);
+        }
+        .brand-grid-item:hover img {
+            filter: grayscale(0%);
+            opacity: 1;
+        }
+        .brand-grid-placeholder {
+            font-weight: 600;
+            color: var(--primary-dark);
+            font-size: 0.9rem;
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        /* --- FIN NUEVAS SECCIONES --- */
 
         .contact-section {
             padding: 5rem 2rem;
@@ -437,7 +546,13 @@
             .concept-item { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.2); }
             .brand-logo { height: 40px; max-width: 90px; margin: 0 0.5rem; }
             .carousel-img { width: 140px; height: 100px; }
-            .stage-cards { max-width: 100%; }
+            .tabs-container { max-width: 100%; }
+            .tabs-nav { border-radius: 20px; gap: 0.3rem; }
+            .tab-btn { padding: 0.5rem 1rem; font-size: 0.8rem; }
+            .tab-btn i { font-size: 0.9rem; }
+            .brands-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.8rem; }
+            .brand-grid-item { min-height: 60px; padding: 0.8rem; }
+            .brand-grid-item img { max-height: 35px; }
             .distributors-section .svg-montacargas { width: 150px; left: -20px; bottom: 0; opacity: 0.1; }
             .distributors-section .svg-tarima { width: 140px; right: -20px; top: auto; bottom: 0; opacity: 0.1; }
             .distributors-title { font-size: 1.5rem; }
@@ -597,19 +712,25 @@
         </div>
     </section>
 
-    <!-- SECCIÓN DE SOLUCIONES CON TODOS LOS CARRUSELES -->
+    <!-- SECCIÓN DE SOLUCIONES CON TABS -->
     <section id="soluciones" class="products-section">
         <div class="container">
             <h2 class="products-title reveal">Soluciones para cada etapa de la construcción</h2>
-            <p class="products-subtitle reveal">Productos de alta calidad para cada fase de tu proyecto</p>
-            
-            <div class="stage-cards">
-                <!-- Etapa 1: Cimentación y Obra Negra -->
-                <div class="stage-card reveal">
-                    <div class="stage-header">
-                        <h3><i class="fas fa-dungeon"></i> Cimentación y Obra Negra</h3>
-                        <p>Cemento, block, arena, grava, acero, morteros, aditivos para concreto.</p>
-                    </div>
+            <p class="products-subtitle reveal">Explora nuestras categorías y descubre los productos que necesitas para tu proyecto.</p>
+
+            <div class="tabs-container">
+                <!-- Navegación de pestañas -->
+                <div class="tabs-nav">
+                    <button class="tab-btn active" data-tab="tab1"><i class="fas fa-dungeon"></i> Cimentación</button>
+                    <button class="tab-btn" data-tab="tab2"><i class="fas fa-anchor"></i> Anclajes</button>
+                    <button class="tab-btn" data-tab="tab3"><i class="fas fa-border-all"></i> Obra Gris</button>
+                    <button class="tab-btn" data-tab="tab4"><i class="fas fa-tree"></i> Madera</button>
+                    <button class="tab-btn" data-tab="tab5"><i class="fas fa-palette"></i> Acabados</button>
+                </div>
+
+                <!-- Contenido: Cimentación -->
+                <div id="tab1" class="tab-content active">
+                    <div class="tab-description">Cemento, block, arena, grava, acero, morteros, aditivos para concreto.</div>
                     <div class="image-marquee-container">
                         <div class="image-marquee">
                             <img class="carousel-img" src="https://i.imgur.com/5TQipNG.png" alt="Producto" onerror="this.style.display='none'">
@@ -632,12 +753,9 @@
                     </div>
                 </div>
 
-                <!-- Etapa 2: Anclajes y Especialidades -->
-                <div class="stage-card reveal">
-                    <div class="stage-header">
-                        <h3><i class="fas fa-anchor"></i> Anclajes y Especialidades</h3>
-                        <p>Anclajes químicos, grouts, adhesivos estructurales, morteros de reparación, epóxicos, impermeabilizantes.</p>
-                    </div>
+                <!-- Contenido: Anclajes -->
+                <div id="tab2" class="tab-content">
+                    <div class="tab-description">Anclajes químicos, grouts, adhesivos estructurales, morteros de reparación, epóxicos, impermeabilizantes.</div>
                     <div class="image-marquee-container">
                         <div class="image-marquee">
                             <img class="carousel-img" src="https://i.imgur.com/1qVuW3B.png" alt="Producto" onerror="this.style.display='none'">
@@ -664,12 +782,9 @@
                     </div>
                 </div>
 
-                <!-- Etapa 3: Obra Gris y Sistemas -->
-                <div class="stage-card reveal">
-                    <div class="stage-header">
-                        <h3><i class="fas fa-border-all"></i> Obra Gris y Sistemas</h3>
-                        <p>Panel yeso, Durock, estructuras metálicas, aislantes, pastas y recubrimientos.</p>
-                    </div>
+                <!-- Contenido: Obra Gris -->
+                <div id="tab3" class="tab-content">
+                    <div class="tab-description">Panel yeso, Durock, estructuras metálicas, aislantes, pastas y recubrimientos.</div>
                     <div class="image-marquee-container">
                         <div class="image-marquee">
                             <img class="carousel-img" src="https://i.imgur.com/PJv4ex9.png" alt="Producto" onerror="this.style.display='none'">
@@ -692,12 +807,9 @@
                     </div>
                 </div>
 
-                <!-- Etapa 4: Madera -->
-                <div class="stage-card reveal">
-                    <div class="stage-header">
-                        <h3><i class="fas fa-tree"></i> Madera</h3>
-                        <p>Polines, barrotes, tablones, tarima, triplay, chaflán.</p>
-                    </div>
+                <!-- Contenido: Madera -->
+                <div id="tab4" class="tab-content">
+                    <div class="tab-description">Polines, barrotes, tablones, tarima, triplay, chaflán.</div>
                     <div class="image-marquee-container">
                         <div class="image-marquee">
                             <img class="carousel-img" src="https://i.imgur.com/kU9FeHE.png" alt="Producto" onerror="this.style.display='none'">
@@ -720,12 +832,9 @@
                     </div>
                 </div>
 
-                <!-- Etapa 5: Acabados y Decoración -->
-                <div class="stage-card reveal">
-                    <div class="stage-header">
-                        <h3><i class="fas fa-palette"></i> Acabados y Decoración</h3>
-                        <p>Porcelanatos, pisos, azulejos, pinturas, sanitarios, grifería, calentadores, equipamiento para baño y cocina.</p>
-                    </div>
+                <!-- Contenido: Acabados -->
+                <div id="tab5" class="tab-content">
+                    <div class="tab-description">Porcelanatos, pisos, azulejos, pinturas, sanitarios, grifería, calentadores, equipamiento para baño y cocina.</div>
                     <div class="image-marquee-container">
                         <div class="image-marquee">
                             <img class="carousel-img" src="https://i.imgur.com/14aDxli.png" alt="Producto" onerror="this.style.display='none'">
@@ -760,6 +869,47 @@
         <p>✨ ... y miles de productos más - <a href="#contacto">¡Contáctanos!</a> ✨</p>
     </div>
 
+    <!-- NUEVA SECCIÓN: MARCAS LÍDERES EN MOSAICO -->
+    <section class="brands-grid-section reveal">
+        <h2 class="brands-grid-title">Distribuimos las marcas líderes del mercado</h2>
+        <p class="brands-grid-subtitle">Contamos con un amplio catálogo de productos de las mejores marcas para tu proyecto.</p>
+        <div class="brands-grid">
+            <!-- Imágenes de marcas (usa las mismas URLs del carrusel, pero en grid) -->
+            <div class="brand-grid-item"><img src="https://i.imgur.com/Kec0qh9.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>VITROMEX</span></div>'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/Bz3UQkr.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>American Standard</span></div>'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/LKyXWNB.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>Rotoplas</span></div>'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/xMWFahO.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>Corona</span></div>'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/UMErnUl.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>Mabe</span></div>'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/vAR5osW.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>TOTO</span></div>'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/m6qG2XI.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>MAPEI</span></div>'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/KeYywQj.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>MOEN</span></div>'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/r96iEkq.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>Rheem</span></div>'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/2MXAAOa.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>Rinnai</span></div>'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/vsZCpvc.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>Hansgrohe</span></div>'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/HWYmC1x.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>SLOAN</span></div>'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/rEjyr4t.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>HELVEX</span></div>'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/3aX9ZZo.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>URRERA</span></div>'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/9MH8Mt5.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>CALOREX</span></div>'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/yd6amhl.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>RuGo</span></div>'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/XnK7vhK.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>nIasa</span></div>'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/RUxmwzc.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>UNIBLOCK</span></div>'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/ImS6vs1.png" alt="Marca" onerror="this.outerHTML='<div class=\'brand-grid-item\'><span class=\'brand-grid-placeholder\'>Dica</span></div>'"></div>
+            <!-- Agrega más marcas si tienes imágenes extras, o usa placeholders -->
+            <div class="brand-grid-item"><span class="brand-grid-placeholder">TEKA</span></div>
+            <div class="brand-grid-item"><span class="brand-grid-placeholder">CREST</span></div>
+            <div class="brand-grid-item"><span class="brand-grid-placeholder">Bexel</span></div>
+            <div class="brand-grid-item"><span class="brand-grid-placeholder">Proyecta</span></div>
+            <div class="brand-grid-item"><span class="brand-grid-placeholder">Jika</span></div>
+            <div class="brand-grid-item"><span class="brand-grid-placeholder">Kolorines</span></div>
+            <div class="brand-grid-item"><span class="brand-grid-placeholder">CINSA</span></div>
+            <div class="brand-grid-item"><span class="brand-grid-placeholder">coflex</span></div>
+            <div class="brand-grid-item"><span class="brand-grid-placeholder">AMANCO</span></div>
+            <div class="brand-grid-item"><span class="brand-grid-placeholder">WAVIN</span></div>
+            <div class="brand-grid-item"><span class="brand-grid-placeholder">ARISTON</span></div>
+            <div class="brand-grid-item"><span class="brand-grid-placeholder">mexichem</span></div>
+        </div>
+    </section>
+
     <!-- SECCIÓN DE CONTACTO -->
     <section id="contacto" class="contact-section reveal">
         <div class="contact-container">
@@ -788,6 +938,24 @@
     </footer>
 
     <script>
+        // ---- TABS ----
+        const tabs = document.querySelectorAll('.tab-btn');
+        const contents = document.querySelectorAll('.tab-content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Quitar active de todos los tabs
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                // Ocultar todos los contenidos
+                contents.forEach(c => c.classList.remove('active'));
+                // Mostrar el contenido correspondiente
+                const target = document.getElementById(tab.dataset.tab);
+                if (target) target.classList.add('active');
+            });
+        });
+
+        // ---- WHATSAPP ----
         const whatsappNumber = "5623414465";
         const msgCliente = "Hola, me interesa cotizar materiales para mi proyecto o negocio.";
         const msgDistribuidor = "Hola, quiero información para suministro de material en mi negocio";
