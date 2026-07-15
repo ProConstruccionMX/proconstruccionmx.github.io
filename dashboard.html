@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Cliente - ProConstrucción MX</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="css/estilos.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8f9fa;
+            color: #1a1a2e;
+        }
+        .dashboard-header {
+            background: white;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .dashboard-header .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary-dark);
+            text-decoration: none;
+        }
+        .dashboard-header .logo span { color: var(--accent-orange); }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .user-info .user-email {
+            font-weight: 500;
+            color: var(--text-gray);
+        }
+        .btn-cerrar {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 0.5rem 1.5rem;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn-cerrar:hover {
+            background: #b91c1c;
+            transform: translateY(-2px);
+        }
+        .dashboard-content {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+        .welcome-section {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+        }
+        .welcome-section h1 {
+            font-size: 1.8rem;
+            color: var(--primary-dark);
+            margin-bottom: 0.5rem;
+        }
+        .welcome-section p {
+            color: var(--text-gray);
+        }
+        .search-section {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+        }
+        .search-section h2 {
+            font-size: 1.4rem;
+            color: var(--primary-dark);
+            margin-bottom: 1rem;
+        }
+        .search-box {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .search-box input {
+            flex: 1;
+            min-width: 200px;
+            padding: 0.8rem 1.2rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s;
+        }
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-orange);
+            box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.1);
+        }
+        .search-box button {
+            padding: 0.8rem 2rem;
+            background: var(--accent-orange);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+        }
+        .search-box button:hover {
+            background: var(--accent-orange-dark);
+            transform: translateY(-2px);
+        }
+        .results-section {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+            min-height: 200px;
+        }
+        .results-section h3 {
+            color: var(--primary-dark);
+            margin-bottom: 1rem;
+        }
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+        .product-card {
+            background: var(--gray-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s;
+            border: 1px solid #e2e8f0;
+        }
+        .product-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+            border-color: var(--accent-orange);
+        }
+        .product-card .icon {
+            font-size: 2.5rem;
+            color: var(--accent-orange);
+            margin-bottom: 0.5rem;
+        }
+        .product-card h4 {
+            color: var(--primary-dark);
+            margin-bottom: 0.3rem;
+        }
+        .product-card p {
+            color: var(--text-gray);
+            font-size: 0.9rem;
+        }
+        .product-card .tag {
+            display: inline-block;
+            background: var(--accent-orange);
+            color: white;
+            padding: 0.2rem 0.8rem;
+            border-radius: 50px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-gray);
+        }
+        .empty-state i {
+            font-size: 3rem;
+            color: #cbd5e1;
+            margin-bottom: 1rem;
+        }
+        .resultado-item {
+            padding: 0.8rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .resultado-item:last-child {
+            border-bottom: none;
+        }
+        @media (max-width: 768px) {
+            .dashboard-header { flex-direction: column; align-items: stretch; text-align: center; }
+            .user-info { justify-content: center; flex-wrap: wrap; }
+            .search-box { flex-direction: column; }
+            .search-box input { min-width: auto; }
+        }
+    </style>
+</head>
+<body>
+    <header class="dashboard-header">
+        <a href="index.html" class="logo">ProConstrucción <span>MX</span></a>
+        <div class="user-info">
+            <span class="user-email"><i class="fas fa-user"></i> <span id="userEmailDisplay">usuario@correo.com</span></span>
+            <button class="btn-cerrar" onclick="cerrarSesion()"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</button>
+        </div>
+    </header>
+
+    <div class="dashboard-content">
+        <div class="welcome-section">
+            <h1>👋 ¡Bienvenido, <span id="welcomeName">Cliente</span>!</h1>
+            <p>Aquí puedes buscar y explorar los productos disponibles para tu proyecto.</p>
+        </div>
+
+        <div class="search-section">
+            <h2><i class="fas fa-search"></i> Buscar Productos</h2>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Ej: cemento, acero, pintura, madera..." onkeyup="buscarProductos()">
+                <button onclick="buscarProductos()"><i class="fas fa-search"></i> Buscar</button>
+            </div>
+        </div>
+
+        <div class="results-section" id="resultsSection">
+            <h3><i class="fas fa-list"></i> Productos Destacados</h3>
+            <div id="resultsContent">
+                <div class="product-grid">
+                    <div class="product-card">
+                        <div class="icon"><i class="fas fa-cube"></i></div>
+                        <h4>Cemento</h4>
+                        <p>Disponible en varias presentaciones</p>
+                        <span class="tag">Popular</span>
+                    </div>
+                    <div class="product-card">
+                        <div class="icon"><i class="fas fa-grip-lines"></i></div>
+                        <h4>Acero de Refuerzo</h4>
+                        <p>Varillas corrugadas</p>
+                        <span class="tag">Estructural</span>
+                    </div>
+                    <div class="product-card">
+                        <div class="icon"><i class="fas fa-paint-roller"></i></div>
+                        <h4>Pintura</h4>
+                        <p>Interior y exterior</p>
+                        <span class="tag">Acabados</span>
+                    </div>
+                    <div class="product-card">
+                        <div class="icon"><i class="fas fa-tree"></i></div>
+                        <h4>Madera</h4>
+                        <p>Polines, tablones, triplay</p>
+                        <span class="tag">Estructural</span>
+                    </div>
+                    <div class="product-card">
+                        <div class="icon"><i class="fas fa-border-all"></i></div>
+                        <h4>Panel Yeso</h4>
+                        <p>Para muros y techos</p>
+                        <span class="tag">Obra Gris</span>
+                    </div>
+                    <div class="product-card">
+                        <div class="icon"><i class="fas fa-tint"></i></div>
+                        <h4>Impermeabilizante</h4>
+                        <p>Protección contra humedad</p>
+                        <span class="tag">Especial</span>
+                    </div>
+                </div>
+                <p style="text-align: center; margin-top: 1.5rem; color: var(--text-gray); font-size: 0.9rem;">
+                    <i class="fas fa-info-circle"></i> Este es un ejemplo. Próximamente más productos y categorías.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script>
+        // Verificar autenticación
+        if (sessionStorage.getItem('userLoggedIn') !== 'true') {
+            window.location.href = 'login.html';
+        }
+
+        // Mostrar el email del usuario
+        const userEmail = sessionStorage.getItem('userEmail') || 'Usuario';
+        document.getElementById('userEmailDisplay').textContent = userEmail;
+        document.getElementById('welcomeName').textContent = userEmail.split('@')[0];
+
+        // Función de búsqueda (ejemplo)
+        function buscarProductos() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            const resultsDiv = document.getElementById('resultsContent');
+            
+            if (!query) {
+                resultsDiv.innerHTML = `
+                    <div class="product-grid">
+                        <div class="product-card">
+                            <div class="icon"><i class="fas fa-cube"></i></div>
+                            <h4>Cemento</h4>
+                            <p>Disponible en varias presentaciones</p>
+                            <span class="tag">Popular</span>
+                        </div>
+                        <div class="product-card">
+                            <div class="icon"><i class="fas fa-grip-lines"></i></div>
+                            <h4>Acero de Refuerzo</h4>
+                            <p>Varillas corrugadas</p>
+                            <span class="tag">Estructural</span>
+                        </div>
+                        <div class="product-card">
+                            <div class="icon"><i class="fas fa-paint-roller"></i></div>
+                            <h4>Pintura</h4>
+                            <p>Interior y exterior</p>
+                            <span class="tag">Acabados</span>
+                        </div>
+                        <div class="product-card">
+                            <div class="icon"><i class="fas fa-tree"></i></div>
+                            <h4>Madera</h4>
+                            <p>Polines, tablones, triplay</p>
+                            <span class="tag">Estructural</span>
+                        </div>
+                        <div class="product-card">
+                            <div class="icon"><i class="fas fa-border-all"></i></div>
+                            <h4>Panel Yeso</h4>
+                            <p>Para muros y techos</p>
+                            <span class="tag">Obra Gris</span>
+                        </div>
+                        <div class="product-card">
+                            <div class="icon"><i class="fas fa-tint"></i></div>
+                            <h4>Impermeabilizante</h4>
+                            <p>Protección contra humedad</p>
+                            <span class="tag">Especial</span>
+                        </div>
+                    </div>
+                    <p style="text-align: center; margin-top: 1.5rem; color: var(--text-gray); font-size: 0.9rem;">
+                        <i class="fas fa-info-circle"></i> Este es un ejemplo. Próximamente más productos y categorías.
+                    </p>
+                `;
+                return;
+            }
+
+            const productos = [
+                'Cemento', 'Acero', 'Pintura', 'Madera', 'Yeso', 'Impermeabilizante',
+                'Block', 'Arena', 'Grava', 'Varilla', 'Mortero', 'Adhesivo',
+                'Porcelanato', 'Azulejo', 'Grifería', 'Sanitario', 'Calentador'
+            ];
+            
+            const resultados = productos.filter(p => p.toLowerCase().includes(query));
+            
+            if (resultados.length > 0) {
+                resultsDiv.innerHTML = `
+                    <h4 style="margin-bottom: 1rem; color: var(--primary-dark);">
+                        <i class="fas fa-check-circle" style="color: #16a34a;"></i> 
+                        ${resultados.length} resultado(s) para "${query}"
+                    </h4>
+                    ${resultados.map(p => `
+                        <div class="resultado-item">
+                            <span><i class="fas fa-box" style="color: var(--accent-orange);"></i> ${p}</span>
+                            <span style="color: var(--text-gray); font-size: 0.9rem;">Disponible</span>
+                        </div>
+                    `).join('')}
+                    <p style="text-align: center; margin-top: 1.5rem; color: var(--text-gray); font-size: 0.9rem;">
+                        <i class="fas fa-info-circle"></i> Para cotizar estos productos, contáctanos por WhatsApp.
+                    </p>
+                `;
+            } else {
+                resultsDiv.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-search"></i>
+                        <h4>No se encontraron resultados</h4>
+                        <p>Intenta con otra palabra o <a href="index.html#contacto" style="color: var(--accent-orange);">contáctanos</a> para más información.</p>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
