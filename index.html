@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>ProConstrucción MX - Tus aliados mayoristas en materiales para la construcción</title>
+    <meta name="description" content="ProConstrucción MX: suministro mayorista de materiales para construcción. Cemento, acero, acabados, madera y más. Cobertura nacional.">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="css/estilos.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
@@ -63,6 +65,7 @@
             background-clip: text;
             color: transparent;
             transition: all 0.3s;
+            text-decoration: none;
         }
         .logo-text span { color: var(--accent-orange); background: none; }
         .nav-links { display: flex; gap: 2rem; align-items: center; flex-wrap: wrap; }
@@ -85,6 +88,21 @@
         }
         .nav-links a:hover::after { width: 100%; }
         .nav-links a:hover { color: var(--accent-orange); }
+        
+        .btn-cliente {
+            background: var(--accent-orange);
+            color: white !important;
+            padding: 0.5rem 1.5rem;
+            border-radius: 50px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .btn-cliente::after { display: none !important; }
+        .btn-cliente:hover {
+            background: var(--accent-orange-dark) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(245, 166, 35, 0.3);
+        }
         
         .whatsapp-float {
             position: fixed;
@@ -232,7 +250,6 @@
         }
         .highlight-item:hover { background: var(--accent-orange); color: white; transform: translateY(-3px) scale(1.05); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
 
-        /* CARRUSEL DE MARCAS (32 logos: 19 antiguos + 13 nuevos) */
         .brands-section { padding: 2rem; background: white; overflow: hidden; }
         .marquee { width: 100%; overflow: hidden; white-space: nowrap; }
         .marquee-content { display: inline-block; animation: scrollMarquee 70s linear infinite; }
@@ -292,7 +309,6 @@
         }
         .btn-distributors:hover { background: #128C7E; transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.2); }
 
-        /* NUEVO DISEÑO DE SOLUCIONES CON ACORDEÓN (sin números de productos) */
         .products-section {
             padding: 5rem 2rem;
             background: white;
@@ -392,7 +408,6 @@
             border-bottom: 1px dashed rgba(0,0,0,0.06);
         }
 
-        /* Carrusel dentro del acordeón */
         .image-marquee-container {
             overflow: hidden;
             white-space: nowrap;
@@ -420,7 +435,6 @@
         }
         @keyframes scrollImages { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 
-        /* Mensaje de miles de productos */
         .more-products {
             text-align: center;
             padding: 1rem 2rem 2rem 2rem;
@@ -442,7 +456,6 @@
             color: var(--accent-orange-dark);
         }
 
-        /* MOSAICO DE MARCAS (32 logos: 19 antiguos + 13 nuevos) */
         .brands-grid-section {
             padding: 3rem 2rem 5rem 2rem;
             background: var(--gray-light);
@@ -572,6 +585,7 @@
             .contact-buttons { flex-direction: column; align-items: center; }
             .whatsapp-float { width: 50px; height: 50px; font-size: 1.5rem; }
             .more-products p { font-size: 1rem; }
+            .btn-cliente { padding: 0.3rem 1rem; font-size: 0.9rem; }
         }
     </style>
 </head>
@@ -579,22 +593,23 @@
 
     <nav class="navbar">
         <div class="nav-container">
-            <div class="logo-text">ProConstrucción <span>MX</span></div>
+            <a href="index.html" class="logo-text">ProConstrucción <span>MX</span></a>
             <div class="nav-links">
-                <a href="#inicio">Inicio</a>
-                <a href="#about">Nosotros</a>
-                <a href="#soluciones">Soluciones</a>
-                <a href="#contacto">Contacto</a>
+                <a href="index.html#inicio">Inicio</a>
+                <a href="index.html#about">Nosotros</a>
+                <a href="index.html#soluciones">Soluciones</a>
+                <a href="index.html#contacto">Contacto</a>
+                <a href="login.html" class="btn-cliente"><i class="fas fa-user"></i> Cliente</a>
             </div>
         </div>
     </nav>
-    <a href="#" id="whatsappFloatBtn" class="whatsapp-float"><i class="fab fa-whatsapp"></i></a>
+    <a href="https://wa.me/525540148827" id="whatsappFloatBtn" class="whatsapp-float" target="_blank"><i class="fab fa-whatsapp"></i></a>
 
     <section id="inicio" class="hero">
         <div class="hero-content">
             <h1>Tus aliados mayoristas en materiales para la construcción</h1>
             <p>Desde la cimentación hasta el último detalle</p>
-            <a href="#" class="btn-primary" id="heroBtn">Cotizar ahora <i class="fas fa-arrow-right"></i></a>
+            <a href="https://wa.me/525540148827" class="btn-primary" target="_blank">Cotizar ahora <i class="fas fa-arrow-right"></i></a>
         </div>
         <div class="scroll-indicator"><i class="fas fa-chevron-down"></i></div>
     </section>
@@ -619,80 +634,76 @@
         </div>
     </section>
 
-    <!-- CARRUSEL DE MARCAS (19 antiguos + 13 nuevos) -->
+    <!-- CARRUSEL DE MARCAS -->
     <div class="brands-section reveal">
         <div class="marquee">
             <div class="marquee-content">
-                <!-- Antiguos logos -->
-                <img class="brand-logo" src="https://i.imgur.com/Kec0qh9.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/Bz3UQkr.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/LKyXWNB.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/xMWFahO.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/UMErnUl.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/vAR5osW.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/m6qG2XI.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/KeYywQj.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/r96iEkq.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/2MXAAOa.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/vsZCpvc.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/HWYmC1x.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/rEjyr4t.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/3aX9ZZo.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/9MH8Mt5.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/yd6amhl.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/XnK7vhK.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/RUxmwzc.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/ImS6vs1.png" alt="Logo" onerror="this.style.display='none'">
-                <!-- Nuevos logos -->
-                <img class="brand-logo" src="https://i.imgur.com/BhiD3Mj.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/uaUmWtL.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/pbWJ3ww.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/4yzoXTu.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/g7bhX6V.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/QSDHfNf.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/QFGe0k3.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/xKGVKFI.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/jfcqrLP.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/P6flm3l.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/eJ2Ou18.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/u1Qd8KC.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/FDR0ag8.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/Kec0qh9.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/Bz3UQkr.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/LKyXWNB.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/xMWFahO.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/UMErnUl.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/vAR5osW.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/m6qG2XI.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/KeYywQj.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/r96iEkq.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/2MXAAOa.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/vsZCpvc.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/HWYmC1x.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/rEjyr4t.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/3aX9ZZo.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/9MH8Mt5.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/yd6amhl.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/XnK7vhK.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/RUxmwzc.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/ImS6vs1.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/BhiD3Mj.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/uaUmWtL.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/pbWJ3ww.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/4yzoXTu.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/g7bhX6V.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/QSDHfNf.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/QFGe0k3.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/xKGVKFI.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/jfcqrLP.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/P6flm3l.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/eJ2Ou18.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/u1Qd8KC.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/FDR0ag8.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
             </div>
             <div class="marquee-content">
-                <!-- Antiguos logos -->
-                <img class="brand-logo" src="https://i.imgur.com/Kec0qh9.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/Bz3UQkr.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/LKyXWNB.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/xMWFahO.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/UMErnUl.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/vAR5osW.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/m6qG2XI.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/KeYywQj.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/r96iEkq.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/2MXAAOa.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/vsZCpvc.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/HWYmC1x.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/rEjyr4t.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/3aX9ZZo.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/9MH8Mt5.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/yd6amhl.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/XnK7vhK.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/RUxmwzc.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/ImS6vs1.png" alt="Logo" onerror="this.style.display='none'">
-                <!-- Nuevos logos -->
-                <img class="brand-logo" src="https://i.imgur.com/BhiD3Mj.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/uaUmWtL.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/pbWJ3ww.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/4yzoXTu.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/g7bhX6V.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/QSDHfNf.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/QFGe0k3.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/xKGVKFI.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/jfcqrLP.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/P6flm3l.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/eJ2Ou18.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/u1Qd8KC.png" alt="Logo" onerror="this.style.display='none'">
-                <img class="brand-logo" src="https://i.imgur.com/FDR0ag8.png" alt="Logo" onerror="this.style.display='none'">
+                <img class="brand-logo" src="https://i.imgur.com/Kec0qh9.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/Bz3UQkr.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/LKyXWNB.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/xMWFahO.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/UMErnUl.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/vAR5osW.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/m6qG2XI.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/KeYywQj.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/r96iEkq.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/2MXAAOa.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/vsZCpvc.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/HWYmC1x.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/rEjyr4t.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/3aX9ZZo.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/9MH8Mt5.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/yd6amhl.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/XnK7vhK.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/RUxmwzc.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/ImS6vs1.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/BhiD3Mj.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/uaUmWtL.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/pbWJ3ww.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/4yzoXTu.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/g7bhX6V.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/QSDHfNf.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/QFGe0k3.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/xKGVKFI.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/jfcqrLP.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/P6flm3l.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/eJ2Ou18.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/u1Qd8KC.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
+                <img class="brand-logo" src="https://i.imgur.com/FDR0ag8.png" alt="Logo" onerror="this.style.display='none'" loading="lazy">
             </div>
         </div>
     </div>
@@ -751,11 +762,11 @@
         <div class="distributors-container">
             <h2 class="distributors-title">¿Tienes una casa de materiales o tlapalería?</h2>
             <p class="distributors-text">También distribuimos a casas de materiales y tlapalerías con los productos de las mejores marcas del país.<br><br><strong>✅ Suministro garantizado</strong><br><strong>✅ Precios competitivos</strong><br><strong>✅ Entrega oportuna</strong></p>
-            <a href="#" class="btn-distributors" id="distributorsBtn"><i class="fab fa-whatsapp"></i> Contáctanos para más información</a>
+            <a href="https://wa.me/525540148827" class="btn-distributors" target="_blank"><i class="fab fa-whatsapp"></i> Contáctanos para más información</a>
         </div>
     </section>
 
-    <!-- SECCIÓN DE SOLUCIONES CON ACORDEÓN (sin números) -->
+    <!-- SECCIÓN DE SOLUCIONES CON ACORDEÓN -->
     <section id="soluciones" class="products-section">
         <div class="container">
             <h2 class="products-title reveal">Soluciones para cada etapa de la construcción</h2>
@@ -775,22 +786,22 @@
                         <div class="tab-description">Cemento, block, arena, grava, acero, morteros, aditivos para concreto.</div>
                         <div class="image-marquee-container">
                             <div class="image-marquee">
-                                <img class="carousel-img" src="https://i.imgur.com/5TQipNG.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/oONnCFq.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/3EUm2vb.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/f6Gm8Qk.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/RPImb1A.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/Du6KW1h.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/Lnk3afT.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/5TQipNG.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/oONnCFq.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/3EUm2vb.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/f6Gm8Qk.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/RPImb1A.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/Du6KW1h.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/Lnk3afT.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
                             </div>
                             <div class="image-marquee">
-                                <img class="carousel-img" src="https://i.imgur.com/5TQipNG.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/oONnCFq.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/3EUm2vb.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/f6Gm8Qk.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/RPImb1A.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/Du6KW1h.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/Lnk3afT.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/5TQipNG.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/oONnCFq.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/3EUm2vb.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/f6Gm8Qk.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/RPImb1A.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/Du6KW1h.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/Lnk3afT.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
                             </div>
                         </div>
                     </div>
@@ -809,26 +820,26 @@
                         <div class="tab-description">Anclajes químicos, grouts, adhesivos estructurales, morteros de reparación, epóxicos, impermeabilizantes.</div>
                         <div class="image-marquee-container">
                             <div class="image-marquee">
-                                <img class="carousel-img" src="https://i.imgur.com/1qVuW3B.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/8kAip4O.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/xWBEUAs.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/D6C0RSn.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/04UisWg.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/R9ITrFE.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/9V7Nilj.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/fwlMoKN.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/zeu4bjj.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/1qVuW3B.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/8kAip4O.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/xWBEUAs.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/D6C0RSn.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/04UisWg.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/R9ITrFE.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/9V7Nilj.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/fwlMoKN.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/zeu4bjj.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
                             </div>
                             <div class="image-marquee">
-                                <img class="carousel-img" src="https://i.imgur.com/1qVuW3B.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/8kAip4O.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/xWBEUAs.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/D6C0RSn.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/04UisWg.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/R9ITrFE.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/9V7Nilj.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/fwlMoKN.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/zeu4bjj.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/1qVuW3B.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/8kAip4O.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/xWBEUAs.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/D6C0RSn.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/04UisWg.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/R9ITrFE.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/9V7Nilj.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/fwlMoKN.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/zeu4bjj.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
                             </div>
                         </div>
                     </div>
@@ -847,22 +858,22 @@
                         <div class="tab-description">Panel yeso, Durock, estructuras metálicas, aislantes, pastas y recubrimientos.</div>
                         <div class="image-marquee-container">
                             <div class="image-marquee">
-                                <img class="carousel-img" src="https://i.imgur.com/PJv4ex9.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/fLG0PlP.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/jHhwYaS.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/JiLi8Uy.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/kWsuwmZ.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/VmKyN6D.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/Q69bwb4.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/PJv4ex9.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/fLG0PlP.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/jHhwYaS.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/JiLi8Uy.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/kWsuwmZ.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/VmKyN6D.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/Q69bwb4.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
                             </div>
                             <div class="image-marquee">
-                                <img class="carousel-img" src="https://i.imgur.com/PJv4ex9.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/fLG0PlP.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/jHhwYaS.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/JiLi8Uy.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/kWsuwmZ.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/VmKyN6D.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/Q69bwb4.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/PJv4ex9.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/fLG0PlP.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/jHhwYaS.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/JiLi8Uy.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/kWsuwmZ.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/VmKyN6D.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/Q69bwb4.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
                             </div>
                         </div>
                     </div>
@@ -881,22 +892,22 @@
                         <div class="tab-description">Polines, barrotes, tablones, tarima, triplay, chaflán.</div>
                         <div class="image-marquee-container">
                             <div class="image-marquee">
-                                <img class="carousel-img" src="https://i.imgur.com/kU9FeHE.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/5z7e4Tk.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/dxnVQbA.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/0EESgdl.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/128OWnW.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/OTa1Ow2.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/NHo18G4.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/kU9FeHE.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/5z7e4Tk.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/dxnVQbA.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/0EESgdl.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/128OWnW.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/OTa1Ow2.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/NHo18G4.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
                             </div>
                             <div class="image-marquee">
-                                <img class="carousel-img" src="https://i.imgur.com/kU9FeHE.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/5z7e4Tk.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/dxnVQbA.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/0EESgdl.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/128OWnW.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/OTa1Ow2.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/NHo18G4.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/kU9FeHE.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/5z7e4Tk.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/dxnVQbA.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/0EESgdl.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/128OWnW.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/OTa1Ow2.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/NHo18G4.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
                             </div>
                         </div>
                     </div>
@@ -915,26 +926,26 @@
                         <div class="tab-description">Porcelanatos, pisos, azulejos, pinturas, sanitarios, grifería, calentadores, equipamiento para baño y cocina.</div>
                         <div class="image-marquee-container">
                             <div class="image-marquee">
-                                <img class="carousel-img" src="https://i.imgur.com/14aDxli.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/NSm3nj3.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/7vWr2hZ.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/cK7l1Nv.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/OxnRSNI.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/dBTzKbU.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/0wH5Slu.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/eIAvvBG.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/GKg6HsB.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/14aDxli.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/NSm3nj3.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/7vWr2hZ.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/cK7l1Nv.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/OxnRSNI.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/dBTzKbU.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/0wH5Slu.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/eIAvvBG.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/GKg6HsB.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
                             </div>
                             <div class="image-marquee">
-                                <img class="carousel-img" src="https://i.imgur.com/14aDxli.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/NSm3nj3.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/7vWr2hZ.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/cK7l1Nv.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/OxnRSNI.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/dBTzKbU.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/0wH5Slu.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/eIAvvBG.png" alt="Producto" onerror="this.style.display='none'">
-                                <img class="carousel-img" src="https://i.imgur.com/GKg6HsB.png" alt="Producto" onerror="this.style.display='none'">
+                                <img class="carousel-img" src="https://i.imgur.com/14aDxli.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/NSm3nj3.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/7vWr2hZ.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/cK7l1Nv.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/OxnRSNI.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/dBTzKbU.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/0wH5Slu.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/eIAvvBG.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
+                                <img class="carousel-img" src="https://i.imgur.com/GKg6HsB.png" alt="Producto" onerror="this.style.display='none'" loading="lazy">
                             </div>
                         </div>
                     </div>
@@ -945,48 +956,46 @@
 
     <!-- Mensaje de miles de productos más -->
     <div class="more-products reveal">
-        <p>✨ ... y miles de productos más - <a href="#contacto">¡Contáctanos!</a> ✨</p>
+        <p>✨ ... y miles de productos más - <a href="index.html#contacto">¡Contáctanos!</a> ✨</p>
     </div>
 
-    <!-- MOSAICO DE MARCAS (19 antiguos + 13 nuevos) -->
+    <!-- MOSAICO DE MARCAS -->
     <section class="brands-grid-section reveal">
         <h2 class="brands-grid-title">Distribuimos las marcas líderes del mercado</h2>
         <p class="brands-grid-subtitle">Contamos con un amplio catálogo de productos de las mejores marcas para tu proyecto.</p>
         <div class="brands-grid">
-            <!-- Antiguos logos -->
-            <div class="brand-grid-item"><img src="https://i.imgur.com/Kec0qh9.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/Bz3UQkr.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/LKyXWNB.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/xMWFahO.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/UMErnUl.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/vAR5osW.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/m6qG2XI.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/KeYywQj.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/r96iEkq.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/2MXAAOa.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/vsZCpvc.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/HWYmC1x.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/rEjyr4t.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/3aX9ZZo.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/9MH8Mt5.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/yd6amhl.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/XnK7vhK.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/RUxmwzc.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/ImS6vs1.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <!-- Nuevos logos -->
-            <div class="brand-grid-item"><img src="https://i.imgur.com/BhiD3Mj.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/uaUmWtL.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/pbWJ3ww.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/4yzoXTu.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/g7bhX6V.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/QSDHfNf.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/QFGe0k3.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/xKGVKFI.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/jfcqrLP.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/P6flm3l.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/eJ2Ou18.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/u1Qd8KC.png" alt="Logo" onerror="this.style.display='none'"></div>
-            <div class="brand-grid-item"><img src="https://i.imgur.com/FDR0ag8.png" alt="Logo" onerror="this.style.display='none'"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/Kec0qh9.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/Bz3UQkr.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/LKyXWNB.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/xMWFahO.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/UMErnUl.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/vAR5osW.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/m6qG2XI.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/KeYywQj.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/r96iEkq.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/2MXAAOa.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/vsZCpvc.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/HWYmC1x.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/rEjyr4t.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/3aX9ZZo.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/9MH8Mt5.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/yd6amhl.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/XnK7vhK.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/RUxmwzc.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/ImS6vs1.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/BhiD3Mj.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/uaUmWtL.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/pbWJ3ww.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/4yzoXTu.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/g7bhX6V.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/QSDHfNf.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/QFGe0k3.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/xKGVKFI.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/jfcqrLP.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/P6flm3l.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/eJ2Ou18.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/u1Qd8KC.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
+            <div class="brand-grid-item"><img src="https://i.imgur.com/FDR0ag8.png" alt="Logo" onerror="this.style.display='none'" loading="lazy"></div>
         </div>
     </section>
 
@@ -996,7 +1005,7 @@
             <h2 class="contact-title">¿Necesitas cotizar o tienes dudas?</h2>
             <p class="contact-subtitle">Estamos para ayudarte. Contáctanos por WhatsApp o correo electrónico</p>
             <div class="contact-buttons">
-                <a href="#" class="contact-btn contact-btn-whatsapp" id="contactWhatsappBtn">
+                <a href="https://wa.me/525540148827" class="contact-btn contact-btn-whatsapp" target="_blank">
                     <i class="fab fa-whatsapp"></i> WhatsApp
                 </a>
                 <a href="mailto:ventas@proconstruccionmx.com" class="contact-btn contact-btn-email">
@@ -1023,14 +1032,12 @@
             const item = header.closest('.accordion-item');
             const isActive = item.classList.contains('active');
 
-            // Cerrar todos los demás (opcional, para que solo uno esté abierto)
             document.querySelectorAll('.accordion-item').forEach(el => {
                 if (el !== item) {
                     el.classList.remove('active');
                 }
             });
 
-            // Toggle el actual
             if (isActive) {
                 item.classList.remove('active');
             } else {
@@ -1038,18 +1045,23 @@
             }
         }
 
-        // ---- WHATSAPP ----
-        const whatsappNumber = "5623414465";
-        const msgCliente = "Hola, me interesa cotizar materiales para mi proyecto o negocio.";
-        const msgDistribuidor = "Hola, quiero información para suministro de material en mi negocio";
-        const openWhatsapp = (msg) => window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(msg)}`, '_blank');
-        
-        document.querySelectorAll('#whatsappFloatBtn, #heroBtn, #contactWhatsappBtn').forEach(btn => btn.addEventListener('click', (e) => { e.preventDefault(); openWhatsapp(msgCliente); }));
-        document.getElementById('distributorsBtn').addEventListener('click', (e) => { e.preventDefault(); openWhatsapp(msgDistribuidor); });
-        
-        document.querySelectorAll('.nav-links a[href^="#"]').forEach(anchor => anchor.addEventListener('click', function(e) { e.preventDefault(); document.querySelector(this.getAttribute('href')).scrollIntoView({ behavior: 'smooth' }); }));
-        window.addEventListener('scroll', () => document.querySelector('.navbar').style.background = window.scrollY > 50 ? 'rgba(255,255,255,0.98)' : 'rgba(255,255,255,0.95)');
-        
+        // ---- NAVEGACIÓN SUAVE ----
+        document.querySelectorAll('.nav-links a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const href = this.getAttribute('href');
+                if (href !== 'login.html' && href !== '#') {
+                    document.querySelector(href).scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+
+        // ---- CAMBIO DE FONDO NAVBAR ----
+        window.addEventListener('scroll', () => {
+            document.querySelector('.navbar').style.background = window.scrollY > 50 ? 'rgba(255,255,255,0.98)' : 'rgba(255,255,255,0.95)';
+        });
+
+        // ---- REVEAL ON SCROLL ----
         const revealElements = document.querySelectorAll('.reveal');
         const revealOnScroll = () => {
             revealElements.forEach(el => {
