@@ -1,0 +1,32 @@
+:root {
+    --primary-dark: #0A2540;
+    --primary-blue: #1a4d8c;
+    --accent-orange: #F5A623;
+    --accent-orange-dark: #e09515;
+    --gray-light: #F8F9FA;
+    --text-gray: #4a5568;
+}
+
+/* Estilos generales compartidos */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    color: #1a1a2e;
+    line-height: 1.5;
+}
+
+a {
+    text-decoration: none;
+}
+
+/* Utilidades */
+.text-center { text-align: center; }
+.mt-1 { margin-top: 1rem; }
+.mt-2 { margin-top: 2rem; }
+.mb-1 { margin-bottom: 1rem; }
+.mb-2 { margin-bottom: 2rem; }
