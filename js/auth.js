@@ -25,11 +25,9 @@ async function obtenerClientes() {
             const row = rows[i];
             const values = row.c.map(cell => cell ? cell.v : '');
             
-            // ⭐ CORREGIDO: Convertir todo a string para evitar errores de trim() ⭐
             const contrasena = String(values[0] || '').trim();
             const correo = String(values[3] || '').trim();
             
-            // Solo agregar si el correo no está vacío
             if (correo) {
                 clientes.push({
                     contrasena: contrasena,
@@ -50,7 +48,6 @@ async function obtenerClientes() {
 async function autenticarUsuario(email, password) {
     const clientes = await obtenerClientes();
     
-    // ⭐ CORREGIDO: Limpiar el email y password antes de comparar ⭐
     const emailLimpio = String(email).trim().toLowerCase();
     const passwordLimpio = String(password).trim();
     
@@ -82,7 +79,7 @@ async function autenticarUsuario(email, password) {
     };
 }
 
-// Función para recuperar contraseña (solo envía por correo, NO muestra en pantalla)
+// Función para recuperar contraseña
 async function recuperarContrasena(email) {
     const clientes = await obtenerClientes();
     const emailLimpio = String(email).trim().toLowerCase();
@@ -100,7 +97,6 @@ async function recuperarContrasena(email) {
     }
     
     try {
-        // ⭐ CORREGIDO: Asegurar que el email no esté vacío ⭐
         const emailDestino = String(cliente.correo).trim();
         const nombreDestino = emailDestino.split('@')[0] || 'Cliente';
         const contrasenaCliente = String(cliente.contrasena).trim();
@@ -110,11 +106,6 @@ async function recuperarContrasena(email) {
         }
         
         console.log('📧 Enviando correo a:', emailDestino);
-        console.log('📝 Datos:', {
-            to_email: emailDestino,
-            to_name: nombreDestino,
-            password: contrasenaCliente
-        });
         
         const templateParams = {
             to_email: emailDestino,
@@ -141,7 +132,6 @@ async function recuperarContrasena(email) {
         }
     } catch (error) {
         console.error('❌ Error al enviar email:', error);
-        console.error('❌ Detalle:', error.text || error.message);
         
         return {
             success: false,
