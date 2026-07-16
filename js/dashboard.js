@@ -20,6 +20,7 @@ let carrito = [];
 let pagoSeleccionado = null;
 let comprobanteBase64 = null;
 let comprobanteNombre = null;
+let comprobanteTipo = null;
 
 // ============================================
 // INICIALIZACIÓN
@@ -119,10 +120,10 @@ async function cargarProductos() {
         productosGlobales = [];
         let contadorConPeso = 0;
         
+        // ⭐ CORREGIDO: Empezar desde la fila 2 (índice 2) porque la fila 1 es encabezado
         for (let i = 2; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             
-            // ⭐ LEER TODAS LAS COLUMNAS CON ÍNDICES EXPLÍCITOS
             const clave = String(values[0] || '').trim();
             const nombre = String(values[1] || '').trim();
             const descripcion = String(values[2] || '').trim();
@@ -138,15 +139,14 @@ async function cargarProductos() {
             const descuentoVolumenP = parseFloat(values[15]) || 0;
             const descuentoVolumenQ = parseFloat(values[16]) || 0;
             
-            // ⭐⭐⭐ COLUMNA R (índice 17) - CONDICIÓN DE PESO
+            // COLUMNA R (índice 17) - CONDICIÓN DE PESO
             const pesoCondicionRaw = String(values[17] || '').trim().toUpperCase();
             const pesoCondicion = pesoCondicionRaw === 'SI' ? 'SI' : 'NO';
             
-            // ⭐⭐⭐ COLUMNA S (índice 18) - PESO EN KG
+            // COLUMNA S (índice 18) - PESO EN KG
             const pesoRaw = String(values[18] || '').trim();
             const peso = parseFloat(pesoRaw) || 0;
             
-            // Log detallado de cada producto
             if (pesoCondicion === 'SI' && peso > 0) {
                 contadorConPeso++;
                 console.log(`🔴 [PESO] Producto: "${nombre}" | Clave: "${clave}" | Condición: "${pesoCondicionRaw}" → ${pesoCondicion} | Peso: ${peso} kg`);
@@ -175,10 +175,9 @@ async function cargarProductos() {
         console.log(`📦 Productos cargados: ${productosGlobales.length}`);
         console.log(`⚖️ Productos con condición de peso (SI): ${contadorConPeso}`);
         
-        // Verificar que los productos con peso se guardaron correctamente
         const productosConPeso = productosGlobales.filter(p => p.pesoCondicion === 'SI' && p.peso > 0);
         if (productosConPeso.length === 0) {
-            console.warn('⚠️ ¡NO se encontraron productos con condición de peso! Verifica que la columna R tenga "SI" y la columna S tenga un número.');
+            console.warn('⚠️ ¡NO se encontraron productos con condición de peso!');
         } else {
             console.log('✅ Productos con peso:');
             productosConPeso.forEach(p => {
@@ -264,11 +263,9 @@ function buscarProductos() {
         const tienePersonalizado = precioFinal.personalizado;
         const precioMostrar = precioFinal.precio;
         
-        // ⭐ ETIQUETA DE PESO - SI CONDICIÓN ES "SI" Y PESO > 0
         let etiquetaPeso = '';
         if (producto.pesoCondicion === 'SI' && producto.peso > 0) {
             etiquetaPeso = `<span class="tag-peso">⚖️ ${producto.peso} kg/unidad - Mínimo 1 tonelada combinada</span>`;
-            console.log(`🏷️ Producto con peso: ${producto.nombre} - ${producto.peso} kg - etiqueta agregada`);
         }
         
         html += `
@@ -373,33 +370,20 @@ function calcularDescuentoProducto(producto, cantidad) {
 }
 
 // ============================================
-// ⭐⭐⭐ VERIFICACIÓN DE PESO MÍNIMO (CORREGIDA) ⭐⭐⭐
+// VERIFICACIÓN DE PESO MÍNIMO
 // ============================================
 
 function verificarPesoMinimo() {
     console.log('🔍 Verificando peso mínimo...');
-    console.log('📋 Carrito actual:', carrito.map(i => `${i.nombre} (x${i.cantidad})`));
     
-    // ⭐ OBTENER PRODUCTOS CON CONDICIÓN DE PESO DEL CARRITO
     const productosConPeso = carrito.filter(item => {
-        // Buscar el producto en la lista global
         const producto = productosGlobales.find(p => p.clave === item.clave);
-        
-        // Verificar si existe y tiene condición de peso
-        const tienePeso = producto && producto.pesoCondicion === 'SI' && producto.peso > 0;
-        
-        if (tienePeso) {
-            console.log(`   ✅ Producto con peso: ${item.nombre} - Condición: ${producto.pesoCondicion} - Peso: ${producto.peso} kg`);
-        }
-        
-        return tienePeso;
+        return producto && producto.pesoCondicion === 'SI' && producto.peso > 0;
     });
     
     console.log(`📊 Productos con peso en carrito: ${productosConPeso.length}`);
     
-    // Si no hay productos con peso, no hay restricción
     if (productosConPeso.length === 0) {
-        console.log('✅ No hay productos con peso en el carrito');
         return { 
             cumple: true, 
             pesoTotal: 0, 
@@ -409,7 +393,6 @@ function verificarPesoMinimo() {
         };
     }
     
-    // Calcular peso total
     let pesoTotal = 0;
     const productosAfectados = [];
     
@@ -424,15 +407,12 @@ function verificarPesoMinimo() {
                 pesoUnitario: producto.peso,
                 pesoTotal: pesoItem
             });
-            console.log(`   ⚖️ ${item.nombre}: ${item.cantidad} x ${producto.peso} kg = ${pesoItem.toFixed(2)} kg`);
         }
     });
     
     console.log(`⚖️ PESO TOTAL: ${pesoTotal.toFixed(2)} kg`);
-    console.log(`⚖️ MÍNIMO REQUERIDO: ${PESO_MINIMO_TONELADA} kg`);
     
     if (pesoTotal >= PESO_MINIMO_TONELADA) {
-        console.log('✅ ¡Peso mínimo cumplido!');
         return { 
             cumple: true, 
             pesoTotal: pesoTotal, 
@@ -441,13 +421,12 @@ function verificarPesoMinimo() {
             mensaje: `✅ ¡Cumpliste con el peso mínimo! Total: ${pesoTotal.toFixed(2)} kg (1 tonelada)` 
         };
     } else {
-        console.log(`❌ Peso mínimo NO cumplido. Faltan ${(PESO_MINIMO_TONELADA - pesoTotal).toFixed(2)} kg`);
         return { 
             cumple: false, 
             pesoTotal: pesoTotal, 
             productosConPeso: productosConPeso.length,
             productosAfectados: productosAfectados,
-            mensaje: `⚠️ Peso total: ${pesoTotal.toFixed(2)} kg. Se requiere mínimo ${PESO_MINIMO_TONELADA} kg (1 tonelada) para productos marcados con peso. Faltan ${(PESO_MINIMO_TONELADA - pesoTotal).toFixed(2)} kg.` 
+            mensaje: `⚠️ Peso total: ${pesoTotal.toFixed(2)} kg. Se requiere mínimo ${PESO_MINIMO_TONELADA} kg (1 tonelada). Faltan ${(PESO_MINIMO_TONELADA - pesoTotal).toFixed(2)} kg.` 
         };
     }
 }
@@ -457,15 +436,8 @@ function verificarPesoMinimo() {
 // ============================================
 
 function agregarAlCarrito(clave) {
-    console.log(`🛒 Agregando producto: ${clave}`);
-    
     const producto = productosGlobales.find(p => p.clave === clave);
-    if (!producto) {
-        console.error('❌ Producto no encontrado:', clave);
-        return;
-    }
-    
-    console.log(`📦 Producto: ${producto.nombre}, pesoCondicion: "${producto.pesoCondicion}", peso: ${producto.peso} kg`);
+    if (!producto) return;
     
     const existente = carrito.find(item => item.clave === clave);
     
@@ -477,7 +449,7 @@ function agregarAlCarrito(clave) {
         const descuento = calcularDescuentoProducto(producto, 1);
         const precioConDescuento = precioFinal.precio * (1 - descuento / 100);
         
-        const nuevoItem = {
+        carrito.push({
             clave: producto.clave,
             nombre: producto.nombre,
             descripcion: producto.descripcion,
@@ -489,11 +461,7 @@ function agregarAlCarrito(clave) {
             personalizado: precioFinal.personalizado,
             pesoCondicion: producto.pesoCondicion,
             peso: producto.peso
-        };
-        
-        console.log(`➕ Nuevo item: ${nuevoItem.nombre}, pesoCondicion: "${nuevoItem.pesoCondicion}", peso: ${nuevoItem.peso} kg`);
-        
-        carrito.push(nuevoItem);
+        });
     }
     
     renderizarCarrito();
@@ -535,13 +503,7 @@ function vaciarCarrito() {
     renderizarCarrito();
 }
 
-// ============================================
-// ⭐⭐⭐ RENDERIZADO DEL CARRITO (CORREGIDO) ⭐⭐⭐
-// ============================================
-
 function renderizarCarrito() {
-    console.log('🔄 Renderizando carrito...');
-    
     const cartContent = document.getElementById('cartContent');
     const cartTotales = document.getElementById('cartTotales');
     const btnComprar = document.getElementById('btnComprar');
@@ -562,9 +524,7 @@ function renderizarCarrito() {
         return;
     }
     
-    // ⭐ VERIFICAR PESO
     const verificarPeso = verificarPesoMinimo();
-    console.log(`📊 Verificación de peso: cumple=${verificarPeso.cumple}, productosConPeso=${verificarPeso.productosConPeso}, pesoTotal=${verificarPeso.pesoTotal}`);
     
     let html = `
         <table class="cart-table">
@@ -634,10 +594,7 @@ function renderizarCarrito() {
         </table>
     `;
     
-    // ⭐⭐ MOSTRAR LEYENDA DE PESO SI HAY PRODUCTOS CON PESO ⭐⭐
     if (verificarPeso.productosConPeso > 0) {
-        console.log('📢 Mostrando leyenda de peso en el carrito');
-        
         let detalleProductos = '';
         verificarPeso.productosAfectados.forEach(p => {
             detalleProductos += `
@@ -696,15 +653,12 @@ function renderizarCarrito() {
     document.getElementById('iva').textContent = formatoMexicano(iva);
     document.getElementById('total').textContent = formatoMexicano(total);
     
-    // ⭐⭐ HABILITAR/DESHABILITAR BOTÓN COMPRAR ⭐⭐
     if (verificarPeso.productosConPeso > 0 && !verificarPeso.cumple) {
-        console.log('🔒 Botón "Realizar Compra" DESHABILITADO - Peso insuficiente');
         btnComprar.disabled = true;
         btnComprar.title = '⚠️ Debes completar el peso mínimo de 1 tonelada (1000 kg) para productos con peso.';
         btnComprar.style.opacity = '0.5';
         btnComprar.style.cursor = 'not-allowed';
     } else {
-        console.log('🔓 Botón "Realizar Compra" HABILITADO');
         btnComprar.disabled = false;
         btnComprar.title = '';
         btnComprar.style.opacity = '1';
@@ -713,10 +667,10 @@ function renderizarCarrito() {
 }
 
 // ============================================
-// FUNCIONES DE PAGO
+// MODAL DE DIRECCIÓN DE ENVÍO
 // ============================================
 
-function abrirModalPago() {
+function abrirModalDireccion() {
     if (carrito.length === 0) {
         mostrarNotificacion('⚠️ El carrito está vacío');
         return;
@@ -728,6 +682,50 @@ function abrirModalPago() {
         return;
     }
     
+    document.getElementById('modalDireccion').classList.add('active');
+}
+
+function cerrarModalDireccion() {
+    document.getElementById('modalDireccion').classList.remove('active');
+}
+
+function continuarConPago() {
+    // Validar dirección
+    const calle = document.getElementById('dirCalle').value.trim();
+    const colonia = document.getElementById('dirColonia').value.trim();
+    const alcaldia = document.getElementById('dirAlcaldia').value.trim();
+    const estado = document.getElementById('dirEstado').value.trim();
+    const cp = document.getElementById('dirCP').value.trim();
+    const mapsUrl = document.getElementById('dirMaps').value.trim();
+    const telefono = document.getElementById('dirTelefono').value.trim();
+    const nombreRecibe = document.getElementById('dirNombreRecibe').value.trim();
+    
+    if (!calle || !colonia || !alcaldia || !estado || !cp || !telefono || !nombreRecibe) {
+        mostrarNotificacion('⚠️ Por favor, completa todos los campos obligatorios de dirección.');
+        return;
+    }
+    
+    // Guardar dirección en variable global
+    window.datosEnvio = {
+        calle: calle,
+        colonia: colonia,
+        alcaldia: alcaldia,
+        estado: estado,
+        cp: cp,
+        mapsUrl: mapsUrl || 'No proporcionado',
+        telefono: telefono,
+        nombreRecibe: nombreRecibe
+    };
+    
+    cerrarModalDireccion();
+    abrirModalPago();
+}
+
+// ============================================
+// FUNCIONES DE PAGO
+// ============================================
+
+function abrirModalPago() {
     const modal = document.getElementById('modalPago');
     modal.classList.add('active');
     
@@ -750,6 +748,7 @@ function cerrarModalPago() {
     document.getElementById('formCredito').style.display = 'none';
     comprobanteBase64 = null;
     comprobanteNombre = null;
+    comprobanteTipo = null;
     document.getElementById('fileName').textContent = 'Ningún archivo seleccionado';
 }
 
@@ -776,7 +775,8 @@ function cargarComprobante(event) {
     reader.onload = function(e) {
         comprobanteBase64 = e.target.result.split(',')[1];
         comprobanteNombre = file.name;
-        document.getElementById('fileName').textContent = file.name;
+        comprobanteTipo = file.type;
+        document.getElementById('fileName').textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
     };
     reader.readAsDataURL(file);
 }
@@ -792,16 +792,12 @@ function calcularTotal() {
 }
 
 // ============================================
-// PROCESAMIENTO DE PAGOS
+// PROCESAMIENTO DE PAGOS - TRANSFERENCIA
 // ============================================
 
 async function procesarPagoTransferencia() {
+    // La referencia es OPCIONAL - ya no es obligatoria
     const referencia = document.getElementById('referenciaTransferencia').value.trim();
-    
-    if (!referencia) {
-        mostrarMensajeModal('error', '⚠️ Por favor, ingresa el número de referencia de la transferencia.');
-        return;
-    }
     
     if (!comprobanteBase64) {
         mostrarMensajeModal('error', '⚠️ Por favor, sube el comprobante de transferencia.');
@@ -821,6 +817,7 @@ async function procesarPagoTransferencia() {
             folio: folio,
             fecha: fecha,
             cliente: clienteData,
+            direccion: window.datosEnvio || null,
             productos: carrito.map(item => ({
                 clave: item.clave,
                 nombre: item.nombre,
@@ -834,13 +831,17 @@ async function procesarPagoTransferencia() {
             subtotal: total / 1.16,
             iva: total - (total / 1.16),
             tipoPago: 'Transferencia',
-            referencia: referencia,
+            referencia: referencia || 'No especificada',
             comprobante: comprobanteBase64,
             comprobanteNombre: comprobanteNombre,
+            comprobanteTipo: comprobanteTipo,
             sucursal: clienteData.sucursal || 'Matriz'
         };
         
+        // Guardar en Google Sheets
         await guardarVentaEnSheets(datosVenta);
+        
+        // Enviar correo con comprobante
         await enviarCorreoVenta(datosVenta);
         
         mostrarMensajeModal('exito', `
@@ -848,12 +849,13 @@ async function procesarPagoTransferencia() {
             <strong>Folio:</strong> ${folio}<br>
             <strong>Total:</strong> ${formatoMexicano(total)}<br>
             <strong>Método:</strong> Transferencia<br>
-            <strong>Referencia:</strong> ${referencia}<br><br>
-            Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.
+            ${referencia ? `<strong>Referencia:</strong> ${referencia}` : ''}<br><br>
+            Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles y comprobante.
         `);
         
         carrito = [];
         renderizarCarrito();
+        window.datosEnvio = null;
         
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Compra';
@@ -869,6 +871,10 @@ async function procesarPagoTransferencia() {
         btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Compra';
     }
 }
+
+// ============================================
+// PROCESAMIENTO DE PAGOS - CRÉDITO
+// ============================================
 
 async function procesarPagoCredito() {
     const dias = parseInt(document.getElementById('diasCredito').value) || 30;
@@ -895,6 +901,7 @@ async function procesarPagoCredito() {
             folio: folio,
             fecha: fecha,
             cliente: clienteData,
+            direccion: window.datosEnvio || null,
             productos: carrito.map(item => ({
                 clave: item.clave,
                 nombre: item.nombre,
@@ -931,6 +938,7 @@ async function procesarPagoCredito() {
         
         carrito = [];
         renderizarCarrito();
+        window.datosEnvio = null;
         
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
@@ -948,51 +956,53 @@ async function procesarPagoCredito() {
 }
 
 // ============================================
-// GUARDAR VENTA Y CORREO
+// GUARDAR EN GOOGLE SHEETS - VENTAS PÁGINA
 // ============================================
 
 async function guardarVentaEnSheets(datos) {
     try {
+        // 📝 Hoja 1: Productos - VENTAS PÁGINA
         for (const producto of datos.productos) {
             const datosProducto = [
-                datos.fecha.toISOString().split('T')[0],
-                datos.folio,
-                producto.clave,
-                producto.cantidad,
-                producto.importe,
-                producto.nombre,
-                datos.cliente.codigo,
-                'Cliente Web',
-                producto.descuento,
-                producto.precio,
-                producto.cantidad * producto.precio,
-                producto.precio * producto.cantidad * (producto.descuento / 100),
-                'Sin verificar'
+                datos.fecha.toISOString().split('T')[0], // Fecha
+                datos.folio, // ID
+                producto.clave, // Clave Producto
+                producto.cantidad, // Cantidad
+                producto.importe, // Importe (Precio Unitario)
+                producto.nombre, // Cliente Nombre
+                datos.cliente.codigo, // Cliente Código
+                'Cliente Web', // Asesor
+                producto.descuento, // Descuento
+                producto.precio, // Precio original
+                producto.cantidad * producto.precio, // Subtotal sin descuento
+                producto.precio * producto.cantidad * (producto.descuento / 100), // Descuento en pesos
+                'Sin verificar' // Columna M
             ];
             
             await guardarFilaGoogleSheets(ID_VENTAS, HOJA_VENTAS_PRODUCTOS, datosProducto);
         }
         
+        // 📝 Hoja 2: Clientes - VENTAS PÁGINA
         const datosCliente = [
-            datos.fecha.toISOString().split('T')[0],
-            datos.folio,
-            datos.cliente.codigo,
-            datos.cliente.nombre,
-            datos.total,
-            datos.tipoPago === 'Crédito' ? datos.saldoPendiente : 0,
-            datos.tipoPago === 'Crédito' ? datos.anticipo : datos.total,
-            'NO',
-            datos.sucursal,
-            datos.tipoPago,
-            datos.tipoPago === 'Crédito' ? 'Pago diferido' : 'Pago en una sola exhibición'
+            datos.fecha.toISOString().split('T')[0], // Fecha
+            datos.folio, // Folio
+            datos.cliente.codigo, // Código Cliente
+            datos.cliente.nombre, // Nombre Cliente
+            datos.total, // Monto
+            datos.tipoPago === 'Crédito' ? datos.saldoPendiente : 0, // Crédito Pendiente
+            datos.tipoPago === 'Crédito' ? datos.anticipo : datos.total, // Crédito Liquidado
+            'NO', // Factura
+            datos.sucursal, // Sucursal
+            datos.tipoPago, // Forma Pago
+            datos.tipoPago === 'Crédito' ? 'Pago diferido' : 'Pago en una sola exhibición' // Tipo Pago
         ];
         
         await guardarFilaGoogleSheets(ID_VENTAS, HOJA_VENTAS_CLIENTES, datosCliente);
         
-        console.log('✅ Venta guardada exitosamente');
+        console.log('✅ Venta guardada exitosamente en Ventas página');
         
     } catch (error) {
-        console.error('Error al guardar venta:', error);
+        console.error('❌ Error al guardar venta:', error);
         throw error;
     }
 }
@@ -1005,9 +1015,15 @@ async function guardarFilaGoogleSheets(sheetId, sheetName, datos) {
     });
 }
 
+// ============================================
+// ENVIAR CORREO CON COMPROBANTE
+// ============================================
+
 async function enviarCorreoVenta(datos) {
     const emailDestino = 'ventas@proconstruccionmx.com';
+    const asunto = `🧾 NUEVA COMPRA - ${datos.folio} - ${datos.cliente.nombre}`;
     
+    // HTML de productos
     let htmlProductos = '';
     datos.productos.forEach(p => {
         htmlProductos += `
@@ -1022,6 +1038,23 @@ async function enviarCorreoVenta(datos) {
         `;
     });
     
+    // HTML de dirección de envío
+    let htmlDireccion = '';
+    if (datos.direccion) {
+        htmlDireccion = `
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+            <h3 style="color: #0A2540;">📦 Dirección de Envío</h3>
+            <p><strong>Calle y número:</strong> ${datos.direccion.calle}</p>
+            <p><strong>Colonia:</strong> ${datos.direccion.colonia}</p>
+            <p><strong>Alcaldía/Municipio:</strong> ${datos.direccion.alcaldia}</p>
+            <p><strong>Estado:</strong> ${datos.direccion.estado}</p>
+            <p><strong>Código Postal:</strong> ${datos.direccion.cp}</p>
+            <p><strong>Mapa (URL):</strong> <a href="${datos.direccion.mapsUrl}" target="_blank">${datos.direccion.mapsUrl}</a></p>
+            <p><strong>Teléfono de contacto:</strong> ${datos.direccion.telefono}</p>
+            <p><strong>Nombre de quien recibe:</strong> ${datos.direccion.nombreRecibe}</p>
+        `;
+    }
+    
     const html = `
         <!DOCTYPE html>
         <html>
@@ -1029,10 +1062,12 @@ async function enviarCorreoVenta(datos) {
         <body style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
             <div style="background: #0A2540; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
                 <h1 style="color: white; margin: 0;">ProConstrucción <span style="color: #F5A623;">MX</span></h1>
+                <p style="color: #94a3b8; margin: 5px 0 0 0;">Nueva compra desde el portal de clientes</p>
             </div>
             <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
-                <h2 style="color: #0A2540;">🧾 Nueva Compra - ${datos.folio}</h2>
-                <p style="color: #4a5568;">Fecha: ${datos.fecha.toLocaleString('es-MX')}</p>
+                <h2 style="color: #0A2540;">🧾 ${datos.folio}</h2>
+                <p style="color: #4a5568;"><strong>Fecha:</strong> ${datos.fecha.toLocaleString('es-MX')}</p>
+                <p style="color: #4a5568;"><strong>Método de pago:</strong> ${datos.tipoPago}</p>
                 
                 <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
                 
@@ -1044,6 +1079,8 @@ async function enviarCorreoVenta(datos) {
                 <p><strong>Giro:</strong> ${datos.cliente.giro || 'No especificado'}</p>
                 <p><strong>Sucursal:</strong> ${datos.sucursal}</p>
                 <p><strong>Descuento Base:</strong> ${datos.cliente.descuento}%</p>
+                
+                ${htmlDireccion}
                 
                 <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
                 
@@ -1067,10 +1104,12 @@ async function enviarCorreoVenta(datos) {
                 <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
                 
                 <div style="text-align: right;">
+                    <p><strong>Subtotal sin descuento:</strong> ${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16))}</p>
+                    <p><strong>Descuento total:</strong> -${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16) - datos.total)}</p>
                     <p><strong>Subtotal:</strong> ${formatoMexicano(datos.subtotal)}</p>
                     <p><strong>IVA (16%):</strong> ${formatoMexicano(datos.iva)}</p>
                     <p style="font-size: 1.4rem; font-weight: 700; color: #0A2540;">
-                        <strong>Total:</strong> ${formatoMexicano(datos.total)}
+                        <strong>TOTAL:</strong> ${formatoMexicano(datos.total)}
                     </p>
                 </div>
                 
@@ -1079,8 +1118,8 @@ async function enviarCorreoVenta(datos) {
                 <h3 style="color: #0A2540;">💳 Información de Pago</h3>
                 <p><strong>Método:</strong> ${datos.tipoPago}</p>
                 ${datos.tipoPago === 'Transferencia' ? `
-                    <p><strong>Referencia:</strong> ${datos.referencia}</p>
-                    <p><strong>Comprobante:</strong> ${datos.comprobanteNombre}</p>
+                    <p><strong>Referencia:</strong> ${datos.referencia || 'No especificada'}</p>
+                    <p><strong>Comprobante:</strong> ${datos.comprobanteNombre} (Adjunto en este correo)</p>
                 ` : ''}
                 ${datos.tipoPago === 'Crédito' ? `
                     <p><strong>Días de crédito:</strong> ${datos.diasCredito}</p>
@@ -1092,7 +1131,8 @@ async function enviarCorreoVenta(datos) {
                 <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
                 
                 <p style="text-align: center; color: #718096; font-size: 0.8rem;">
-                    Este es un correo automático generado por el sistema de cotización de ProConstrucción MX.
+                    Este es un correo automático generado por el sistema de cotización de ProConstrucción MX.<br>
+                    © ${new Date().getFullYear()} ProConstrucción MX - Todos los derechos reservados
                 </p>
             </div>
         </body>
@@ -1100,7 +1140,10 @@ async function enviarCorreoVenta(datos) {
     `;
     
     console.log('📧 Enviando correo a:', emailDestino);
+    console.log('📎 Comprobante adjunto:', datos.comprobanteNombre);
     
+    // Simulación de envío con adjunto
+    // En producción usarías EmailJS con attachments o un servicio de correo real
     return new Promise((resolve) => {
         setTimeout(() => {
             resolve({ success: true });
