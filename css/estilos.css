@@ -347,3 +347,33 @@ table td {
         gap: 1rem;
     }
 }
+
+/* Estilos adicionales para el cotizador */
+.tag-peso {
+    font-size: 0.6rem;
+    background: #dbeafe;
+    color: #1e40af;
+    padding: 0.1rem 0.5rem;
+    border-radius: 50px;
+    display: inline-block;
+    margin-top: 0.3rem;
+}
+
+.precio-personalizado {
+    font-size: 0.7rem;
+    background: #dbeafe;
+    color: #1e40af;
+    padding: 0.2rem 0.6rem;
+    border-radius: 50px;
+    display: inline-block;
+}
+
+.tag-pxv {
+    font-size: 0.6rem;
+    background: #fef3c7;
+    color: #92400e;
+    padding: 0.1rem 0.5rem;
+    border-radius: 50px;
+    display: inline-block;
+    margin-top: 0.3rem;
+}
