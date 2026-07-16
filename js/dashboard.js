@@ -11,6 +11,9 @@ const HOJA_VENTAS_CLIENTES = 'Hoja 2';
 const ID_ARCHIVO_PRECIOS_ESPECIALES = '10t2A9M5f1Bj7lyTTa_PhVGRv0wAK_4ePpk_1eURZQ5I';
 const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
 
+// Constante para peso mínimo (1 tonelada = 1000 kg)
+const PESO_MINIMO_TONELADA = 1000;
+
 // ============================================
 // VARIABLES GLOBALES
 // ============================================
@@ -102,9 +105,7 @@ function actualizarInfoCliente() {
     document.getElementById('userEmailDisplay').textContent = clienteData.correo;
     document.getElementById('welcomeName').textContent = clienteData.nombre;
     document.getElementById('clienteCodigo').textContent = clienteData.codigo;
-    document.getElementById('clienteGiro').textContent = clienteData.giro || 'Público en general';
     document.getElementById('clienteDescuento').textContent = clienteData.descuento + '%';
-    document.getElementById('clienteTelefono').textContent = clienteData.telefono || '---';
 }
 
 async function cargarProductos() {
@@ -117,7 +118,8 @@ async function cargarProductos() {
         const rows = data.table.rows;
         
         productosGlobales = [];
-        for (let i = 1; i < rows.length; i++) {
+        // ⭐ CORREGIDO: Empezar desde la fila 2 (índice 2) porque la fila 1 es encabezado
+        for (let i = 2; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             productosGlobales.push({
                 clave: String(values[0] || '').trim(),
@@ -133,7 +135,10 @@ async function cargarProductos() {
                 descuentoDistribuidor: parseFloat(values[13]) || 0,
                 pxv: String(values[14] || '').trim(),
                 descuentoVolumenP: parseFloat(values[15]) || 0,
-                descuentoVolumenQ: parseFloat(values[16]) || 0
+                descuentoVolumenQ: parseFloat(values[16]) || 0,
+                // ⭐ NUEVAS COLUMNAS: R (columna 17 = índice 17) y S (columna 18 = índice 18)
+                pesoCondicion: String(values[17] || '').trim().toUpperCase(),
+                peso: parseFloat(values[18]) || 0
             });
         }
         console.log('📦 Productos cargados:', productosGlobales.length);
@@ -215,10 +220,17 @@ function buscarProductos() {
         const tienePersonalizado = precioFinal.personalizado;
         const precioMostrar = precioFinal.precio;
         
+        // Mostrar etiqueta de peso si aplica
+        let etiquetaPeso = '';
+        if (producto.pesoCondicion === 'SI' && producto.peso > 0) {
+            etiquetaPeso = `<span class="tag-peso">⚖️ ${producto.peso} kg/unidad</span>`;
+        }
+        
         html += `
             <div class="product-card">
                 <span class="clave">${producto.clave}</span>
                 ${producto.pxv === 'PXV' ? '<span class="tag-pxv">📦 Descuento por Volumen</span>' : ''}
+                ${etiquetaPeso}
                 <h4>${producto.nombre}</h4>
                 <p class="descripcion">${producto.descripcion || 'Sin descripción'}</p>
                 <p class="precio">${formatoMexicano(precioMostrar)}</p>
@@ -324,6 +336,54 @@ function calcularDescuentoProducto(producto, cantidad) {
 }
 
 // ============================================
+// FUNCIONES DE VALIDACIÓN DE PESO
+// ============================================
+
+function verificarPesoMinimo() {
+    // Obtener solo productos que tienen condición de peso "SI"
+    const productosConPeso = carrito.filter(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        return producto && producto.pesoCondicion === 'SI' && producto.peso > 0;
+    });
+    
+    // Calcular peso total de todos los productos con peso
+    let pesoTotal = 0;
+    productosConPeso.forEach(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        if (producto) {
+            pesoTotal += producto.peso * item.cantidad;
+        }
+    });
+    
+    // Si no hay productos con peso, no hay restricción
+    if (productosConPeso.length === 0) {
+        return { 
+            cumple: true, 
+            pesoTotal: 0, 
+            productosConPeso: 0,
+            mensaje: '' 
+        };
+    }
+    
+    // Verificar si cumple con el mínimo de 1000 kg
+    if (pesoTotal >= PESO_MINIMO_TONELADA) {
+        return { 
+            cumple: true, 
+            pesoTotal: pesoTotal, 
+            productosConPeso: productosConPeso.length,
+            mensaje: `✅ Peso total: ${pesoTotal.toFixed(2)} kg (mínimo cumplido: 1 tonelada)` 
+        };
+    } else {
+        return { 
+            cumple: false, 
+            pesoTotal: pesoTotal, 
+            productosConPeso: productosConPeso.length,
+            mensaje: `⚠️ Peso total: ${pesoTotal.toFixed(2)} kg. Se requiere mínimo ${PESO_MINIMO_TONELADA} kg (1 tonelada) para productos marcados con peso. Faltan ${(PESO_MINIMO_TONELADA - pesoTotal).toFixed(2)} kg.` 
+        };
+    }
+}
+
+// ============================================
 // FUNCIONES DEL CARRITO
 // ============================================
 
@@ -351,7 +411,10 @@ function agregarAlCarrito(clave) {
             cantidad: 1,
             descuento: descuento,
             importe: precioConDescuento,
-            personalizado: precioFinal.personalizado
+            personalizado: precioFinal.personalizado,
+            // ⭐ Datos de peso
+            pesoCondicion: producto.pesoCondicion,
+            peso: producto.peso
         });
     }
     
@@ -360,10 +423,10 @@ function agregarAlCarrito(clave) {
 }
 
 function actualizarItemCarrito(item) {
-    const descuento = calcularDescuentoProducto(
-        productosGlobales.find(p => p.clave === item.clave),
-        item.cantidad
-    );
+    const producto = productosGlobales.find(p => p.clave === item.clave);
+    if (!producto) return;
+    
+    const descuento = calcularDescuentoProducto(producto, item.cantidad);
     item.descuento = descuento;
     item.importe = item.precio * item.cantidad * (1 - descuento / 100);
 }
@@ -397,6 +460,7 @@ function vaciarCarrito() {
 function renderizarCarrito() {
     const cartContent = document.getElementById('cartContent');
     const cartTotales = document.getElementById('cartTotales');
+    const btnComprar = document.getElementById('btnComprar');
     
     if (carrito.length === 0) {
         cartContent.innerHTML = `
@@ -407,8 +471,13 @@ function renderizarCarrito() {
             </div>
         `;
         cartTotales.style.display = 'none';
+        btnComprar.disabled = false;
+        btnComprar.title = '';
         return;
     }
+    
+    // Verificar peso mínimo
+    const verificarPeso = verificarPesoMinimo();
     
     let html = `
         <table class="cart-table">
@@ -438,11 +507,19 @@ function renderizarCarrito() {
         descuentoTotal += descuentoItem;
         subtotal += importeFinal;
         
+        // Mostrar si el producto tiene peso
+        let pesoInfo = '';
+        if (item.pesoCondicion === 'SI' && item.peso > 0) {
+            const pesoTotalItem = item.peso * item.cantidad;
+            pesoInfo = `<br><small style="color:var(--text-gray);">⚖️ ${item.peso} kg/unidad → ${pesoTotalItem.toFixed(2)} kg total</small>`;
+        }
+        
         html += `
             <tr>
                 <td>
                     <strong>${item.nombre}</strong>
                     ${item.personalizado ? '<span class="precio-personalizado">⭐ Personalizado</span>' : ''}
+                    ${pesoInfo}
                     <br><small style="color:var(--text-gray);">${item.clave}</small>
                 </td>
                 <td>${formatoMexicano(item.precio)}</td>
@@ -470,6 +547,17 @@ function renderizarCarrito() {
         </table>
     `;
     
+    // Mostrar información de peso si hay productos con peso
+    if (verificarPeso.productosConPeso > 0) {
+        html += `
+            <div style="margin-top: 1rem; padding: 1rem; border-radius: 8px; background: ${verificarPeso.cumple ? '#dcfce7' : '#fef3c7'}; border: 1px solid ${verificarPeso.cumple ? '#bbf7d0' : '#fde68a'};">
+                <p style="margin: 0; font-weight: 600; color: ${verificarPeso.cumple ? '#16a34a' : '#92400e'};">
+                    ${verificarPeso.mensaje}
+                </p>
+            </div>
+        `;
+    }
+    
     cartContent.innerHTML = html;
     cartTotales.style.display = 'block';
     
@@ -478,6 +566,15 @@ function renderizarCarrito() {
     document.getElementById('subtotal').textContent = formatoMexicano(subtotal);
     document.getElementById('iva').textContent = formatoMexicano(iva);
     document.getElementById('total').textContent = formatoMexicano(total);
+    
+    // Habilitar/deshabilitar botón comprar según peso
+    if (!verificarPeso.cumple && verificarPeso.productosConPeso > 0) {
+        btnComprar.disabled = true;
+        btnComprar.title = 'Se requiere mínimo 1 tonelada (1000 kg) para productos con peso';
+    } else {
+        btnComprar.disabled = false;
+        btnComprar.title = '';
+    }
 }
 
 // ============================================
@@ -487,6 +584,13 @@ function renderizarCarrito() {
 function abrirModalPago() {
     if (carrito.length === 0) {
         mostrarNotificacion('⚠️ El carrito está vacío');
+        return;
+    }
+    
+    // Verificar peso mínimo antes de abrir el modal
+    const verificarPeso = verificarPesoMinimo();
+    if (!verificarPeso.cumple && verificarPeso.productosConPeso > 0) {
+        mostrarNotificacion('⚠️ ' + verificarPeso.mensaje);
         return;
     }
     
@@ -627,7 +731,7 @@ async function procesarPagoTransferencia() {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Compra';
         
-        // Cerrar modal después de 3 segundos
+        // Cerrar modal después de 5 segundos
         setTimeout(() => {
             cerrarModalPago();
         }, 5000);
@@ -894,7 +998,6 @@ async function enviarCorreoVenta(datos) {
     console.log('📝 Contenido del correo:', html);
     
     // En producción usarías EmailJS o un servicio de correo
-    // Por ahora lo simulamos
     return new Promise((resolve) => {
         setTimeout(() => {
             resolve({ success: true });
@@ -921,13 +1024,11 @@ function generarFolio() {
     const yyyy = hoy.getFullYear();
     const prefijo = `CT-${dd}${mm}${yyyy}-`;
     
-    // Generar número secuencial (simulado)
     const numero = String(Math.floor(Math.random() * 9999) + 1).padStart(4, '0');
     return prefijo + numero;
 }
 
 function mostrarNotificacion(mensaje) {
-    // Crear notificación simple
     const div = document.createElement('div');
     div.style.cssText = `
         position: fixed;
