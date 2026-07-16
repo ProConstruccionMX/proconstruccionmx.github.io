@@ -421,7 +421,7 @@
             background: #475569;
         }
 
-        /* ===== MODAL DE PAGO ===== */
+        /* ===== MODAL DE DIRECCIÓN ===== */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -433,6 +433,7 @@
             z-index: 1000;
             align-items: center;
             justify-content: center;
+            backdrop-filter: blur(4px);
         }
         .modal-overlay.active {
             display: flex;
@@ -446,6 +447,7 @@
             max-height: 90vh;
             overflow-y: auto;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: fadeInUp 0.3s ease-out;
         }
         .modal h2 {
             color: var(--primary-dark);
@@ -683,7 +685,7 @@
                 </div>
                 <div class="cart-actions">
                     <button class="btn-vaciar" onclick="vaciarCarrito()"><i class="fas fa-trash"></i> Vaciar</button>
-                    <button class="btn-comprar" id="btnComprar" onclick="abrirModalPago()"><i class="fas fa-check"></i> Realizar Compra</button>
+                    <button class="btn-comprar" id="btnComprar" onclick="abrirModalDireccion()"><i class="fas fa-check"></i> Realizar Compra</button>
                 </div>
             </div>
         </div>
@@ -703,6 +705,56 @@
                     <p>Aún no tienes compras en tu historial.</p>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- ===== MODAL DE DIRECCIÓN DE ENVÍO ===== -->
+    <div class="modal-overlay" id="modalDireccion">
+        <div class="modal">
+            <h2>📦 Dirección de Envío</h2>
+            <p class="subtitle">Ingresa los datos de entrega para tu pedido</p>
+
+            <div id="modalDireccionMensaje"></div>
+
+            <div class="form-group">
+                <label>Calle y número <span style="color:red;">*</span></label>
+                <input type="text" id="dirCalle" placeholder="Ej: Av. Insurgentes Sur 1234">
+            </div>
+            <div class="form-group">
+                <label>Colonia <span style="color:red;">*</span></label>
+                <input type="text" id="dirColonia" placeholder="Ej: Colonia Del Valle">
+            </div>
+            <div class="form-group">
+                <label>Alcaldía o Municipio <span style="color:red;">*</span></label>
+                <input type="text" id="dirAlcaldia" placeholder="Ej: Benito Juárez">
+            </div>
+            <div class="form-group">
+                <label>Estado <span style="color:red;">*</span></label>
+                <input type="text" id="dirEstado" placeholder="Ej: CDMX">
+            </div>
+            <div class="form-group">
+                <label>Código Postal <span style="color:red;">*</span></label>
+                <input type="text" id="dirCP" placeholder="Ej: 03100">
+            </div>
+            <div class="form-group">
+                <label>URL de Google Maps (opcional)</label>
+                <input type="text" id="dirMaps" placeholder="https://maps.app.goo.gl/...">
+            </div>
+            <div class="form-group">
+                <label>Teléfono de contacto <span style="color:red;">*</span></label>
+                <input type="text" id="dirTelefono" placeholder="Ej: 55 1234 5678">
+            </div>
+            <div class="form-group">
+                <label>Nombre de quien recibe <span style="color:red;">*</span></label>
+                <input type="text" id="dirNombreRecibe" placeholder="Ej: Juan Pérez">
+            </div>
+
+            <button class="btn-enviar" onclick="continuarConPago()">
+                <i class="fas fa-arrow-right"></i> Continuar al Pago
+            </button>
+            <button class="btn-cerrar-modal" onclick="cerrarModalDireccion()">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
         </div>
     </div>
 
@@ -735,16 +787,16 @@
                     <label>Monto a transferir: <strong id="montoTransferencia">$0.00</strong></label>
                 </div>
                 <div class="form-group">
-                    <label>Número de referencia o folio de transferencia</label>
-                    <input type="text" id="referenciaTransferencia" placeholder="Ej: 1234567890">
+                    <label>Número de referencia o folio de transferencia <span style="color:var(--text-gray);font-size:0.8rem;">(opcional)</span></label>
+                    <input type="text" id="referenciaTransferencia" placeholder="Ej: 1234567890 (opcional)">
                 </div>
                 <div class="form-group">
-                    <label>Subir comprobante de transferencia</label>
+                    <label>Subir comprobante de transferencia <span style="color:red;">*</span></label>
                     <div class="file-upload" onclick="document.getElementById('comprobanteFile').click()">
                         <i class="fas fa-cloud-upload-alt" style="font-size:2rem; color: var(--accent-orange);"></i>
                         <p>Haz clic para seleccionar tu comprobante</p>
                         <p class="file-name" id="fileName">Ningún archivo seleccionado</p>
-                        <input type="file" id="comprobanteFile" accept=".pdf,.jpg,.jpeg,.png" onchange="cargarComprobante(event)">
+                        <input type="file" id="comprobanteFile" accept="*/*" onchange="cargarComprobante(event)">
                     </div>
                 </div>
                 <button class="btn-enviar" onclick="procesarPagoTransferencia()">
