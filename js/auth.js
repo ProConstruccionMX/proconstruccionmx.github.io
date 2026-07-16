@@ -19,15 +19,23 @@ async function obtenerClientes() {
         const data = JSON.parse(jsonStr);
         const rows = data.table.rows;
         
-        // ⭐ CORREGIDO: Ignorar la primera fila (encabezados) ⭐
+        // Ignorar la primera fila (encabezados)
         const clientes = [];
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
             const values = row.c.map(cell => cell ? cell.v : '');
-            clientes.push({
-                contrasena: values[0] || '', // Columna A
-                correo: values[3] || ''      // Columna D
-            });
+            
+            // ⭐ CORREGIDO: Convertir todo a string para evitar errores de trim() ⭐
+            const contrasena = String(values[0] || '').trim();
+            const correo = String(values[3] || '').trim();
+            
+            // Solo agregar si el correo no está vacío
+            if (correo) {
+                clientes.push({
+                    contrasena: contrasena,
+                    correo: correo
+                });
+            }
         }
         
         console.log('📋 Clientes cargados:', clientes.length);
@@ -41,19 +49,29 @@ async function obtenerClientes() {
 // Función para autenticar usuario
 async function autenticarUsuario(email, password) {
     const clientes = await obtenerClientes();
-    const cliente = clientes.find(c => c.correo.toLowerCase() === email.toLowerCase());
     
-    console.log('🔍 Buscando:', email);
+    // ⭐ CORREGIDO: Limpiar el email y password antes de comparar ⭐
+    const emailLimpio = String(email).trim().toLowerCase();
+    const passwordLimpio = String(password).trim();
+    
+    const cliente = clientes.find(c => 
+        String(c.correo).trim().toLowerCase() === emailLimpio
+    );
+    
+    console.log('🔍 Buscando:', emailLimpio);
     console.log('📋 Clientes encontrados:', clientes.map(c => c.correo));
     
     if (!cliente) {
         return { success: false, message: '❌ Correo no registrado. Contacta a tu asesor.' };
     }
     
-    console.log('🔑 Contraseña guardada:', cliente.contrasena);
-    console.log('🔑 Contraseña ingresada:', password);
+    const contrasenaLimpia = String(cliente.contrasena).trim();
     
-    if (cliente.contrasena.trim() !== password.trim()) {
+    console.log('🔑 Contraseña guardada:', contrasenaLimpia);
+    console.log('🔑 Contraseña ingresada:', passwordLimpio);
+    console.log('🔑 ¿Coinciden?', contrasenaLimpia === passwordLimpio);
+    
+    if (contrasenaLimpia !== passwordLimpio) {
         return { success: false, message: '❌ Contraseña incorrecta. Intenta de nuevo.' };
     }
     
@@ -67,7 +85,11 @@ async function autenticarUsuario(email, password) {
 // Función para recuperar contraseña (solo envía por correo, NO muestra en pantalla)
 async function recuperarContrasena(email) {
     const clientes = await obtenerClientes();
-    const cliente = clientes.find(c => c.correo.toLowerCase() === email.toLowerCase());
+    const emailLimpio = String(email).trim().toLowerCase();
+    
+    const cliente = clientes.find(c => 
+        String(c.correo).trim().toLowerCase() === emailLimpio
+    );
     
     if (!cliente) {
         return { 
@@ -78,14 +100,27 @@ async function recuperarContrasena(email) {
     }
     
     try {
-        // Enviar email con EmailJS
-        const templateParams = {
-            to_email: cliente.correo,
-            to_name: cliente.correo.split('@')[0],
-            password: cliente.contrasena
-        };
+        // ⭐ CORREGIDO: Asegurar que el email no esté vacío ⭐
+        const emailDestino = String(cliente.correo).trim();
+        const nombreDestino = emailDestino.split('@')[0] || 'Cliente';
+        const contrasenaCliente = String(cliente.contrasena).trim();
         
-        console.log('📧 Enviando correo a:', cliente.correo);
+        if (!emailDestino) {
+            throw new Error('El correo del cliente está vacío');
+        }
+        
+        console.log('📧 Enviando correo a:', emailDestino);
+        console.log('📝 Datos:', {
+            to_email: emailDestino,
+            to_name: nombreDestino,
+            password: contrasenaCliente
+        });
+        
+        const templateParams = {
+            to_email: emailDestino,
+            to_name: nombreDestino,
+            password: contrasenaCliente
+        };
         
         const response = await emailjs.send(
             EMAILJS_CONFIG.serviceID,
@@ -99,16 +134,15 @@ async function recuperarContrasena(email) {
         if (response.status === 200) {
             return {
                 success: true,
-                message: `✅ Se ha enviado tu contraseña al correo: ${cliente.correo}`
+                message: `✅ Se ha enviado tu contraseña al correo: ${emailDestino}`
             };
         } else {
-            throw new Error('Error al enviar el correo');
+            throw new Error('Error al enviar el correo: ' + response.text);
         }
     } catch (error) {
         console.error('❌ Error al enviar email:', error);
-        console.error('❌ Detalle del error:', error.text || error.message);
+        console.error('❌ Detalle:', error.text || error.message);
         
-        // ⭐ CORREGIDO: Ya NO muestra la contraseña en pantalla ⭐
         return {
             success: false,
             message: '❌ No se pudo enviar el correo electrónico. Por favor, contáctate con tu asesor por WhatsApp para recibir tu contraseña.',
