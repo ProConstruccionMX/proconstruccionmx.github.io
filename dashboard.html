@@ -16,13 +16,16 @@
         }
         .dashboard-header {
             background: white;
-            padding: 1.5rem 2rem;
+            padding: 1rem 2rem;
             box-shadow: 0 2px 20px rgba(0,0,0,0.08);
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
             gap: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
         .dashboard-header .logo {
             font-size: 1.5rem;
@@ -35,10 +38,16 @@
             display: flex;
             align-items: center;
             gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .user-info .user-name {
+            font-weight: 600;
+            color: var(--primary-dark);
         }
         .user-info .user-email {
-            font-weight: 500;
+            font-weight: 400;
             color: var(--text-gray);
+            font-size: 0.85rem;
         }
         .btn-cerrar {
             background: #dc2626;
@@ -55,11 +64,44 @@
             background: #b91c1c;
             transform: translateY(-2px);
         }
-        .dashboard-content {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 0 2rem;
+        .dashboard-tabs {
+            display: flex;
+            gap: 0.5rem;
+            background: white;
+            padding: 0.5rem 2rem;
+            border-bottom: 1px solid #e2e8f0;
+            flex-wrap: wrap;
         }
+        .dashboard-tabs button {
+            padding: 0.6rem 1.5rem;
+            border: none;
+            background: transparent;
+            font-weight: 600;
+            color: var(--text-gray);
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+        }
+        .dashboard-tabs button:hover {
+            background: var(--gray-light);
+            color: var(--primary-dark);
+        }
+        .dashboard-tabs button.active {
+            background: var(--accent-orange);
+            color: white;
+        }
+        .tab-content {
+            display: none;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        /* ===== SECCIÓN COTIZAR ===== */
         .welcome-section {
             background: white;
             border-radius: 16px;
@@ -75,6 +117,22 @@
         .welcome-section p {
             color: var(--text-gray);
         }
+        .welcome-section .cliente-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e2e8f0;
+        }
+        .welcome-section .cliente-info span {
+            font-size: 0.95rem;
+            color: var(--text-gray);
+        }
+        .welcome-section .cliente-info strong {
+            color: var(--primary-dark);
+        }
+
         .search-section {
             background: white;
             border-radius: 16px;
@@ -122,12 +180,21 @@
             background: var(--accent-orange-dark);
             transform: translateY(-2px);
         }
+        .search-box .btn-limpiar {
+            background: #64748b;
+        }
+        .search-box .btn-limpiar:hover {
+            background: #475569;
+        }
+
+        /* Resultados de búsqueda */
         .results-section {
             background: white;
             border-radius: 16px;
             padding: 2rem;
             box-shadow: 0 4px 12px rgba(0,0,0,0.04);
             min-height: 200px;
+            margin-bottom: 2rem;
         }
         .results-section h3 {
             color: var(--primary-dark);
@@ -135,7 +202,7 @@
         }
         .product-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
             gap: 1.5rem;
         }
         .product-card {
@@ -145,34 +212,73 @@
             text-align: center;
             transition: all 0.3s;
             border: 1px solid #e2e8f0;
+            position: relative;
         }
         .product-card:hover {
             transform: translateY(-4px);
             box-shadow: 0 8px 25px rgba(0,0,0,0.08);
             border-color: var(--accent-orange);
         }
-        .product-card .icon {
-            font-size: 2.5rem;
-            color: var(--accent-orange);
-            margin-bottom: 0.5rem;
+        .product-card .clave {
+            font-size: 0.7rem;
+            color: var(--text-gray);
+            background: #e2e8f0;
+            padding: 0.2rem 0.6rem;
+            border-radius: 50px;
+            display: inline-block;
         }
         .product-card h4 {
             color: var(--primary-dark);
-            margin-bottom: 0.3rem;
+            margin: 0.5rem 0 0.3rem 0;
+            font-size: 1rem;
         }
-        .product-card p {
+        .product-card .descripcion {
             color: var(--text-gray);
-            font-size: 0.9rem;
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
         }
-        .product-card .tag {
-            display: inline-block;
-            background: var(--accent-orange);
-            color: white;
-            padding: 0.2rem 0.8rem;
-            border-radius: 50px;
+        .product-card .precio {
+            font-weight: 700;
+            color: var(--primary-dark);
+            font-size: 1.1rem;
+        }
+        .product-card .precio-personalizado {
             font-size: 0.7rem;
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 0.2rem 0.6rem;
+            border-radius: 50px;
+            display: inline-block;
+        }
+        .product-card .btn-agregar {
+            margin-top: 0.8rem;
+            padding: 0.5rem 1.5rem;
+            background: var(--primary-blue);
+            color: white;
+            border: none;
+            border-radius: 50px;
             font-weight: 600;
-            margin-top: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+        }
+        .product-card .btn-agregar:hover {
+            background: var(--primary-dark);
+            transform: scale(1.05);
+        }
+        .product-card .btn-agregar:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .product-card .tag-pxv {
+            font-size: 0.6rem;
+            background: #fef3c7;
+            color: #92400e;
+            padding: 0.1rem 0.5rem;
+            border-radius: 50px;
+            display: inline-block;
+            margin-top: 0.3rem;
         }
         .empty-state {
             text-align: center;
@@ -184,193 +290,480 @@
             color: #cbd5e1;
             margin-bottom: 1rem;
         }
-        .resultado-item {
+
+        /* ===== CARRITO ===== */
+        .cart-section {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+        }
+        .cart-section h2 {
+            font-size: 1.4rem;
+            color: var(--primary-dark);
+            margin-bottom: 1rem;
+        }
+        .cart-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .cart-table th {
+            background: var(--gray-light);
+            padding: 0.8rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--primary-dark);
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .cart-table td {
             padding: 0.8rem;
             border-bottom: 1px solid #e2e8f0;
+            vertical-align: middle;
+        }
+        .cart-table .cantidad-input {
+            width: 60px;
+            padding: 0.3rem 0.5rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            text-align: center;
+            font-family: 'Inter', sans-serif;
+        }
+        .cart-table .cantidad-input:focus {
+            outline: none;
+            border-color: var(--accent-orange);
+        }
+        .cart-table .btn-eliminar {
+            background: #fee2e2;
+            color: #dc2626;
+            border: none;
+            padding: 0.3rem 0.8rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+        }
+        .cart-table .btn-eliminar:hover {
+            background: #dc2626;
+            color: white;
+        }
+        .cart-totales {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid #e2e8f0;
+            text-align: right;
+        }
+        .cart-totales p {
+            margin: 0.3rem 0;
+            font-size: 1rem;
+        }
+        .cart-totales .total {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary-dark);
+        }
+        .cart-totales .descuento-total {
+            color: #16a34a;
+        }
+        .cart-actions {
             display: flex;
-            justify-content: space-between;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+        .btn-comprar {
+            padding: 1rem 3rem;
+            background: #16a34a;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn-comprar:hover {
+            background: #15803d;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(22, 163, 74, 0.3);
+        }
+        .btn-comprar:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-vaciar {
+            padding: 1rem 2rem;
+            background: #64748b;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn-vaciar:hover {
+            background: #475569;
+        }
+
+        /* ===== MODAL DE PAGO ===== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
             align-items: center;
+            justify-content: center;
         }
-        .resultado-item:last-child {
-            border-bottom: none;
+        .modal-overlay.active {
+            display: flex;
         }
+        .modal {
+            background: white;
+            border-radius: 24px;
+            padding: 2.5rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .modal h2 {
+            color: var(--primary-dark);
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+        .modal .subtitle {
+            text-align: center;
+            color: var(--text-gray);
+            margin-bottom: 1.5rem;
+        }
+        .modal .opciones-pago {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .modal .opciones-pago button {
+            flex: 1;
+            padding: 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            background: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+            min-width: 120px;
+        }
+        .modal .opciones-pago button:hover {
+            border-color: var(--accent-orange);
+            background: var(--gray-light);
+        }
+        .modal .opciones-pago button.selected {
+            border-color: var(--accent-orange);
+            background: #fef3c7;
+        }
+        .modal .form-group {
+            margin-bottom: 1rem;
+        }
+        .modal .form-group label {
+            display: block;
+            font-weight: 600;
+            color: var(--primary-dark);
+            margin-bottom: 0.3rem;
+            font-size: 0.9rem;
+        }
+        .modal .form-group input,
+        .modal .form-group select {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s;
+        }
+        .modal .form-group input:focus,
+        .modal .form-group select:focus {
+            outline: none;
+            border-color: var(--accent-orange);
+            box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.1);
+        }
+        .modal .datos-bancarios {
+            background: var(--gray-light);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin: 1rem 0;
+        }
+        .modal .datos-bancarios p {
+            margin: 0.3rem 0;
+            font-size: 0.95rem;
+        }
+        .modal .datos-bancarios strong {
+            color: var(--primary-dark);
+        }
+        .modal .btn-enviar {
+            width: 100%;
+            padding: 1rem;
+            background: var(--accent-orange);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+            margin-top: 1rem;
+        }
+        .modal .btn-enviar:hover {
+            background: var(--accent-orange-dark);
+            transform: translateY(-2px);
+        }
+        .modal .btn-enviar:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .modal .btn-cerrar-modal {
+            width: 100%;
+            padding: 0.8rem;
+            background: #e2e8f0;
+            color: var(--text-gray);
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+            margin-top: 0.5rem;
+        }
+        .modal .btn-cerrar-modal:hover {
+            background: #cbd5e1;
+        }
+        .modal .mensaje-exito {
+            background: #dcfce7;
+            color: #16a34a;
+            padding: 1rem;
+            border-radius: 12px;
+            text-align: center;
+            margin: 1rem 0;
+        }
+        .modal .mensaje-error {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 1rem;
+            border-radius: 12px;
+            text-align: center;
+            margin: 1rem 0;
+        }
+        .file-upload {
+            border: 2px dashed #e2e8f0;
+            padding: 2rem;
+            text-align: center;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .file-upload:hover {
+            border-color: var(--accent-orange);
+        }
+        .file-upload input {
+            display: none;
+        }
+        .file-upload .file-name {
+            color: var(--primary-dark);
+            font-weight: 600;
+        }
+
+        /* ===== RESPONSIVE ===== */
         @media (max-width: 768px) {
             .dashboard-header { flex-direction: column; align-items: stretch; text-align: center; }
             .user-info { justify-content: center; flex-wrap: wrap; }
-            .search-box { flex-direction: column; }
-            .search-box input { min-width: auto; }
+            .dashboard-tabs { justify-content: center; padding: 0.5rem 1rem; }
+            .dashboard-tabs button { font-size: 0.85rem; padding: 0.4rem 1rem; }
+            .tab-content { padding: 1rem; }
+            .product-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+            .cart-table { font-size: 0.85rem; }
+            .cart-table .cantidad-input { width: 45px; }
+            .modal { padding: 1.5rem; }
+            .modal .opciones-pago { flex-direction: column; }
         }
     </style>
 </head>
 <body>
+
+    <!-- HEADER -->
     <header class="dashboard-header">
         <a href="index.html" class="logo">ProConstrucción <span>MX</span></a>
         <div class="user-info">
-            <span class="user-email"><i class="fas fa-user"></i> <span id="userEmailDisplay">usuario@correo.com</span></span>
+            <span class="user-name" id="userNameDisplay"><i class="fas fa-user"></i> Cliente</span>
+            <span class="user-email" id="userEmailDisplay">usuario@correo.com</span>
             <button class="btn-cerrar" onclick="cerrarSesion()"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</button>
         </div>
     </header>
 
-    <div class="dashboard-content">
+    <!-- TABS -->
+    <div class="dashboard-tabs">
+        <button class="active" data-tab="tab-cotizar"><i class="fas fa-shopping-cart"></i> Cotizar</button>
+        <button data-tab="tab-compras"><i class="fas fa-history"></i> Mis Compras</button>
+    </div>
+
+    <!-- ===== TAB 1: COTIZAR ===== -->
+    <div id="tab-cotizar" class="tab-content active">
         <div class="welcome-section">
-            <h1>👋 ¡Bienvenido, <span id="welcomeName">Cliente</span>!</h1>
-            <p>Aquí puedes buscar y explorar los productos disponibles para tu proyecto.</p>
+            <h1>👋 ¡Hola, <span id="welcomeName">Cliente</span>!</h1>
+            <p>Aquí puedes buscar y explorar los productos disponibles. Si no encuentras un producto, contacta a tu asesor.</p>
+            <div class="cliente-info" id="clienteInfo">
+                <span><strong>Código:</strong> <span id="clienteCodigo">---</span></span>
+                <span><strong>Giro:</strong> <span id="clienteGiro">---</span></span>
+                <span><strong>Descuento Base:</strong> <span id="clienteDescuento">0%</span></span>
+                <span><strong>Teléfono:</strong> <span id="clienteTelefono">---</span></span>
+            </div>
         </div>
 
+        <!-- Buscador -->
         <div class="search-section">
             <h2><i class="fas fa-search"></i> Buscar Productos</h2>
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="Ej: cemento, acero, pintura, madera..." onkeyup="buscarProductos()">
                 <button onclick="buscarProductos()"><i class="fas fa-search"></i> Buscar</button>
+                <button class="btn-limpiar" onclick="limpiarBusqueda()"><i class="fas fa-times"></i> Limpiar</button>
             </div>
         </div>
 
+        <!-- Resultados -->
         <div class="results-section" id="resultsSection">
-            <h3><i class="fas fa-list"></i> Productos Destacados</h3>
+            <h3><i class="fas fa-list"></i> Productos Disponibles</h3>
             <div id="resultsContent">
-                <div class="product-grid">
-                    <div class="product-card">
-                        <div class="icon"><i class="fas fa-cube"></i></div>
-                        <h4>Cemento</h4>
-                        <p>Disponible en varias presentaciones</p>
-                        <span class="tag">Popular</span>
-                    </div>
-                    <div class="product-card">
-                        <div class="icon"><i class="fas fa-grip-lines"></i></div>
-                        <h4>Acero de Refuerzo</h4>
-                        <p>Varillas corrugadas</p>
-                        <span class="tag">Estructural</span>
-                    </div>
-                    <div class="product-card">
-                        <div class="icon"><i class="fas fa-paint-roller"></i></div>
-                        <h4>Pintura</h4>
-                        <p>Interior y exterior</p>
-                        <span class="tag">Acabados</span>
-                    </div>
-                    <div class="product-card">
-                        <div class="icon"><i class="fas fa-tree"></i></div>
-                        <h4>Madera</h4>
-                        <p>Polines, tablones, triplay</p>
-                        <span class="tag">Estructural</span>
-                    </div>
-                    <div class="product-card">
-                        <div class="icon"><i class="fas fa-border-all"></i></div>
-                        <h4>Panel Yeso</h4>
-                        <p>Para muros y techos</p>
-                        <span class="tag">Obra Gris</span>
-                    </div>
-                    <div class="product-card">
-                        <div class="icon"><i class="fas fa-tint"></i></div>
-                        <h4>Impermeabilizante</h4>
-                        <p>Protección contra humedad</p>
-                        <span class="tag">Especial</span>
-                    </div>
+                <div class="empty-state">
+                    <i class="fas fa-search"></i>
+                    <h4>Busca productos</h4>
+                    <p>Escribe el nombre de un producto para comenzar.</p>
                 </div>
-                <p style="text-align: center; margin-top: 1.5rem; color: var(--text-gray); font-size: 0.9rem;">
-                    <i class="fas fa-info-circle"></i> Este es un ejemplo. Próximamente más productos y categorías.
-                </p>
+            </div>
+        </div>
+
+        <!-- Carrito -->
+        <div class="cart-section" id="cartSection">
+            <h2><i class="fas fa-shopping-cart"></i> Carrito de Compra</h2>
+            <div id="cartContent">
+                <div class="empty-state">
+                    <i class="fas fa-cart-plus"></i>
+                    <h4>Carrito vacío</h4>
+                    <p>Agrega productos desde la lista de resultados.</p>
+                </div>
+            </div>
+            <div id="cartTotales" style="display:none;">
+                <div class="cart-totales">
+                    <p>Subtotal sin descuento: <strong id="subtotalSinDescuento">$0.00</strong></p>
+                    <p>Descuento total: <strong class="descuento-total" id="descuentoTotal">-$0.00</strong></p>
+                    <p>Subtotal: <strong id="subtotal">$0.00</strong></p>
+                    <p>IVA (16%): <strong id="iva">$0.00</strong></p>
+                    <p class="total">Total: <strong id="total">$0.00</strong></p>
+                </div>
+                <div class="cart-actions">
+                    <button class="btn-vaciar" onclick="vaciarCarrito()"><i class="fas fa-trash"></i> Vaciar</button>
+                    <button class="btn-comprar" id="btnComprar" onclick="abrirModalPago()"><i class="fas fa-check"></i> Realizar Compra</button>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- ===== TAB 2: MIS COMPRAS ===== -->
+    <div id="tab-compras" class="tab-content">
+        <div class="welcome-section">
+            <h1>📋 Historial de Compras</h1>
+            <p>Aquí puedes ver todas tus compras realizadas.</p>
+        </div>
+        <div class="cart-section" id="historialCompras">
+            <div id="historialContent">
+                <div class="empty-state">
+                    <i class="fas fa-receipt"></i>
+                    <h4>Sin compras registradas</h4>
+                    <p>Aún no tienes compras en tu historial.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MODAL DE PAGO ===== -->
+    <div class="modal-overlay" id="modalPago">
+        <div class="modal">
+            <h2>💳 Realizar Compra</h2>
+            <p class="subtitle">Selecciona el método de pago</p>
+
+            <div id="modalMensaje"></div>
+
+            <div class="opciones-pago">
+                <button onclick="seleccionarPago('transferencia')" id="btnTransferencia">
+                    <i class="fas fa-university"></i> Transferencia
+                </button>
+                <button onclick="seleccionarPago('credito')" id="btnCredito">
+                    <i class="fas fa-hand-holding-usd"></i> Crédito
+                </button>
+            </div>
+
+            <!-- Formulario Transferencia -->
+            <div id="formTransferencia" style="display:none;">
+                <div class="datos-bancarios">
+                    <p><strong>PROCONSTRUCCIONMX SAS DE CV</strong></p>
+                    <p><strong>BANCO:</strong> BBVA</p>
+                    <p><strong>NÚMERO DE CUENTA:</strong> 0127744064</p>
+                    <p><strong>CUENTA CLABE:</strong> 012180001277440643</p>
+                </div>
+                <div class="form-group">
+                    <label>Monto a transferir: <strong id="montoTransferencia">$0.00</strong></label>
+                </div>
+                <div class="form-group">
+                    <label>Número de referencia o folio de transferencia</label>
+                    <input type="text" id="referenciaTransferencia" placeholder="Ej: 1234567890">
+                </div>
+                <div class="form-group">
+                    <label>Subir comprobante de transferencia</label>
+                    <div class="file-upload" onclick="document.getElementById('comprobanteFile').click()">
+                        <i class="fas fa-cloud-upload-alt" style="font-size:2rem; color: var(--accent-orange);"></i>
+                        <p>Haz clic para seleccionar tu comprobante</p>
+                        <p class="file-name" id="fileName">Ningún archivo seleccionado</p>
+                        <input type="file" id="comprobanteFile" accept=".pdf,.jpg,.jpeg,.png" onchange="cargarComprobante(event)">
+                    </div>
+                </div>
+                <button class="btn-enviar" onclick="procesarPagoTransferencia()">
+                    <i class="fas fa-paper-plane"></i> Confirmar Compra
+                </button>
+            </div>
+
+            <!-- Formulario Crédito -->
+            <div id="formCredito" style="display:none;">
+                <div class="form-group">
+                    <label>Días de crédito</label>
+                    <input type="number" id="diasCredito" placeholder="Ej: 30" min="1" value="30">
+                </div>
+                <div class="form-group">
+                    <label>Anticipo (opcional)</label>
+                    <input type="number" id="anticipoCredito" placeholder="$0.00" min="0" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Total a pagar: <strong id="totalCredito">$0.00</strong></label>
+                </div>
+                <button class="btn-enviar" onclick="procesarPagoCredito()">
+                    <i class="fas fa-check"></i> Confirmar Crédito
+                </button>
+            </div>
+
+            <button class="btn-cerrar-modal" onclick="cerrarModalPago()"><i class="fas fa-times"></i> Cancelar</button>
+        </div>
+    </div>
+
     <script src="js/auth.js"></script>
-    <script>
-        // Verificar autenticación
-        if (sessionStorage.getItem('userLoggedIn') !== 'true') {
-            window.location.href = 'login.html';
-        }
-
-        // Mostrar el email del usuario
-        const userEmail = sessionStorage.getItem('userEmail') || 'Usuario';
-        document.getElementById('userEmailDisplay').textContent = userEmail;
-        document.getElementById('welcomeName').textContent = userEmail.split('@')[0];
-
-        // Función de búsqueda (ejemplo)
-        function buscarProductos() {
-            const query = document.getElementById('searchInput').value.toLowerCase().trim();
-            const resultsDiv = document.getElementById('resultsContent');
-            
-            if (!query) {
-                resultsDiv.innerHTML = `
-                    <div class="product-grid">
-                        <div class="product-card">
-                            <div class="icon"><i class="fas fa-cube"></i></div>
-                            <h4>Cemento</h4>
-                            <p>Disponible en varias presentaciones</p>
-                            <span class="tag">Popular</span>
-                        </div>
-                        <div class="product-card">
-                            <div class="icon"><i class="fas fa-grip-lines"></i></div>
-                            <h4>Acero de Refuerzo</h4>
-                            <p>Varillas corrugadas</p>
-                            <span class="tag">Estructural</span>
-                        </div>
-                        <div class="product-card">
-                            <div class="icon"><i class="fas fa-paint-roller"></i></div>
-                            <h4>Pintura</h4>
-                            <p>Interior y exterior</p>
-                            <span class="tag">Acabados</span>
-                        </div>
-                        <div class="product-card">
-                            <div class="icon"><i class="fas fa-tree"></i></div>
-                            <h4>Madera</h4>
-                            <p>Polines, tablones, triplay</p>
-                            <span class="tag">Estructural</span>
-                        </div>
-                        <div class="product-card">
-                            <div class="icon"><i class="fas fa-border-all"></i></div>
-                            <h4>Panel Yeso</h4>
-                            <p>Para muros y techos</p>
-                            <span class="tag">Obra Gris</span>
-                        </div>
-                        <div class="product-card">
-                            <div class="icon"><i class="fas fa-tint"></i></div>
-                            <h4>Impermeabilizante</h4>
-                            <p>Protección contra humedad</p>
-                            <span class="tag">Especial</span>
-                        </div>
-                    </div>
-                    <p style="text-align: center; margin-top: 1.5rem; color: var(--text-gray); font-size: 0.9rem;">
-                        <i class="fas fa-info-circle"></i> Este es un ejemplo. Próximamente más productos y categorías.
-                    </p>
-                `;
-                return;
-            }
-
-            const productos = [
-                'Cemento', 'Acero', 'Pintura', 'Madera', 'Yeso', 'Impermeabilizante',
-                'Block', 'Arena', 'Grava', 'Varilla', 'Mortero', 'Adhesivo',
-                'Porcelanato', 'Azulejo', 'Grifería', 'Sanitario', 'Calentador'
-            ];
-            
-            const resultados = productos.filter(p => p.toLowerCase().includes(query));
-            
-            if (resultados.length > 0) {
-                resultsDiv.innerHTML = `
-                    <h4 style="margin-bottom: 1rem; color: var(--primary-dark);">
-                        <i class="fas fa-check-circle" style="color: #16a34a;"></i> 
-                        ${resultados.length} resultado(s) para "${query}"
-                    </h4>
-                    ${resultados.map(p => `
-                        <div class="resultado-item">
-                            <span><i class="fas fa-box" style="color: var(--accent-orange);"></i> ${p}</span>
-                            <span style="color: var(--text-gray); font-size: 0.9rem;">Disponible</span>
-                        </div>
-                    `).join('')}
-                    <p style="text-align: center; margin-top: 1.5rem; color: var(--text-gray); font-size: 0.9rem;">
-                        <i class="fas fa-info-circle"></i> Para cotizar estos productos, contáctanos por WhatsApp.
-                    </p>
-                `;
-            } else {
-                resultsDiv.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-search"></i>
-                        <h4>No se encontraron resultados</h4>
-                        <p>Intenta con otra palabra o <a href="index.html#contacto" style="color: var(--accent-orange);">contáctanos</a> para más información.</p>
-                    </div>
-                `;
-            }
-        }
-    </script>
+    <script src="js/dashboard.js"></script>
 </body>
 </html>
