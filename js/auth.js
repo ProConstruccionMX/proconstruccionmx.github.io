@@ -3,14 +3,14 @@ const SHEET_ID = '1yCQ-cJJ7PALDYSwIcpsj1ZfACtNLJwfOR7HY-mPzgx4';
 const SHEET_NAME = 'Hoja 1';
 const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${SHEET_NAME}`;
 
-// ⭐ Configuración de EmailJS - ACTUALIZADO CON TUS DATOS ⭐
+// ⭐ Configuración de EmailJS ⭐
 const EMAILJS_CONFIG = {
     serviceID: 'service_o2zvkzo',
     templateID: 'template_usum2d8',
-    userID: '_gOxtGSQmrhTdoRuX'  // Tu Public Key
+    userID: '_gOxtGSQmrhTdoRuX'
 };
 
-// Función para obtener datos de Google Sheets
+// Función para obtener datos de Google Sheets (ignorando encabezados)
 async function obtenerClientes() {
     try {
         const response = await fetch(SHEET_URL);
@@ -19,14 +19,18 @@ async function obtenerClientes() {
         const data = JSON.parse(jsonStr);
         const rows = data.table.rows;
         
-        const clientes = rows.map(row => {
+        // ⭐ CORREGIDO: Ignorar la primera fila (encabezados) ⭐
+        const clientes = [];
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
             const values = row.c.map(cell => cell ? cell.v : '');
-            return {
+            clientes.push({
                 contrasena: values[0] || '', // Columna A
                 correo: values[3] || ''      // Columna D
-            };
-        });
+            });
+        }
         
+        console.log('📋 Clientes cargados:', clientes.length);
         return clientes;
     } catch (error) {
         console.error('Error al obtener datos:', error);
@@ -39,11 +43,17 @@ async function autenticarUsuario(email, password) {
     const clientes = await obtenerClientes();
     const cliente = clientes.find(c => c.correo.toLowerCase() === email.toLowerCase());
     
+    console.log('🔍 Buscando:', email);
+    console.log('📋 Clientes encontrados:', clientes.map(c => c.correo));
+    
     if (!cliente) {
         return { success: false, message: '❌ Correo no registrado. Contacta a tu asesor.' };
     }
     
-    if (cliente.contrasena !== password) {
+    console.log('🔑 Contraseña guardada:', cliente.contrasena);
+    console.log('🔑 Contraseña ingresada:', password);
+    
+    if (cliente.contrasena.trim() !== password.trim()) {
         return { success: false, message: '❌ Contraseña incorrecta. Intenta de nuevo.' };
     }
     
@@ -54,7 +64,7 @@ async function autenticarUsuario(email, password) {
     };
 }
 
-// Función para recuperar contraseña (con envío de email)
+// Función para recuperar contraseña (solo envía por correo, NO muestra en pantalla)
 async function recuperarContrasena(email) {
     const clientes = await obtenerClientes();
     const cliente = clientes.find(c => c.correo.toLowerCase() === email.toLowerCase());
@@ -68,15 +78,14 @@ async function recuperarContrasena(email) {
     }
     
     try {
-        // ⭐ CORREGIDO: La variable se llama 'to_email' para coincidir con la plantilla ⭐
+        // Enviar email con EmailJS
         const templateParams = {
-            to_email: cliente.correo,           // <--- CORREGIDO: ahora es 'to_email'
+            to_email: cliente.correo,
             to_name: cliente.correo.split('@')[0],
             password: cliente.contrasena
         };
         
         console.log('📧 Enviando correo a:', cliente.correo);
-        console.log('📝 Datos del correo:', templateParams);
         
         const response = await emailjs.send(
             EMAILJS_CONFIG.serviceID,
@@ -97,11 +106,13 @@ async function recuperarContrasena(email) {
         }
     } catch (error) {
         console.error('❌ Error al enviar email:', error);
+        console.error('❌ Detalle del error:', error.text || error.message);
+        
+        // ⭐ CORREGIDO: Ya NO muestra la contraseña en pantalla ⭐
         return {
-            success: true,
-            message: `⚠️ No se pudo enviar el correo electrónico. Tu contraseña es: ${cliente.contrasena}\n\nPor favor, contáctate con tu asesor para recibir ayuda.`,
-            contrasena: cliente.contrasena,
-            isDemo: true
+            success: false,
+            message: '❌ No se pudo enviar el correo electrónico. Por favor, contáctate con tu asesor por WhatsApp para recibir tu contraseña.',
+            showWhatsApp: true
         };
     }
 }
@@ -149,6 +160,7 @@ async function handleLogin(event) {
             loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Iniciar Sesión';
         }
     } catch (error) {
+        console.error('❌ Error en login:', error);
         errorDiv.querySelector('#errorText').textContent = 'Error al conectar con el servidor. Intenta de nuevo.';
         errorDiv.classList.add('show');
         loginBtn.disabled = false;
@@ -190,12 +202,6 @@ async function handleRecuperar(event) {
         if (result.success) {
             messageBox.className = 'message-box success';
             messageBox.textContent = result.message;
-            
-            if (result.isDemo && result.contrasena) {
-                setTimeout(() => {
-                    alert(`🔑 Tu contraseña es: ${result.contrasena}\n\nGuárdala en un lugar seguro.`);
-                }, 500);
-            }
         } else {
             messageBox.className = 'message-box error';
             messageBox.textContent = result.message;
@@ -205,7 +211,7 @@ async function handleRecuperar(event) {
                     whatsappBtnContainer.style.display = 'block';
                     whatsappBtnContainer.innerHTML = `
                         <p style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-gray);">
-                            <i class="fas fa-info-circle"></i> ¿No tienes cuenta? 
+                            <i class="fas fa-info-circle"></i> ¿Necesitas ayuda? 
                             <a href="https://wa.me/525540148827" target="_blank" style="color: var(--accent-orange); font-weight: 600;">
                                 Contáctate con un asesor <i class="fab fa-whatsapp"></i>
                             </a>
@@ -215,6 +221,7 @@ async function handleRecuperar(event) {
             }
         }
     } catch (error) {
+        console.error('❌ Error en recuperar:', error);
         messageBox.className = 'message-box error';
         messageBox.textContent = 'Error al conectar con el servidor. Intenta de nuevo.';
     }
