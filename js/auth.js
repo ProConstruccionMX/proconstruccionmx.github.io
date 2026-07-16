@@ -68,14 +68,15 @@ async function recuperarContrasena(email) {
     }
     
     try {
-        // Enviar email con EmailJS
+        // ⭐ CORREGIDO: La variable se llama 'to_email' para coincidir con la plantilla ⭐
         const templateParams = {
-            email: cliente.correo,
+            to_email: cliente.correo,           // <--- CORREGIDO: ahora es 'to_email'
             to_name: cliente.correo.split('@')[0],
             password: cliente.contrasena
         };
         
         console.log('📧 Enviando correo a:', cliente.correo);
+        console.log('📝 Datos del correo:', templateParams);
         
         const response = await emailjs.send(
             EMAILJS_CONFIG.serviceID,
