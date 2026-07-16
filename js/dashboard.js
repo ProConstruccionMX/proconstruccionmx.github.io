@@ -118,9 +118,17 @@ async function cargarProductos() {
         const rows = data.table.rows;
         
         productosGlobales = [];
-        // ⭐ CORREGIDO: Empezar desde la fila 2 (índice 2) porque la fila 1 es encabezado
+        // Empezar desde la fila 2 (índice 2) porque la fila 1 es encabezado
         for (let i = 2; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
+            
+            // ⭐ LEER CORRECTAMENTE LAS COLUMNAS R Y S
+            // Columna R = índice 17 (0-based), Columna S = índice 18
+            const pesoCondicionRaw = String(values[17] || '').trim().toUpperCase();
+            const pesoRaw = String(values[18] || '').trim();
+            
+            console.log(`📦 Producto: ${values[1]}, Columna R: "${pesoCondicionRaw}", Columna S: "${pesoRaw}"`);
+            
             productosGlobales.push({
                 clave: String(values[0] || '').trim(),
                 nombre: String(values[1] || '').trim(),
@@ -136,12 +144,18 @@ async function cargarProductos() {
                 pxv: String(values[14] || '').trim(),
                 descuentoVolumenP: parseFloat(values[15]) || 0,
                 descuentoVolumenQ: parseFloat(values[16]) || 0,
-                // ⭐ NUEVAS COLUMNAS: R (columna 17 = índice 17) y S (columna 18 = índice 18)
-                pesoCondicion: String(values[17] || '').trim().toUpperCase(),
-                peso: parseFloat(values[18]) || 0
+                // ⭐ COLUMNA R = pesoCondicion (SI/NO), COLUMNA S = peso (kg por unidad)
+                pesoCondicion: pesoCondicionRaw === 'SI' ? 'SI' : 'NO',
+                peso: parseFloat(pesoRaw) || 0
             });
         }
         console.log('📦 Productos cargados:', productosGlobales.length);
+        
+        // Mostrar cuántos productos tienen condición de peso
+        const conPeso = productosGlobales.filter(p => p.pesoCondicion === 'SI' && p.peso > 0);
+        console.log(`⚖️ Productos con condición de peso: ${conPeso.length}`);
+        conPeso.forEach(p => console.log(`   - ${p.nombre}: ${p.peso} kg/unidad`));
+        
     } catch (error) {
         console.error('Error al cargar productos:', error);
     }
@@ -223,7 +237,7 @@ function buscarProductos() {
         // Mostrar etiqueta de peso si aplica
         let etiquetaPeso = '';
         if (producto.pesoCondicion === 'SI' && producto.peso > 0) {
-            etiquetaPeso = `<span class="tag-peso">⚖️ ${producto.peso} kg/unidad</span>`;
+            etiquetaPeso = `<span class="tag-peso">⚖️ ${producto.peso} kg/unidad - Mínimo 1 tonelada combinada</span>`;
         }
         
         html += `
@@ -340,19 +354,17 @@ function calcularDescuentoProducto(producto, cantidad) {
 // ============================================
 
 function verificarPesoMinimo() {
-    // Obtener solo productos que tienen condición de peso "SI"
+    // Obtener productos del carrito que tienen condición de peso "SI" y peso > 0
     const productosConPeso = carrito.filter(item => {
         const producto = productosGlobales.find(p => p.clave === item.clave);
+        // Verificar que el producto exista y tenga condición de peso
         return producto && producto.pesoCondicion === 'SI' && producto.peso > 0;
     });
     
-    // Calcular peso total de todos los productos con peso
-    let pesoTotal = 0;
+    console.log('🔍 Productos con peso en carrito:', productosConPeso.length);
     productosConPeso.forEach(item => {
         const producto = productosGlobales.find(p => p.clave === item.clave);
-        if (producto) {
-            pesoTotal += producto.peso * item.cantidad;
-        }
+        console.log(`   - ${item.nombre}: ${item.cantidad} x ${producto.peso} kg = ${(producto.peso * item.cantidad).toFixed(2)} kg`);
     });
     
     // Si no hay productos con peso, no hay restricción
@@ -361,9 +373,30 @@ function verificarPesoMinimo() {
             cumple: true, 
             pesoTotal: 0, 
             productosConPeso: 0,
-            mensaje: '' 
+            mensaje: '',
+            productosAfectados: []
         };
     }
+    
+    // Calcular peso total de todos los productos con peso
+    let pesoTotal = 0;
+    const productosAfectados = [];
+    
+    productosConPeso.forEach(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        if (producto) {
+            const pesoItem = producto.peso * item.cantidad;
+            pesoTotal += pesoItem;
+            productosAfectados.push({
+                nombre: item.nombre,
+                cantidad: item.cantidad,
+                pesoUnitario: producto.peso,
+                pesoTotal: pesoItem
+            });
+        }
+    });
+    
+    console.log(`⚖️ Peso total calculado: ${pesoTotal.toFixed(2)} kg`);
     
     // Verificar si cumple con el mínimo de 1000 kg
     if (pesoTotal >= PESO_MINIMO_TONELADA) {
@@ -371,13 +404,15 @@ function verificarPesoMinimo() {
             cumple: true, 
             pesoTotal: pesoTotal, 
             productosConPeso: productosConPeso.length,
-            mensaje: `✅ Peso total: ${pesoTotal.toFixed(2)} kg (mínimo cumplido: 1 tonelada)` 
+            productosAfectados: productosAfectados,
+            mensaje: `✅ ¡Cumpliste con el peso mínimo! Total: ${pesoTotal.toFixed(2)} kg (1 tonelada)` 
         };
     } else {
         return { 
             cumple: false, 
             pesoTotal: pesoTotal, 
             productosConPeso: productosConPeso.length,
+            productosAfectados: productosAfectados,
             mensaje: `⚠️ Peso total: ${pesoTotal.toFixed(2)} kg. Se requiere mínimo ${PESO_MINIMO_TONELADA} kg (1 tonelada) para productos marcados con peso. Faltan ${(PESO_MINIMO_TONELADA - pesoTotal).toFixed(2)} kg.` 
         };
     }
@@ -412,7 +447,7 @@ function agregarAlCarrito(clave) {
             descuento: descuento,
             importe: precioConDescuento,
             personalizado: precioFinal.personalizado,
-            // ⭐ Datos de peso
+            // Datos de peso
             pesoCondicion: producto.pesoCondicion,
             peso: producto.peso
         });
@@ -509,8 +544,9 @@ function renderizarCarrito() {
         
         // Mostrar si el producto tiene peso
         let pesoInfo = '';
+        let pesoTotalItem = 0;
         if (item.pesoCondicion === 'SI' && item.peso > 0) {
-            const pesoTotalItem = item.peso * item.cantidad;
+            pesoTotalItem = item.peso * item.cantidad;
             pesoInfo = `<br><small style="color:var(--text-gray);">⚖️ ${item.peso} kg/unidad → ${pesoTotalItem.toFixed(2)} kg total</small>`;
         }
         
@@ -547,13 +583,54 @@ function renderizarCarrito() {
         </table>
     `;
     
-    // Mostrar información de peso si hay productos con peso
+    // ⭐ MOSTRAR LEYENDA DE PESO SI HAY PRODUCTOS CON PESO
     if (verificarPeso.productosConPeso > 0) {
+        // Mostrar detalle de productos con peso
+        let detalleProductos = '';
+        verificarPeso.productosAfectados.forEach(p => {
+            detalleProductos += `
+                <div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.9rem; border-bottom: 1px solid #f0f0f0;">
+                    <span>${p.nombre}</span>
+                    <span>${p.cantidad} x ${p.pesoUnitario} kg = ${p.pesoTotal.toFixed(2)} kg</span>
+                </div>
+            `;
+        });
+        
+        const pesoRestante = PESO_MINIMO_TONELADA - verificarPeso.pesoTotal;
+        
         html += `
-            <div style="margin-top: 1rem; padding: 1rem; border-radius: 8px; background: ${verificarPeso.cumple ? '#dcfce7' : '#fef3c7'}; border: 1px solid ${verificarPeso.cumple ? '#bbf7d0' : '#fde68a'};">
-                <p style="margin: 0; font-weight: 600; color: ${verificarPeso.cumple ? '#16a34a' : '#92400e'};">
-                    ${verificarPeso.mensaje}
-                </p>
+            <div style="margin-top: 1.5rem; padding: 1.5rem; border-radius: 12px; background: ${verificarPeso.cumple ? '#dcfce7' : '#fef3c7'}; border: 2px solid ${verificarPeso.cumple ? '#bbf7d0' : '#fde68a'};">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <span style="font-size: 1.5rem;">${verificarPeso.cumple ? '✅' : '⚠️'}</span>
+                    <span style="font-weight: 700; color: ${verificarPeso.cumple ? '#16a34a' : '#92400e'}; font-size: 1.1rem;">
+                        ${verificarPeso.cumple ? '¡Peso mínimo cumplido!' : 'Peso mínimo requerido'}
+                    </span>
+                </div>
+                <div style="background: white; padding: 0.8rem 1rem; border-radius: 8px; margin: 0.5rem 0;">
+                    <div style="display: flex; justify-content: space-between; font-weight: 600; color: var(--primary-dark); border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
+                        <span>Producto</span>
+                        <span>Peso total</span>
+                    </div>
+                    ${detalleProductos}
+                    <div style="display: flex; justify-content: space-between; font-weight: 700; color: var(--primary-dark); padding-top: 0.5rem; margin-top: 0.5rem; border-top: 2px solid #e2e8f0;">
+                        <span>TOTAL PESO</span>
+                        <span>${verificarPeso.pesoTotal.toFixed(2)} kg</span>
+                    </div>
+                </div>
+                ${!verificarPeso.cumple ? `
+                    <div style="background: #fef3c7; padding: 0.8rem 1rem; border-radius: 8px; margin-top: 0.5rem; border: 1px solid #fde68a;">
+                        <p style="margin: 0; font-weight: 600; color: #92400e;">
+                            ⚠️ Te faltan <strong>${pesoRestante.toFixed(2)} kg</strong> para alcanzar la tonelada (${PESO_MINIMO_TONELADA} kg).
+                            <br><small style="font-weight: normal;">Puedes combinar productos como estucos y adhesivos para completar el peso.</small>
+                        </p>
+                    </div>
+                ` : `
+                    <div style="background: #dcfce7; padding: 0.8rem 1rem; border-radius: 8px; margin-top: 0.5rem; border: 1px solid #bbf7d0;">
+                        <p style="margin: 0; font-weight: 600; color: #16a34a;">
+                            ✅ ¡Ya puedes realizar tu compra! Has alcanzado el peso mínimo de 1 tonelada.
+                        </p>
+                    </div>
+                `}
             </div>
         `;
     }
@@ -567,13 +644,17 @@ function renderizarCarrito() {
     document.getElementById('iva').textContent = formatoMexicano(iva);
     document.getElementById('total').textContent = formatoMexicano(total);
     
-    // Habilitar/deshabilitar botón comprar según peso
-    if (!verificarPeso.cumple && verificarPeso.productosConPeso > 0) {
+    // ⭐ HABILITAR/DESHABILITAR BOTÓN COMPRAR SEGÚN PESO
+    if (verificarPeso.productosConPeso > 0 && !verificarPeso.cumple) {
         btnComprar.disabled = true;
-        btnComprar.title = 'Se requiere mínimo 1 tonelada (1000 kg) para productos con peso';
+        btnComprar.title = '⚠️ Debes completar el peso mínimo de 1 tonelada (1000 kg) para productos con peso.';
+        btnComprar.style.opacity = '0.5';
+        btnComprar.style.cursor = 'not-allowed';
     } else {
         btnComprar.disabled = false;
         btnComprar.title = '';
+        btnComprar.style.opacity = '1';
+        btnComprar.style.cursor = 'pointer';
     }
 }
 
@@ -589,7 +670,7 @@ function abrirModalPago() {
     
     // Verificar peso mínimo antes de abrir el modal
     const verificarPeso = verificarPesoMinimo();
-    if (!verificarPeso.cumple && verificarPeso.productosConPeso > 0) {
+    if (verificarPeso.productosConPeso > 0 && !verificarPeso.cumple) {
         mostrarNotificacion('⚠️ ' + verificarPeso.mensaje);
         return;
     }
