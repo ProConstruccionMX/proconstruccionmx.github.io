@@ -132,6 +132,10 @@
         .welcome-section .cliente-info strong {
             color: var(--primary-dark);
         }
+        .welcome-section .cliente-info small {
+            color: var(--text-gray);
+            font-size: 0.7rem;
+        }
 
         .search-section {
             background: white;
@@ -226,6 +230,15 @@
             padding: 0.2rem 0.6rem;
             border-radius: 50px;
             display: inline-block;
+        }
+        .product-card .tag-peso {
+            font-size: 0.6rem;
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 0.1rem 0.5rem;
+            border-radius: 50px;
+            display: inline-block;
+            margin-top: 0.3rem;
         }
         .product-card h4 {
             color: var(--primary-dark);
@@ -623,10 +636,8 @@
             <h1>👋 ¡Hola, <span id="welcomeName">Cliente</span>!</h1>
             <p>Aquí puedes buscar y explorar los productos disponibles. Si no encuentras un producto, contacta a tu asesor.</p>
             <div class="cliente-info" id="clienteInfo">
-                <span><strong>Código:</strong> <span id="clienteCodigo">---</span></span>
-                <span><strong>Giro:</strong> <span id="clienteGiro">---</span></span>
-                <span><strong>Descuento Base:</strong> <span id="clienteDescuento">0%</span></span>
-                <span><strong>Teléfono:</strong> <span id="clienteTelefono">---</span></span>
+                <span><strong>Código de Cliente:</strong> <span id="clienteCodigo">---</span></span>
+                <span><strong>Descuento Base:</strong> <span id="clienteDescuento">0%</span> <small>* Este descuento puede variar según el producto</small></span>
             </div>
         </div>
 
