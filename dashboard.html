@@ -65,6 +65,7 @@
             transform: translateY(-2px);
         }
 
+        /* ===== BOTÓN MI CUENTA ===== */
         .btn-mi-cuenta {
             background: #1a4d8c !important;
             color: white !important;
@@ -768,13 +769,16 @@
 </head>
 <body>
 
-    <!-- HEADER CON BOTÓN MI CUENTA -->
+    <!-- ============================================================ -->
+    <!-- HEADER CON BOTÓN MI CUENTA (YA INCLUIDO)                     -->
+    <!-- ============================================================ -->
     <header class="dashboard-header">
         <a href="index.html" class="logo">ProConstrucción <span>MX</span></a>
         <div class="user-info">
             <span class="user-name" id="userNameDisplay"><i class="fas fa-user"></i> Cliente</span>
             <span class="user-email" id="userEmailDisplay">usuario@correo.com</span>
             
+            <!-- ===== BOTÓN MI CUENTA CON MENÚ ===== -->
             <div class="menu-usuario-container">
                 <button class="btn-mi-cuenta" id="btnMiCuenta">
                     <i class="fas fa-user-cog"></i> Mi Cuenta
@@ -1085,25 +1089,31 @@
         // FUNCIONES DEL MENÚ MI CUENTA
         // ============================================
         
-        function toggleMenu() {
-            var menu = document.getElementById('menuDesplegable');
-            if (menu) {
-                if (menu.style.display === 'block') {
-                    menu.style.display = 'none';
-                } else {
-                    menu.style.display = 'block';
-                }
-            }
-        }
-
-        document.addEventListener('click', function(event) {
-            var container = document.querySelector('.menu-usuario-container');
-            var menu = document.getElementById('menuDesplegable');
-            if (container && menu && !container.contains(event.target)) {
-                menu.style.display = 'none';
+        // Toggle del menú desplegable
+        document.addEventListener('DOMContentLoaded', function() {
+            var btnMiCuenta = document.getElementById('btnMiCuenta');
+            var menuDesplegable = document.getElementById('menuDesplegable');
+            
+            if (btnMiCuenta && menuDesplegable) {
+                btnMiCuenta.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    if (menuDesplegable.style.display === 'block') {
+                        menuDesplegable.style.display = 'none';
+                    } else {
+                        menuDesplegable.style.display = 'block';
+                    }
+                });
+                
+                document.addEventListener('click', function(event) {
+                    var container = document.querySelector('.menu-usuario-container');
+                    if (container && !container.contains(event.target)) {
+                        menuDesplegable.style.display = 'none';
+                    }
+                });
             }
         });
 
+        // Función para abrir "Mis Direcciones"
         function abrirMisDirecciones() {
             console.log('📍 Abriendo "Mis Direcciones"...');
             
@@ -1128,6 +1138,7 @@
             }
         }
 
+        // Cerrar sesión
         function cerrarSesion() {
             sessionStorage.clear();
             window.location.href = 'login.html';
