@@ -421,7 +421,75 @@
             background: #475569;
         }
 
-        /* ===== MODAL DE DIRECCIÓN ===== */
+        /* ===== DIRECCIONES ===== */
+        .direcciones-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        .direccion-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s;
+        }
+        .direccion-card:hover {
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+            border-color: var(--accent-orange);
+        }
+        .direccion-card .direccion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.8rem;
+            padding-bottom: 0.8rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .direccion-card .direccion-header h4 {
+            color: var(--primary-dark);
+            font-size: 1.1rem;
+            margin: 0;
+        }
+        .direccion-card .direccion-header .direccion-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .direccion-card .direccion-header button {
+            padding: 0.3rem 0.8rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+        }
+        .direccion-card .direccion-header .btn-editar {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .direccion-card .direccion-header .btn-editar:hover {
+            background: #1e40af;
+            color: white;
+        }
+        .direccion-card .direccion-header .btn-eliminar {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        .direccion-card .direccion-header .btn-eliminar:hover {
+            background: #dc2626;
+            color: white;
+        }
+        .direccion-card .direccion-body p {
+            margin: 0.3rem 0;
+            font-size: 0.9rem;
+            color: var(--text-gray);
+        }
+        .direccion-card .direccion-body strong {
+            color: var(--primary-dark);
+        }
+
+        /* ===== MODALES ===== */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -458,32 +526,6 @@
             text-align: center;
             color: var(--text-gray);
             margin-bottom: 1.5rem;
-        }
-        .modal .opciones-pago {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-            flex-wrap: wrap;
-        }
-        .modal .opciones-pago button {
-            flex: 1;
-            padding: 1rem;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            background: white;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-family: 'Inter', sans-serif;
-            min-width: 120px;
-        }
-        .modal .opciones-pago button:hover {
-            border-color: var(--accent-orange);
-            background: var(--gray-light);
-        }
-        .modal .opciones-pago button.selected {
-            border-color: var(--accent-orange);
-            background: #fef3c7;
         }
         .modal .form-group {
             margin-bottom: 1rem;
@@ -598,6 +640,47 @@
             color: var(--primary-dark);
             font-weight: 600;
         }
+        .modal .opciones-pago {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .modal .opciones-pago button {
+            flex: 1;
+            padding: 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            background: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+            min-width: 120px;
+        }
+        .modal .opciones-pago button:hover {
+            border-color: var(--accent-orange);
+            background: var(--gray-light);
+        }
+        .modal .opciones-pago button.selected {
+            border-color: var(--accent-orange);
+            background: #fef3c7;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        .checkbox-group label {
+            font-weight: 500;
+            cursor: pointer;
+        }
 
         /* ===== RESPONSIVE ===== */
         @media (max-width: 768px) {
@@ -611,6 +694,8 @@
             .cart-table .cantidad-input { width: 45px; }
             .modal { padding: 1.5rem; }
             .modal .opciones-pago { flex-direction: column; }
+            .direcciones-grid { grid-template-columns: 1fr; }
+            .btn-mi-cuenta { font-size: 0.8rem !important; padding: 0.3rem 1rem !important; }
         }
     </style>
 </head>
@@ -629,6 +714,7 @@
     <!-- TABS -->
     <div class="dashboard-tabs">
         <button class="active" data-tab="tab-cotizar"><i class="fas fa-shopping-cart"></i> Cotizar</button>
+        <button data-tab="tab-direcciones"><i class="fas fa-address-book"></i> Mis Direcciones</button>
         <button data-tab="tab-compras"><i class="fas fa-history"></i> Mis Compras</button>
     </div>
 
@@ -691,7 +777,24 @@
         </div>
     </div>
 
-    <!-- ===== TAB 2: MIS COMPRAS ===== -->
+    <!-- ===== TAB 2: MIS DIRECCIONES ===== -->
+    <div id="tab-direcciones" class="tab-content">
+        <div class="welcome-section">
+            <h1>📍 Mis Direcciones</h1>
+            <p>Aquí puedes ver, editar y eliminar tus direcciones de envío guardadas.</p>
+        </div>
+        <div class="cart-section" id="direccionesSection">
+            <div id="direccionesContent">
+                <div class="empty-state">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <h4>Sin direcciones registradas</h4>
+                    <p>Agrega una dirección desde el formulario de compra.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== TAB 3: MIS COMPRAS ===== -->
     <div id="tab-compras" class="tab-content">
         <div class="welcome-section">
             <h1>📋 Historial de Compras</h1>
@@ -712,9 +815,18 @@
     <div class="modal-overlay" id="modalDireccion">
         <div class="modal">
             <h2>📦 Dirección de Envío</h2>
-            <p class="subtitle">Ingresa los datos de entrega para tu pedido</p>
+            <p class="subtitle">Selecciona una dirección guardada o ingresa una nueva</p>
 
             <div id="modalDireccionMensaje"></div>
+
+            <div class="form-group">
+                <label>Selecciona una dirección guardada</label>
+                <select id="direccionSelector">
+                    <option value="">-- Selecciona una dirección --</option>
+                </select>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 1rem 0;">
 
             <div class="form-group">
                 <label>Calle y número <span style="color:red;">*</span></label>
@@ -749,10 +861,76 @@
                 <input type="text" id="dirNombreRecibe" placeholder="Ej: Juan Pérez">
             </div>
 
+            <div class="checkbox-group">
+                <input type="checkbox" id="dirGuardarCheck" onchange="document.getElementById('dirGuardarCampos').style.display = this.checked ? 'block' : 'none'">
+                <label for="dirGuardarCheck">Guardar esta dirección para futuras compras</label>
+            </div>
+
+            <div id="dirGuardarCampos" style="display:none; margin-top: 0.5rem;">
+                <div class="form-group">
+                    <label>Nombre para identificar esta dirección <span style="color:red;">*</span></label>
+                    <input type="text" id="dirGuardarNombre" placeholder="Ej: Mi casa, Oficina, Cliente 1...">
+                </div>
+            </div>
+
             <button class="btn-enviar" onclick="continuarConPago()">
                 <i class="fas fa-arrow-right"></i> Continuar al Pago
             </button>
             <button class="btn-cerrar-modal" onclick="cerrarModalDireccion()">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+        </div>
+    </div>
+
+    <!-- ===== MODAL DE EDICIÓN DE DIRECCIÓN ===== -->
+    <div class="modal-overlay" id="modalEditarDireccion">
+        <div class="modal">
+            <h2>✏️ Editar Dirección</h2>
+            <p class="subtitle">Actualiza los datos de tu dirección</p>
+
+            <input type="hidden" id="editDirIndex">
+
+            <div class="form-group">
+                <label>Nombre de la dirección <span style="color:red;">*</span></label>
+                <input type="text" id="editDirNombre" placeholder="Ej: Mi casa, Oficina...">
+            </div>
+            <div class="form-group">
+                <label>Calle y número <span style="color:red;">*</span></label>
+                <input type="text" id="editDirCalle" placeholder="Ej: Av. Insurgentes Sur 1234">
+            </div>
+            <div class="form-group">
+                <label>Colonia <span style="color:red;">*</span></label>
+                <input type="text" id="editDirColonia" placeholder="Ej: Colonia Del Valle">
+            </div>
+            <div class="form-group">
+                <label>Alcaldía o Municipio <span style="color:red;">*</span></label>
+                <input type="text" id="editDirAlcaldia" placeholder="Ej: Benito Juárez">
+            </div>
+            <div class="form-group">
+                <label>Estado <span style="color:red;">*</span></label>
+                <input type="text" id="editDirEstado" placeholder="Ej: CDMX">
+            </div>
+            <div class="form-group">
+                <label>Código Postal <span style="color:red;">*</span></label>
+                <input type="text" id="editDirCP" placeholder="Ej: 03100">
+            </div>
+            <div class="form-group">
+                <label>URL de Google Maps (opcional)</label>
+                <input type="text" id="editDirMaps" placeholder="https://maps.app.goo.gl/...">
+            </div>
+            <div class="form-group">
+                <label>Teléfono de contacto <span style="color:red;">*</span></label>
+                <input type="text" id="editDirTelefono" placeholder="Ej: 55 1234 5678">
+            </div>
+            <div class="form-group">
+                <label>Nombre de quien recibe <span style="color:red;">*</span></label>
+                <input type="text" id="editDirNombreRecibe" placeholder="Ej: Juan Pérez">
+            </div>
+
+            <button class="btn-enviar" onclick="guardarEdicionDireccion()">
+                <i class="fas fa-save"></i> Guardar Cambios
+            </button>
+            <button class="btn-cerrar-modal" onclick="cerrarModalEditarDireccion()">
                 <i class="fas fa-times"></i> Cancelar
             </button>
         </div>
