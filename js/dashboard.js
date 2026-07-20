@@ -48,7 +48,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     await cargarDireccionesCliente();
     
     configurarTabs();
-    configurarMenuUsuario();
     
     if (clienteData) {
         document.getElementById('welcomeName').textContent = clienteData.nombre;
@@ -1006,61 +1005,6 @@ function renderizarCarrito() {
         btnComprar.style.opacity = '1';
         btnComprar.style.cursor = 'pointer';
     }
-}
-
-// ============================================
-// MENÚ DE USUARIO - MI CUENTA
-// ============================================
-
-function configurarMenuUsuario() {
-    console.log('🔧 Configurando menú "Mi Cuenta"...');
-    
-    const btnMiCuenta = document.getElementById('btnMiCuenta');
-    const menuDesplegable = document.getElementById('menuDesplegable');
-    
-    if (btnMiCuenta && menuDesplegable) {
-        btnMiCuenta.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const isVisible = menuDesplegable.style.display === 'block';
-            menuDesplegable.style.display = isVisible ? 'none' : 'block';
-        });
-        
-        document.addEventListener('click', function(event) {
-            const container = document.querySelector('.menu-usuario-container');
-            if (container && !container.contains(event.target)) {
-                menuDesplegable.style.display = 'none';
-            }
-        });
-        
-        console.log('✅ Menú "Mi Cuenta" configurado correctamente');
-    } else {
-        console.warn('⚠️ No se encontró el botón "Mi Cuenta" en el HTML');
-    }
-}
-
-function abrirMisDirecciones() {
-    console.log('📍 Abriendo "Mis Direcciones"...');
-    
-    const menu = document.getElementById('menuDesplegable');
-    if (menu) menu.style.display = 'none';
-    
-    const tabs = document.querySelectorAll('.dashboard-tabs button');
-    const contents = document.querySelectorAll('.tab-content');
-    
-    tabs.forEach(btn => btn.classList.remove('active'));
-    contents.forEach(tab => tab.classList.remove('active'));
-    
-    const tabDirecciones = document.querySelector('[data-tab="tab-direcciones"]');
-    if (tabDirecciones) {
-        tabDirecciones.classList.add('active');
-        const content = document.getElementById('tab-direcciones');
-        if (content) content.classList.add('active');
-        console.log('✅ Pestaña "Mis Direcciones" activada');
-    } else {
-        console.warn('⚠️ No se encontró la pestaña "Mis Direcciones"');
-    }
-    
-    cargarDireccionesCliente();
 }
 
 // ============================================
