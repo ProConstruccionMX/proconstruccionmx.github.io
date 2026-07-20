@@ -12,6 +12,9 @@ const HOJA_VENTAS_CLIENTES = 'Hoja 2';
 const ID_ARCHIVO_PRECIOS_ESPECIALES = '10t2A9M5f1Bj7lyTTa_PhVGRv0wAK_4ePpk_1eURZQ5I';
 const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
 
+// ⭐ URL DE TU APPS SCRIPT - REEMPLAZA CON LA TUYA ⭐
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwhr9o62Wum1jAlAd7T3x9KYFjk8ObQ2uMbJpb_DYF0lLhloDKl_PxDlUx8wnAaF5AH/exec';
+
 const PESO_MINIMO_TONELADA = 1000;
 
 let clienteData = null;
@@ -53,6 +56,116 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     console.log('✅ Dashboard inicializado correctamente');
 });
+
+// ============================================
+// FUNCIONES PARA APPS SCRIPT
+// ============================================
+
+async function listarDireccionesDesdeScript(codigoCliente) {
+    try {
+        const url = `${APPS_SCRIPT_URL}?codigoCliente=${encodeURIComponent(codigoCliente)}`;
+        console.log('📥 Consultando direcciones:', url);
+        
+        const response = await fetch(url);
+        const result = await response.json();
+        console.log('📥 Respuesta de Apps Script:', result);
+        return result;
+    } catch (error) {
+        console.error('Error al listar direcciones:', error);
+        return { success: false, error: error.toString() };
+    }
+}
+
+async function agregarDireccionEnSheets(direccion) {
+    try {
+        console.log('📝 Enviando a Apps Script - AGREGAR:', direccion);
+        
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'agregar',
+                codigo: direccion.codigo,
+                nombre: direccion.nombre,
+                calle: direccion.calle,
+                colonia: direccion.colonia,
+                alcaldia: direccion.alcaldia,
+                estado: direccion.estado,
+                cp: direccion.cp,
+                mapsUrl: direccion.mapsUrl || '',
+                telefono: direccion.telefono,
+                nombreRecibe: direccion.nombreRecibe
+            })
+        });
+        
+        const result = await response.json();
+        console.log('📝 Respuesta de Apps Script (agregar):', result);
+        return result;
+    } catch (error) {
+        console.error('Error al agregar dirección:', error);
+        return { success: false, error: error.toString() };
+    }
+}
+
+async function actualizarDireccionEnSheets(fila, datos) {
+    try {
+        console.log('📝 Enviando a Apps Script - ACTUALIZAR:', { fila, datos });
+        
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'actualizar',
+                fila: fila,
+                codigo: datos.codigo || sessionStorage.getItem('codigoCliente'),
+                nombre: datos.nombre,
+                calle: datos.calle,
+                colonia: datos.colonia,
+                alcaldia: datos.alcaldia,
+                estado: datos.estado,
+                cp: datos.cp,
+                mapsUrl: datos.mapsUrl || '',
+                telefono: datos.telefono,
+                nombreRecibe: datos.nombreRecibe
+            })
+        });
+        
+        const result = await response.json();
+        console.log('📝 Respuesta de Apps Script (actualizar):', result);
+        return result;
+    } catch (error) {
+        console.error('Error al actualizar dirección:', error);
+        return { success: false, error: error.toString() };
+    }
+}
+
+async function eliminarDireccionEnSheets(fila) {
+    try {
+        console.log('🗑️ Enviando a Apps Script - ELIMINAR:', fila);
+        
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'eliminar',
+                fila: fila
+            })
+        });
+        
+        const result = await response.json();
+        console.log('🗑️ Respuesta de Apps Script (eliminar):', result);
+        return result;
+    } catch (error) {
+        console.error('Error al eliminar dirección:', error);
+        return { success: false, error: error.toString() };
+    }
+}
 
 // ============================================
 // CARGA DE DATOS
@@ -214,7 +327,7 @@ async function cargarPreciosEspeciales() {
 }
 
 // ============================================
-// FUNCIONES DE DIRECCIONES (LEER Y ESCRIBIR)
+// FUNCIONES DE DIRECCIONES (USANDO APPS SCRIPT)
 // ============================================
 
 async function cargarDireccionesCliente() {
@@ -227,34 +340,13 @@ async function cargarDireccionesCliente() {
         
         console.log('📥 Cargando direcciones para cliente:', codigoCliente);
         
-        const url = `https://docs.google.com/spreadsheets/d/${ID_BASE_CLIENTES}/gviz/tq?tqx=out:json&sheet=${HOJA_DIRECCIONES}`;
-        const response = await fetch(url);
-        const text = await response.text();
-        const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
-        const data = JSON.parse(jsonStr);
-        const rows = data.table.rows;
+        const resultado = await listarDireccionesDesdeScript(codigoCliente);
         
-        direccionesCliente = [];
-        
-        for (let i = 1; i < rows.length; i++) {
-            const values = rows[i].c.map(cell => cell ? cell.v : '');
-            const codigo = String(values[0] || '').trim();
-            
-            if (codigo === codigoCliente) {
-                direccionesCliente.push({
-                    fila: i + 1, // Número de fila real en Google Sheets
-                    codigo: codigo,
-                    nombre: String(values[1] || '').trim(),
-                    calle: String(values[2] || '').trim(),
-                    colonia: String(values[3] || '').trim(),
-                    alcaldia: String(values[4] || '').trim(),
-                    estado: String(values[5] || '').trim(),
-                    cp: String(values[6] || '').trim(),
-                    mapsUrl: String(values[7] || '').trim(),
-                    telefono: String(values[8] || '').trim(),
-                    nombreRecibe: String(values[9] || '').trim()
-                });
-            }
+        if (resultado.success) {
+            direccionesCliente = resultado.direcciones || [];
+        } else {
+            console.error('Error al cargar direcciones:', resultado.error);
+            direccionesCliente = [];
         }
         
         console.log(`📦 Direcciones cargadas: ${direccionesCliente.length}`);
@@ -263,6 +355,7 @@ async function cargarDireccionesCliente() {
         
     } catch (error) {
         console.error('❌ Error al cargar direcciones:', error);
+        direccionesCliente = [];
     }
 }
 
@@ -378,20 +471,21 @@ async function guardarEdicionDireccion() {
     }
     
     try {
-        // Actualizar en Google Sheets
-        await actualizarDireccionEnSheets(dir.fila, datosActualizados);
+        const resultado = await actualizarDireccionEnSheets(dir.fila, datosActualizados);
         
-        // Actualizar localmente
-        direccionesCliente[index] = {
-            ...dir,
-            ...datosActualizados
-        };
-        
-        renderizarDirecciones();
-        actualizarSelectorDirecciones();
-        cerrarModalEditarDireccion();
-        mostrarNotificacion('✅ Dirección actualizada correctamente');
-        
+        if (resultado.success) {
+            direccionesCliente[index] = {
+                ...dir,
+                ...datosActualizados
+            };
+            
+            renderizarDirecciones();
+            actualizarSelectorDirecciones();
+            cerrarModalEditarDireccion();
+            mostrarNotificacion('✅ Dirección actualizada correctamente');
+        } else {
+            mostrarNotificacion('❌ Error al guardar los cambios: ' + (resultado.error || 'Intenta de nuevo'));
+        }
     } catch (error) {
         console.error('❌ Error al actualizar dirección:', error);
         mostrarNotificacion('❌ Error al guardar los cambios. Intenta de nuevo.');
@@ -409,16 +503,16 @@ async function eliminarDireccion(index) {
     if (!confirm(`¿Seguro que quieres eliminar la dirección "${dir.nombre}"?`)) return;
     
     try {
-        // Eliminar de Google Sheets
-        await eliminarDireccionEnSheets(dir.fila);
+        const resultado = await eliminarDireccionEnSheets(dir.fila);
         
-        // Eliminar localmente
-        direccionesCliente.splice(index, 1);
-        
-        renderizarDirecciones();
-        actualizarSelectorDirecciones();
-        mostrarNotificacion('🗑️ Dirección eliminada correctamente');
-        
+        if (resultado.success) {
+            direccionesCliente.splice(index, 1);
+            renderizarDirecciones();
+            actualizarSelectorDirecciones();
+            mostrarNotificacion('🗑️ Dirección eliminada correctamente');
+        } else {
+            mostrarNotificacion('❌ Error al eliminar: ' + (resultado.error || 'Intenta de nuevo'));
+        }
     } catch (error) {
         console.error('❌ Error al eliminar dirección:', error);
         mostrarNotificacion('❌ Error al eliminar la dirección. Intenta de nuevo.');
@@ -438,7 +532,6 @@ async function guardarNuevaDireccion(datos) {
         }
         
         const nuevaDireccion = {
-            fila: 0, // Se asignará después de guardar
             codigo: codigoCliente,
             nombre: datos.nombre,
             calle: datos.calle,
@@ -451,65 +544,23 @@ async function guardarNuevaDireccion(datos) {
             nombreRecibe: datos.nombreRecibe
         };
         
-        // Guardar en Google Sheets
-        await agregarDireccionEnSheets(nuevaDireccion);
+        const resultado = await agregarDireccionEnSheets(nuevaDireccion);
         
-        // Agregar localmente
-        direccionesCliente.push(nuevaDireccion);
-        
-        renderizarDirecciones();
-        actualizarSelectorDirecciones();
-        mostrarNotificacion('✅ Dirección guardada correctamente');
-        
-        return true;
-        
+        if (resultado.success) {
+            direccionesCliente.push(nuevaDireccion);
+            renderizarDirecciones();
+            actualizarSelectorDirecciones();
+            mostrarNotificacion('✅ Dirección guardada correctamente');
+            return true;
+        } else {
+            mostrarNotificacion('❌ Error al guardar: ' + (resultado.error || 'Intenta de nuevo'));
+            return false;
+        }
     } catch (error) {
         console.error('❌ Error al guardar dirección:', error);
         mostrarNotificacion('❌ Error al guardar la dirección');
         return false;
     }
-}
-
-// ============================================
-// FUNCIONES PARA INTERACTUAR CON GOOGLE SHEETS
-// ============================================
-
-async function agregarDireccionEnSheets(direccion) {
-    // Esta función debe hacer una solicitud POST a un script de Google Apps Script
-    // Por ahora, simulamos la operación
-    console.log('📝 Agregando dirección a Google Sheets:', direccion);
-    
-    // Simulamos un retraso
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // En producción, aquí iría la llamada al API de Google Sheets o Apps Script
-    // con los datos de la nueva dirección
-    
-    return true;
-}
-
-async function actualizarDireccionEnSheets(fila, datos) {
-    console.log(`📝 Actualizando dirección en fila ${fila}:`, datos);
-    
-    // Simulamos un retraso
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // En producción, aquí iría la llamada al API de Google Sheets o Apps Script
-    // para actualizar la fila específica
-    
-    return true;
-}
-
-async function eliminarDireccionEnSheets(fila) {
-    console.log(`🗑️ Eliminando dirección en fila ${fila}`);
-    
-    // Simulamos un retraso
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // En producción, aquí iría la llamada al API de Google Sheets o Apps Script
-    // para eliminar la fila específica
-    
-    return true;
 }
 
 // ============================================
@@ -1029,7 +1080,6 @@ function abrirModalDireccion() {
     }
     
     cargarDireccionesCliente();
-    actualizarSelectorDirecciones();
     
     document.getElementById('dirCalle').value = '';
     document.getElementById('dirColonia').value = '';
@@ -1043,6 +1093,7 @@ function abrirModalDireccion() {
     document.getElementById('dirGuardarCheck').checked = false;
     document.getElementById('dirGuardarCampos').style.display = 'none';
     document.getElementById('modalDireccionMensaje').innerHTML = '';
+    document.getElementById('modalDireccionMensaje').style.display = 'none';
     
     document.getElementById('modalDireccion').classList.add('active');
 }
@@ -1155,6 +1206,7 @@ function abrirModalPago() {
     modal.classList.add('active');
     
     document.getElementById('modalMensaje').innerHTML = '';
+    document.getElementById('modalMensaje').style.display = 'none';
     document.getElementById('formTransferencia').style.display = 'none';
     document.getElementById('formCredito').style.display = 'none';
     
@@ -1169,6 +1221,7 @@ function abrirModalPago() {
 function cerrarModalPago() {
     document.getElementById('modalPago').classList.remove('active');
     document.getElementById('modalMensaje').innerHTML = '';
+    document.getElementById('modalMensaje').style.display = 'none';
     document.getElementById('formTransferencia').style.display = 'none';
     document.getElementById('formCredito').style.display = 'none';
     comprobanteBase64 = null;
