@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 
 // ============================================
-// FUNCIONES PARA APPS SCRIPT (ESCRITURA CON NO-CORS)
+// FUNCIONES PARA APPS SCRIPT (ESCRITURA)
 // ============================================
 
 async function agregarDireccionEnSheets(direccion) {
@@ -311,7 +311,7 @@ async function cargarPreciosEspeciales() {
 }
 
 // ============================================
-// ⭐ FUNCIONES DE DIRECCIONES (LECTURA DIRECTA DESDE GOOGLE SHEETS) ⭐
+// ⭐ FUNCIONES DE DIRECCIONES ⭐
 // ============================================
 
 async function cargarDireccionesCliente() {
@@ -324,7 +324,6 @@ async function cargarDireccionesCliente() {
         
         console.log('📥 Cargando direcciones para cliente:', codigoCliente);
         
-        // ⭐ LEER DIRECTAMENTE DESDE GOOGLE SHEETS (SIN JSONP) ⭐
         const url = `https://docs.google.com/spreadsheets/d/${ID_BASE_CLIENTES}/gviz/tq?tqx=out:json&sheet=${HOJA_DIRECCIONES}`;
         console.log('📥 URL:', url);
         
@@ -342,6 +341,7 @@ async function cargarDireccionesCliente() {
         
         direccionesCliente = [];
         
+        // ⭐ i empieza en 1 (fila 2 en la hoja) para saltar el encabezado ⭐
         for (let i = 1; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[0] || '').trim();
