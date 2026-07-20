@@ -94,7 +94,7 @@ async function agregarDireccionEnSheets(direccion) {
 
 async function actualizarDireccionEnSheets(fila, datos) {
     try {
-        console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila:', fila, datos);
+        console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila REAL:', fila, datos);
         
         const response = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
@@ -118,7 +118,7 @@ async function actualizarDireccionEnSheets(fila, datos) {
             })
         });
         
-        console.log('📝 Petición ACTUALIZAR enviada para fila:', fila);
+        console.log('📝 Petición ACTUALIZAR enviada para fila REAL:', fila);
         return { success: true };
     } catch (error) {
         console.error('Error al actualizar dirección:', error);
@@ -128,7 +128,7 @@ async function actualizarDireccionEnSheets(fila, datos) {
 
 async function eliminarDireccionEnSheets(fila) {
     try {
-        console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila:', fila);
+        console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila REAL:', fila);
         
         const response = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
@@ -142,7 +142,7 @@ async function eliminarDireccionEnSheets(fila) {
             })
         });
         
-        console.log('🗑️ Petición ELIMINAR enviada para fila:', fila);
+        console.log('🗑️ Petición ELIMINAR enviada para fila REAL:', fila);
         return { success: true };
     } catch (error) {
         console.error('Error al eliminar dirección:', error);
@@ -340,12 +340,13 @@ async function cargarDireccionesCliente() {
         direccionesCliente = [];
         
         // ⭐ i empieza en 1 (fila 2 en la hoja) para saltar el encabezado ⭐
+        // La fila REAL en Google Sheets es i + 1
         for (let i = 1; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[0] || '').trim();
             
             if (codigo === codigoCliente) {
-                const filaReal = i + 1; // La fila real en Google Sheets (1 = encabezado, 2 = primer dato)
+                const filaReal = i + 1; // Fila real en Google Sheets
                 console.log(`📌 Dirección encontrada en fila ${filaReal}: ${String(values[1] || '').trim()}`);
                 
                 direccionesCliente.push({
@@ -446,9 +447,10 @@ function editarDireccion(index) {
     const dir = direccionesCliente[index];
     if (!dir) return;
     
-    console.log('✏️ Editando dirección en fila:', dir.fila);
+    console.log('✏️ Editando dirección en fila REAL de Google Sheets:', dir.fila);
     
     document.getElementById('editDirIndex').value = index;
+    document.getElementById('editDirFila').value = dir.fila;
     document.getElementById('editDirNombre').value = dir.nombre || '';
     document.getElementById('editDirCalle').value = dir.calle || '';
     document.getElementById('editDirColonia').value = dir.colonia || '';
@@ -458,7 +460,6 @@ function editarDireccion(index) {
     document.getElementById('editDirMaps').value = dir.mapsUrl || '';
     document.getElementById('editDirTelefono').value = dir.telefono || '';
     document.getElementById('editDirNombreRecibe').value = dir.nombreRecibe || '';
-    document.getElementById('editDirFila').value = dir.fila;
     
     document.getElementById('modalEditarDireccion').classList.add('active');
 }
@@ -473,7 +474,7 @@ async function guardarEdicionDireccion() {
     if (!dir) return;
     
     const fila = parseInt(document.getElementById('editDirFila').value);
-    console.log('💾 Guardando edición para fila:', fila);
+    console.log('💾 Guardando edición para fila REAL:', fila);
     
     const datosActualizados = {
         codigo: dir.codigo,
@@ -499,7 +500,6 @@ async function guardarEdicionDireccion() {
         const resultado = await actualizarDireccionEnSheets(fila, datosActualizados);
         
         if (resultado.success) {
-            // Actualizar localmente
             direccionesCliente[index] = {
                 ...dir,
                 ...datosActualizados,
@@ -531,7 +531,7 @@ async function eliminarDireccion(index) {
     const dir = direccionesCliente[index];
     if (!dir) return;
     
-    console.log('🗑️ Eliminando dirección en fila:', dir.fila);
+    console.log('🗑️ Eliminando dirección en fila REAL de Google Sheets:', dir.fila);
     
     if (!confirm(`¿Seguro que quieres eliminar la dirección "${dir.nombre}" (Fila ${dir.fila})?`)) return;
     
