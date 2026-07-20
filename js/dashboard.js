@@ -5,6 +5,7 @@ const ID_PRODUCTOS = '1tRhmgmbhL47vBIldtSFnrvFlFLHYADKq23BKGnRAWQk';
 const HOJA_PRODUCTOS = 'Hoja 1';
 const ID_BASE_CLIENTES = '1yCQ-cJJ7PALDYSwIcpsj1ZfACtNLJwfOR7HY-mPzgx4';
 const HOJA_BASE_CLIENTES = 'Hoja 1';
+const HOJA_DIRECCIONES = 'Direcciones';
 const ID_VENTAS = '1ncuIR0-QJWl8OcwLUTFoyCZ0qwCafQaXfc0y6vYzFTc';
 const HOJA_VENTAS_PRODUCTOS = 'Hoja 1';
 const HOJA_VENTAS_CLIENTES = 'Hoja 2';
@@ -21,6 +22,8 @@ let pagoSeleccionado = null;
 let comprobanteBase64 = null;
 let comprobanteNombre = null;
 let comprobanteTipo = null;
+let direccionesCliente = [];
+let direccionSeleccionadaId = null;
 
 // ============================================
 // INICIALIZACIÓN
@@ -39,8 +42,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     await cargarDatosCliente(email);
     await cargarProductos();
     await cargarPreciosEspeciales();
+    await cargarDireccionesCliente();
     
     configurarTabs();
+    configurarMenuUsuario();
     
     if (clienteData) {
         document.getElementById('welcomeName').textContent = clienteData.nombre;
@@ -120,7 +125,6 @@ async function cargarProductos() {
         productosGlobales = [];
         let contadorConPeso = 0;
         
-        // ⭐ CORREGIDO: Empezar desde la fila 2 (índice 2) porque la fila 1 es encabezado
         for (let i = 2; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             
@@ -139,11 +143,9 @@ async function cargarProductos() {
             const descuentoVolumenP = parseFloat(values[15]) || 0;
             const descuentoVolumenQ = parseFloat(values[16]) || 0;
             
-            // COLUMNA R (índice 17) - CONDICIÓN DE PESO
             const pesoCondicionRaw = String(values[17] || '').trim().toUpperCase();
             const pesoCondicion = pesoCondicionRaw === 'SI' ? 'SI' : 'NO';
             
-            // COLUMNA S (índice 18) - PESO EN KG
             const pesoRaw = String(values[18] || '').trim();
             const peso = parseFloat(pesoRaw) || 0;
             
@@ -174,16 +176,6 @@ async function cargarProductos() {
         
         console.log(`📦 Productos cargados: ${productosGlobales.length}`);
         console.log(`⚖️ Productos con condición de peso (SI): ${contadorConPeso}`);
-        
-        const productosConPeso = productosGlobales.filter(p => p.pesoCondicion === 'SI' && p.peso > 0);
-        if (productosConPeso.length === 0) {
-            console.warn('⚠️ ¡NO se encontraron productos con condición de peso!');
-        } else {
-            console.log('✅ Productos con peso:');
-            productosConPeso.forEach(p => {
-                console.log(`   - ${p.nombre}: ${p.peso} kg/unidad`);
-            });
-        }
         
     } catch (error) {
         console.error('❌ Error al cargar productos:', error);
@@ -222,7 +214,184 @@ async function cargarPreciosEspeciales() {
 }
 
 // ============================================
-// BÚSQUEDA DE PRODUCTOS
+// FUNCIONES DE DIRECCIONES
+// ============================================
+
+async function cargarDireccionesCliente() {
+    try {
+        const codigoCliente = sessionStorage.getItem('codigoCliente');
+        if (!codigoCliente) {
+            console.warn('⚠️ No hay código de cliente disponible');
+            return;
+        }
+        
+        console.log('📥 Cargando direcciones para cliente:', codigoCliente);
+        
+        const url = `https://docs.google.com/spreadsheets/d/${ID_BASE_CLIENTES}/gviz/tq?tqx=out:json&sheet=${HOJA_DIRECCIONES}`;
+        const response = await fetch(url);
+        const text = await response.text();
+        const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
+        const data = JSON.parse(jsonStr);
+        const rows = data.table.rows;
+        
+        direccionesCliente = [];
+        let filaIndex = 1; // Para saber qué fila editar/eliminar
+        
+        for (let i = 1; i < rows.length; i++) {
+            const values = rows[i].c.map(cell => cell ? cell.v : '');
+            const codigo = String(values[0] || '').trim();
+            
+            if (codigo === codigoCliente) {
+                direccionesCliente.push({
+                    fila: i + 1, // +1 porque las filas en Google Sheets empiezan en 1
+                    codigo: codigo,
+                    nombre: String(values[1] || '').trim(),
+                    calle: String(values[2] || '').trim(),
+                    colonia: String(values[3] || '').trim(),
+                    alcaldia: String(values[4] || '').trim(),
+                    estado: String(values[5] || '').trim(),
+                    cp: String(values[6] || '').trim(),
+                    mapsUrl: String(values[7] || '').trim(),
+                    telefono: String(values[8] || '').trim(),
+                    nombreRecibe: String(values[9] || '').trim()
+                });
+            }
+        }
+        
+        console.log(`📦 Direcciones cargadas: ${direccionesCliente.length}`);
+        renderizarDirecciones();
+        
+    } catch (error) {
+        console.error('❌ Error al cargar direcciones:', error);
+    }
+}
+
+function renderizarDirecciones() {
+    const container = document.getElementById('direccionesContent');
+    if (!container) return;
+    
+    if (direccionesCliente.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-map-marker-alt"></i>
+                <h4>Sin direcciones registradas</h4>
+                <p>Agrega una dirección desde el formulario de compra.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `<div class="direcciones-grid">`;
+    direccionesCliente.forEach((dir, index) => {
+        html += `
+            <div class="direccion-card" id="dir-card-${index}">
+                <div class="direccion-header">
+                    <h4><i class="fas fa-home"></i> ${dir.nombre || 'Sin nombre'}</h4>
+                    <div class="direccion-actions">
+                        <button class="btn-editar" onclick="editarDireccion(${index})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-eliminar" onclick="eliminarDireccion(${index})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="direccion-body">
+                    <p><strong>Calle:</strong> ${dir.calle || '---'}</p>
+                    <p><strong>Colonia:</strong> ${dir.colonia || '---'}</p>
+                    <p><strong>Alcaldía/Municipio:</strong> ${dir.alcaldia || '---'}</p>
+                    <p><strong>Estado:</strong> ${dir.estado || '---'}</p>
+                    <p><strong>Código Postal:</strong> ${dir.cp || '---'}</p>
+                    ${dir.mapsUrl ? `<p><strong>Google Maps:</strong> <a href="${dir.mapsUrl}" target="_blank">Ver mapa</a></p>` : ''}
+                    <p><strong>Teléfono:</strong> ${dir.telefono || '---'}</p>
+                    <p><strong>Recibe:</strong> ${dir.nombreRecibe || '---'}</p>
+                </div>
+            </div>
+        `;
+    });
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+function editarDireccion(index) {
+    const dir = direccionesCliente[index];
+    if (!dir) return;
+    
+    // Llenar el modal de edición
+    document.getElementById('editDirNombre').value = dir.nombre || '';
+    document.getElementById('editDirCalle').value = dir.calle || '';
+    document.getElementById('editDirColonia').value = dir.colonia || '';
+    document.getElementById('editDirAlcaldia').value = dir.alcaldia || '';
+    document.getElementById('editDirEstado').value = dir.estado || '';
+    document.getElementById('editDirCP').value = dir.cp || '';
+    document.getElementById('editDirMaps').value = dir.mapsUrl || '';
+    document.getElementById('editDirTelefono').value = dir.telefono || '';
+    document.getElementById('editDirNombreRecibe').value = dir.nombreRecibe || '';
+    document.getElementById('editDirIndex').value = index;
+    
+    document.getElementById('modalEditarDireccion').classList.add('active');
+}
+
+function cerrarModalEditarDireccion() {
+    document.getElementById('modalEditarDireccion').classList.remove('active');
+}
+
+async function guardarEdicionDireccion() {
+    const index = parseInt(document.getElementById('editDirIndex').value);
+    const dir = direccionesCliente[index];
+    if (!dir) return;
+    
+    const datosActualizados = {
+        nombre: document.getElementById('editDirNombre').value.trim(),
+        calle: document.getElementById('editDirCalle').value.trim(),
+        colonia: document.getElementById('editDirColonia').value.trim(),
+        alcaldia: document.getElementById('editDirAlcaldia').value.trim(),
+        estado: document.getElementById('editDirEstado').value.trim(),
+        cp: document.getElementById('editDirCP').value.trim(),
+        mapsUrl: document.getElementById('editDirMaps').value.trim(),
+        telefono: document.getElementById('editDirTelefono').value.trim(),
+        nombreRecibe: document.getElementById('editDirNombreRecibe').value.trim()
+    };
+    
+    // Validar campos obligatorios
+    if (!datosActualizados.nombre || !datosActualizados.calle || !datosActualizados.colonia || 
+        !datosActualizados.alcaldia || !datosActualizados.estado || !datosActualizados.cp || 
+        !datosActualizados.telefono || !datosActualizados.nombreRecibe) {
+        mostrarNotificacion('⚠️ Todos los campos son obligatorios excepto Google Maps.');
+        return;
+    }
+    
+    // Actualizar en la hoja de Google Sheets (simulado)
+    // En producción usarías Google Apps Script o SheetDB
+    
+    // Actualizar localmente
+    direccionesCliente[index] = {
+        ...dir,
+        ...datosActualizados
+    };
+    
+    renderizarDirecciones();
+    cerrarModalEditarDireccion();
+    mostrarNotificacion('✅ Dirección actualizada correctamente');
+}
+
+async function eliminarDireccion(index) {
+    const dir = direccionesCliente[index];
+    if (!dir) return;
+    
+    if (!confirm(`¿Seguro que quieres eliminar la dirección "${dir.nombre}"?`)) return;
+    
+    // Eliminar de la hoja de Google Sheets (simulado)
+    // En producción usarías Google Apps Script o SheetDB
+    
+    // Eliminar localmente
+    direccionesCliente.splice(index, 1);
+    renderizarDirecciones();
+    mostrarNotificacion('🗑️ Dirección eliminada correctamente');
+}
+
+// ============================================
+// FUNCIONES DE BÚSQUEDA DE PRODUCTOS
 // ============================================
 
 function buscarProductos() {
@@ -667,6 +836,136 @@ function renderizarCarrito() {
 }
 
 // ============================================
+// MENÚ DE USUARIO - MI CUENTA
+// ============================================
+
+function configurarMenuUsuario() {
+    const userInfo = document.querySelector('.user-info');
+    if (!userInfo) return;
+    
+    // Crear contenedor del menú
+    const menuContainer = document.createElement('div');
+    menuContainer.className = 'menu-usuario-container';
+    menuContainer.style.position = 'relative';
+    menuContainer.style.display = 'inline-block';
+    
+    // Botón Mi Cuenta
+    const btnMiCuenta = document.createElement('button');
+    btnMiCuenta.className = 'btn-mi-cuenta';
+    btnMiCuenta.innerHTML = '<i class="fas fa-user-cog"></i> Mi Cuenta';
+    btnMiCuenta.style.cssText = `
+        background: var(--primary-blue);
+        color: white;
+        border: none;
+        padding: 0.5rem 1.5rem;
+        border-radius: 50px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9rem;
+    `;
+    btnMiCuenta.onmouseover = () => {
+        btnMiCuenta.style.background = 'var(--primary-dark)';
+        btnMiCuenta.style.transform = 'translateY(-2px)';
+    };
+    btnMiCuenta.onmouseout = () => {
+        btnMiCuenta.style.background = 'var(--primary-blue)';
+        btnMiCuenta.style.transform = 'translateY(0)';
+    };
+    btnMiCuenta.onclick = () => {
+        const menu = document.getElementById('menuDesplegable');
+        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    };
+    
+    // Menú desplegable
+    const menuDesplegable = document.createElement('div');
+    menuDesplegable.id = 'menuDesplegable';
+    menuDesplegable.style.cssText = `
+        display: none;
+        position: absolute;
+        top: 100%;
+        right: 0;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        min-width: 200px;
+        z-index: 100;
+        overflow: hidden;
+        margin-top: 0.5rem;
+        border: 1px solid #e2e8f0;
+    `;
+    
+    // Opciones del menú
+    const opciones = [
+        { icon: 'fa-address-book', text: 'Mis Direcciones', action: 'abrirMisDirecciones()' }
+    ];
+    
+    opciones.forEach(op => {
+        const item = document.createElement('a');
+        item.href = '#';
+        item.style.cssText = `
+            display: block;
+            padding: 0.8rem 1.5rem;
+            color: var(--text-gray);
+            text-decoration: none;
+            transition: all 0.3s;
+            font-weight: 500;
+            font-size: 0.9rem;
+        `;
+        item.onmouseover = () => {
+            item.style.background = 'var(--gray-light)';
+            item.style.color = 'var(--primary-dark)';
+        };
+        item.onmouseout = () => {
+            item.style.background = 'transparent';
+            item.style.color = 'var(--text-gray)';
+        };
+        item.innerHTML = `<i class="fas ${op.icon}"></i> ${op.text}`;
+        item.onclick = (e) => {
+            e.preventDefault();
+            document.getElementById('menuDesplegable').style.display = 'none';
+            eval(op.action);
+        };
+        menuDesplegable.appendChild(item);
+    });
+    
+    menuContainer.appendChild(btnMiCuenta);
+    menuContainer.appendChild(menuDesplegable);
+    
+    // Insertar antes del botón Cerrar Sesión
+    const btnCerrar = userInfo.querySelector('.btn-cerrar');
+    if (btnCerrar) {
+        userInfo.insertBefore(menuContainer, btnCerrar);
+    } else {
+        userInfo.appendChild(menuContainer);
+    }
+    
+    // Cerrar menú al hacer clic fuera
+    document.addEventListener('click', function(event) {
+        if (!menuContainer.contains(event.target)) {
+            menuDesplegable.style.display = 'none';
+        }
+    });
+}
+
+function abrirMisDirecciones() {
+    // Mostrar la pestaña de direcciones
+    document.querySelectorAll('.dashboard-tabs button').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+    
+    // Si existe la pestaña, activarla
+    const tabDirecciones = document.querySelector('[data-tab="tab-direcciones"]');
+    if (tabDirecciones) {
+        tabDirecciones.classList.add('active');
+        document.getElementById('tab-direcciones').classList.add('active');
+    }
+    
+    // Recargar direcciones
+    cargarDireccionesCliente();
+}
+
+// ============================================
 // MODAL DE DIRECCIÓN DE ENVÍO
 // ============================================
 
@@ -682,7 +981,63 @@ function abrirModalDireccion() {
         return;
     }
     
+    // Cargar direcciones del cliente
+    cargarDireccionesCliente();
+    
+    // Llenar el selector de direcciones
+    const select = document.getElementById('direccionSelector');
+    if (select) {
+        select.innerHTML = '<option value="">-- Selecciona una dirección guardada --</option>';
+        direccionesCliente.forEach((dir, index) => {
+            const option = document.createElement('option');
+            option.value = index;
+            option.textContent = dir.nombre || `Dirección ${index + 1}`;
+            select.appendChild(option);
+        });
+        select.value = '';
+        select.onchange = function() {
+            cargarDireccionSeleccionada();
+        };
+    }
+    
     document.getElementById('modalDireccion').classList.add('active');
+}
+
+function cargarDireccionSeleccionada() {
+    const select = document.getElementById('direccionSelector');
+    const index = parseInt(select.value);
+    if (isNaN(index) || index < 0 || index >= direccionesCliente.length) {
+        // Limpiar campos
+        document.getElementById('dirCalle').value = '';
+        document.getElementById('dirColonia').value = '';
+        document.getElementById('dirAlcaldia').value = '';
+        document.getElementById('dirEstado').value = '';
+        document.getElementById('dirCP').value = '';
+        document.getElementById('dirMaps').value = '';
+        document.getElementById('dirTelefono').value = '';
+        document.getElementById('dirNombreRecibe').value = '';
+        document.getElementById('dirGuardarNombre').value = '';
+        document.getElementById('dirGuardarCheck').checked = false;
+        document.getElementById('dirGuardarCampos').style.display = 'none';
+        return;
+    }
+    
+    const dir = direccionesCliente[index];
+    document.getElementById('dirCalle').value = dir.calle || '';
+    document.getElementById('dirColonia').value = dir.colonia || '';
+    document.getElementById('dirAlcaldia').value = dir.alcaldia || '';
+    document.getElementById('dirEstado').value = dir.estado || '';
+    document.getElementById('dirCP').value = dir.cp || '';
+    document.getElementById('dirMaps').value = dir.mapsUrl || '';
+    document.getElementById('dirTelefono').value = dir.telefono || '';
+    document.getElementById('dirNombreRecibe').value = dir.nombreRecibe || '';
+    
+    // Ocultar opción de guardar si se seleccionó una dirección existente
+    document.getElementById('dirGuardarCheck').checked = false;
+    document.getElementById('dirGuardarCampos').style.display = 'none';
+    document.getElementById('dirGuardarCheck').onchange = function() {
+        document.getElementById('dirGuardarCampos').style.display = this.checked ? 'block' : 'none';
+    };
 }
 
 function cerrarModalDireccion() {
@@ -696,13 +1051,36 @@ function continuarConPago() {
     const alcaldia = document.getElementById('dirAlcaldia').value.trim();
     const estado = document.getElementById('dirEstado').value.trim();
     const cp = document.getElementById('dirCP').value.trim();
-    const mapsUrl = document.getElementById('dirMaps').value.trim();
     const telefono = document.getElementById('dirTelefono').value.trim();
     const nombreRecibe = document.getElementById('dirNombreRecibe').value.trim();
     
     if (!calle || !colonia || !alcaldia || !estado || !cp || !telefono || !nombreRecibe) {
         mostrarNotificacion('⚠️ Por favor, completa todos los campos obligatorios de dirección.');
         return;
+    }
+    
+    // Verificar si se debe guardar la dirección
+    const guardarDireccion = document.getElementById('dirGuardarCheck').checked;
+    const nombreDireccion = document.getElementById('dirGuardarNombre').value.trim();
+    
+    if (guardarDireccion && !nombreDireccion) {
+        mostrarNotificacion('⚠️ Por favor, asigna un nombre a la dirección para guardarla.');
+        return;
+    }
+    
+    // Guardar dirección si se solicitó
+    if (guardarDireccion && nombreDireccion) {
+        guardarNuevaDireccion({
+            nombre: nombreDireccion,
+            calle: calle,
+            colonia: colonia,
+            alcaldia: alcaldia,
+            estado: estado,
+            cp: cp,
+            mapsUrl: document.getElementById('dirMaps').value.trim(),
+            telefono: telefono,
+            nombreRecibe: nombreRecibe
+        });
     }
     
     // Guardar dirección en variable global
@@ -712,13 +1090,48 @@ function continuarConPago() {
         alcaldia: alcaldia,
         estado: estado,
         cp: cp,
-        mapsUrl: mapsUrl || 'No proporcionado',
+        mapsUrl: document.getElementById('dirMaps').value.trim() || 'No proporcionado',
         telefono: telefono,
         nombreRecibe: nombreRecibe
     };
     
     cerrarModalDireccion();
     abrirModalPago();
+}
+
+async function guardarNuevaDireccion(datos) {
+    try {
+        const codigoCliente = sessionStorage.getItem('codigoCliente');
+        if (!codigoCliente) {
+            mostrarNotificacion('⚠️ Error: No se pudo identificar al cliente.');
+            return;
+        }
+        
+        // Guardar en Google Sheets (simulado)
+        // En producción usarías Google Apps Script o SheetDB
+        
+        // Agregar localmente
+        direccionesCliente.push({
+            fila: direccionesCliente.length + 2,
+            codigo: codigoCliente,
+            nombre: datos.nombre,
+            calle: datos.calle,
+            colonia: datos.colonia,
+            alcaldia: datos.alcaldia,
+            estado: datos.estado,
+            cp: datos.cp,
+            mapsUrl: datos.mapsUrl || '',
+            telefono: datos.telefono,
+            nombreRecibe: datos.nombreRecibe
+        });
+        
+        renderizarDirecciones();
+        mostrarNotificacion('✅ Dirección guardada correctamente');
+        
+    } catch (error) {
+        console.error('❌ Error al guardar dirección:', error);
+        mostrarNotificacion('❌ Error al guardar la dirección');
+    }
 }
 
 // ============================================
@@ -792,11 +1205,10 @@ function calcularTotal() {
 }
 
 // ============================================
-// PROCESAMIENTO DE PAGOS - TRANSFERENCIA
+// PROCESAMIENTO DE PAGOS
 // ============================================
 
 async function procesarPagoTransferencia() {
-    // La referencia es OPCIONAL - ya no es obligatoria
     const referencia = document.getElementById('referenciaTransferencia').value.trim();
     
     if (!comprobanteBase64) {
@@ -838,10 +1250,7 @@ async function procesarPagoTransferencia() {
             sucursal: clienteData.sucursal || 'Matriz'
         };
         
-        // Guardar en Google Sheets
         await guardarVentaEnSheets(datosVenta);
-        
-        // Enviar correo con comprobante
         await enviarCorreoVenta(datosVenta);
         
         mostrarMensajeModal('exito', `
@@ -871,10 +1280,6 @@ async function procesarPagoTransferencia() {
         btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Compra';
     }
 }
-
-// ============================================
-// PROCESAMIENTO DE PAGOS - CRÉDITO
-// ============================================
 
 async function procesarPagoCredito() {
     const dias = parseInt(document.getElementById('diasCredito').value) || 30;
@@ -956,53 +1361,51 @@ async function procesarPagoCredito() {
 }
 
 // ============================================
-// GUARDAR EN GOOGLE SHEETS - VENTAS PÁGINA
+// GUARDAR EN GOOGLE SHEETS
 // ============================================
 
 async function guardarVentaEnSheets(datos) {
     try {
-        // 📝 Hoja 1: Productos - VENTAS PÁGINA
+        // Hoja 1: Productos
         for (const producto of datos.productos) {
             const datosProducto = [
-                datos.fecha.toISOString().split('T')[0], // Fecha
-                datos.folio, // ID
-                producto.clave, // Clave Producto
-                producto.cantidad, // Cantidad
-                producto.importe, // Importe (Precio Unitario)
-                producto.nombre, // Cliente Nombre
-                datos.cliente.codigo, // Cliente Código
-                'Cliente Web', // Asesor
-                producto.descuento, // Descuento
-                producto.precio, // Precio original
-                producto.cantidad * producto.precio, // Subtotal sin descuento
-                producto.precio * producto.cantidad * (producto.descuento / 100), // Descuento en pesos
-                'Sin verificar' // Columna M
+                datos.fecha.toISOString().split('T')[0],
+                datos.folio,
+                producto.clave,
+                producto.cantidad,
+                producto.importe,
+                producto.nombre,
+                datos.cliente.codigo,
+                'Cliente Web',
+                producto.descuento,
+                producto.precio,
+                producto.cantidad * producto.precio,
+                producto.precio * producto.cantidad * (producto.descuento / 100),
+                'Sin verificar'
             ];
-            
             await guardarFilaGoogleSheets(ID_VENTAS, HOJA_VENTAS_PRODUCTOS, datosProducto);
         }
         
-        // 📝 Hoja 2: Clientes - VENTAS PÁGINA
+        // Hoja 2: Clientes
         const datosCliente = [
-            datos.fecha.toISOString().split('T')[0], // Fecha
-            datos.folio, // Folio
-            datos.cliente.codigo, // Código Cliente
-            datos.cliente.nombre, // Nombre Cliente
-            datos.total, // Monto
-            datos.tipoPago === 'Crédito' ? datos.saldoPendiente : 0, // Crédito Pendiente
-            datos.tipoPago === 'Crédito' ? datos.anticipo : datos.total, // Crédito Liquidado
-            'NO', // Factura
-            datos.sucursal, // Sucursal
-            datos.tipoPago, // Forma Pago
-            datos.tipoPago === 'Crédito' ? 'Pago diferido' : 'Pago en una sola exhibición' // Tipo Pago
+            datos.fecha.toISOString().split('T')[0],
+            datos.folio,
+            datos.cliente.codigo,
+            datos.cliente.nombre,
+            datos.total,
+            datos.tipoPago === 'Crédito' ? datos.saldoPendiente : 0,
+            datos.tipoPago === 'Crédito' ? datos.anticipo : datos.total,
+            'NO',
+            datos.sucursal,
+            datos.tipoPago,
+            datos.tipoPago === 'Crédito' ? 'Pago diferido' : 'Pago en una sola exhibición'
         ];
-        
         await guardarFilaGoogleSheets(ID_VENTAS, HOJA_VENTAS_CLIENTES, datosCliente);
         
-        console.log('✅ Venta guardada exitosamente en Ventas página');
+        console.log('✅ Venta guardada exitosamente');
         
     } catch (error) {
-        console.error('❌ Error al guardar venta:', error);
+        console.error('Error al guardar venta:', error);
         throw error;
     }
 }
@@ -1015,15 +1418,10 @@ async function guardarFilaGoogleSheets(sheetId, sheetName, datos) {
     });
 }
 
-// ============================================
-// ENVIAR CORREO CON COMPROBANTE
-// ============================================
-
 async function enviarCorreoVenta(datos) {
     const emailDestino = 'ventas@proconstruccionmx.com';
     const asunto = `🧾 NUEVA COMPRA - ${datos.folio} - ${datos.cliente.nombre}`;
     
-    // HTML de productos
     let htmlProductos = '';
     datos.productos.forEach(p => {
         htmlProductos += `
@@ -1038,7 +1436,6 @@ async function enviarCorreoVenta(datos) {
         `;
     });
     
-    // HTML de dirección de envío
     let htmlDireccion = '';
     if (datos.direccion) {
         htmlDireccion = `
@@ -1049,9 +1446,9 @@ async function enviarCorreoVenta(datos) {
             <p><strong>Alcaldía/Municipio:</strong> ${datos.direccion.alcaldia}</p>
             <p><strong>Estado:</strong> ${datos.direccion.estado}</p>
             <p><strong>Código Postal:</strong> ${datos.direccion.cp}</p>
-            <p><strong>Mapa (URL):</strong> <a href="${datos.direccion.mapsUrl}" target="_blank">${datos.direccion.mapsUrl}</a></p>
             <p><strong>Teléfono de contacto:</strong> ${datos.direccion.telefono}</p>
             <p><strong>Nombre de quien recibe:</strong> ${datos.direccion.nombreRecibe}</p>
+            ${datos.direccion.mapsUrl && datos.direccion.mapsUrl !== 'No proporcionado' ? `<p><strong>Google Maps:</strong> <a href="${datos.direccion.mapsUrl}" target="_blank">Ver mapa</a></p>` : ''}
         `;
     }
     
@@ -1140,10 +1537,7 @@ async function enviarCorreoVenta(datos) {
     `;
     
     console.log('📧 Enviando correo a:', emailDestino);
-    console.log('📎 Comprobante adjunto:', datos.comprobanteNombre);
     
-    // Simulación de envío con adjunto
-    // En producción usarías EmailJS con attachments o un servicio de correo real
     return new Promise((resolve) => {
         setTimeout(() => {
             resolve({ success: true });
