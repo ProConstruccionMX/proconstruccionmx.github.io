@@ -737,16 +737,13 @@
 </head>
 <body>
 
-    <!-- ============================================================ -->
-    <!-- HEADER CON BOTÓN MI CUENTA Y MENÚ DESPLEGABLE ACTUALIZADO    -->
-    <!-- ============================================================ -->
+    <!-- HEADER CON BOTÓN MI CUENTA Y MENÚ DESPLEGABLE -->
     <header class="dashboard-header">
         <a href="index.html" class="logo">ProConstrucción <span>MX</span></a>
         <div class="user-info">
             <span class="user-name" id="userNameDisplay"><i class="fas fa-user"></i> Cliente</span>
             <span class="user-email" id="userEmailDisplay">usuario@correo.com</span>
             
-            <!-- ===== BOTÓN MI CUENTA CON OPCIÓN DE DIRECCIONES ===== -->
             <div class="menu-usuario-container">
                 <button class="btn-mi-cuenta" id="btnMiCuenta">
                     <i class="fas fa-user-cog"></i> Mi Cuenta
@@ -762,7 +759,7 @@
         </div>
     </header>
 
-    <!-- TABS PRINCIPALES (SIN PESTAÑA DE DIRECCIONES) -->
+    <!-- TABS PRINCIPALES -->
     <div class="dashboard-tabs">
         <button class="active" data-tab="tab-cotizar"><i class="fas fa-shopping-cart"></i> Cotizar</button>
         <button data-tab="tab-compras"><i class="fas fa-history"></i> Mis Compras</button>
@@ -824,7 +821,7 @@
         </div>
     </div>
 
-    <!-- ===== TAB OCULTO/CONTENEDOR: MIS DIRECCIONES (ACCESIBLE DESDE EL MENÚ) ===== -->
+    <!-- ===== TAB OCULTO: MIS DIRECCIONES (ACCESIBLE DESDE EL MENÚ) ===== -->
     <div id="tab-direcciones" class="tab-content">
         <div class="welcome-section">
             <h1>📍 Mis Direcciones</h1>
@@ -1051,9 +1048,7 @@
     <script src="js/auth.js"></script>
     <script src="js/dashboard.js"></script>
     <script>
-        // ============================================
-        // CONTROL DEL MENÚ DESPLEGABLE "MI CUENTA"
-        // ============================================
+        // Control del menú desplegable "Mi Cuenta"
         document.addEventListener('DOMContentLoaded', function() {
             var btnMiCuenta = document.getElementById('btnMiCuenta');
             var menuDesplegable = document.getElementById('menuDesplegable');
@@ -1071,6 +1066,22 @@
                     }
                 });
             }
+
+            // Manejador seguro para las pestañas de navegación principales
+            var tabButtons = document.querySelectorAll('.dashboard-tabs button');
+            tabButtons.forEach(function(button) {
+                button.addEventListener('click', function() {
+                    var tabId = this.getAttribute('data-tab');
+                    if (!tabId) return;
+                    
+                    tabButtons.forEach(function(btn) { btn.classList.remove('active'); });
+                    document.querySelectorAll('.tab-content').forEach(function(content) { content.classList.remove('active'); });
+                    
+                    this.classList.add('active');
+                    var targetTab = document.getElementById(tabId);
+                    if (targetTab) targetTab.classList.add('active');
+                });
+            });
         });
 
         // Función para abrir la sección/tab de "Mis Direcciones" desde el menú desplegable
@@ -1078,40 +1089,23 @@
             var menu = document.getElementById('menuDesplegable');
             if (menu) menu.style.display = 'none';
             
-            // Ocultar todas las pestañas y desactivar botones principales
             var tabs = document.querySelectorAll('.dashboard-tabs button');
             var contents = document.querySelectorAll('.tab-content');
             
             tabs.forEach(function(btn) { btn.classList.remove('active'); });
             contents.forEach(function(tab) { tab.classList.remove('active'); });
             
-            // Mostrar la sección de direcciones
             var contentDirecciones = document.getElementById('tab-direcciones');
             if (contentDirecciones) {
                 contentDirecciones.classList.add('active');
             }
             
-            // Invocar la función externa de JS para cargar las direcciones del cliente
             if (typeof cargarDireccionesCliente === 'function') {
                 cargarDireccionesCliente();
             } else {
-                console.warn('La función cargarDireccionesCliente() no está definida en dashboard.js o aún no carga.');
+                console.warn('La función cargarDireccionesCliente() no está definida.');
             }
         }
-
-        // Cambio de pestañas principales (Cotizar / Mis Compras)
-        document.querySelectorAll('.dashboard-tabs button').forEach(function(button) {
-            button.addEventListener('click', function() {
-                var tabId = this.getAttribute('data-tab');
-                
-                document.querySelectorAll('.dashboard-tabs button').forEach(function(btn) { btn.classList.remove('active'); });
-                document.querySelectorAll('.tab-content').forEach(function(content) { content.classList.remove('active'); });
-                
-                this.classList.add('active');
-                var targetTab = document.getElementById(tabId);
-                if (targetTab) targetTab.classList.add('active');
-            });
-        });
 
         // Cerrar sesión
         function cerrarSesion() {
