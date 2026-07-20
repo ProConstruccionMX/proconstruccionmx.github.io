@@ -96,7 +96,7 @@
             background: white;
             border-radius: 12px;
             box-shadow: 0 8px 30px rgba(0,0,0,0.15);
-            min-width: 220px;
+            min-width: 200px;
             z-index: 1000;
             overflow: hidden;
             margin-top: 0.5rem;
@@ -654,6 +654,24 @@
         .modal .btn-cerrar-modal:hover {
             background: #cbd5e1;
         }
+        .modal .mensaje-exito {
+            background: #dcfce7;
+            color: #16a34a;
+            padding: 1rem;
+            border-radius: 12px;
+            text-align: center;
+            margin: 1rem 0;
+            display: none;
+        }
+        .modal .mensaje-error {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 1rem;
+            border-radius: 12px;
+            text-align: center;
+            margin: 1rem 0;
+            display: none;
+        }
         .file-upload {
             border: 2px dashed #e2e8f0;
             padding: 2rem;
@@ -733,17 +751,34 @@
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
 
-    <!-- HEADER CON BOTÓN MI CUENTA Y MENÚ DESPLEGABLE -->
+    <!-- ============================================================ -->
+    <!-- HEADER CON BOTÓN MI CUENTA (YA INCLUIDO)                     -->
+    <!-- ============================================================ -->
     <header class="dashboard-header">
         <a href="index.html" class="logo">ProConstrucción <span>MX</span></a>
         <div class="user-info">
             <span class="user-name" id="userNameDisplay"><i class="fas fa-user"></i> Cliente</span>
             <span class="user-email" id="userEmailDisplay">usuario@correo.com</span>
             
+            <!-- ===== BOTÓN MI CUENTA CON MENÚ ===== -->
             <div class="menu-usuario-container">
                 <button class="btn-mi-cuenta" id="btnMiCuenta">
                     <i class="fas fa-user-cog"></i> Mi Cuenta
@@ -759,9 +794,10 @@
         </div>
     </header>
 
-    <!-- TABS PRINCIPALES -->
+    <!-- TABS -->
     <div class="dashboard-tabs">
         <button class="active" data-tab="tab-cotizar"><i class="fas fa-shopping-cart"></i> Cotizar</button>
+        <button data-tab="tab-direcciones"><i class="fas fa-address-book"></i> Mis Direcciones</button>
         <button data-tab="tab-compras"><i class="fas fa-history"></i> Mis Compras</button>
     </div>
 
@@ -821,23 +857,24 @@
         </div>
     </div>
 
-    <!-- ===== TAB OCULTO: MIS DIRECCIONES (ACCESIBLE DESDE EL MENÚ) ===== -->
+    <!-- ===== TAB 2: MIS DIRECCIONES ===== -->
     <div id="tab-direcciones" class="tab-content">
         <div class="welcome-section">
             <h1>📍 Mis Direcciones</h1>
-            <p>Aquí puedes ver, editar y eliminar tus direcciones de envío guardadas en tu cuenta.</p>
+            <p>Aquí puedes ver, editar y eliminar tus direcciones de envío guardadas.</p>
         </div>
         <div class="cart-section" id="direccionesSection">
             <div id="direccionesContent">
                 <div class="empty-state">
-                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i>
-                    <h4>Cargando direcciones...</h4>
+                    <i class="fas fa-map-marker-alt"></i>
+                    <h4>Sin direcciones registradas</h4>
+                    <p>Agrega una dirección desde el formulario de compra.</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ===== TAB 2: MIS COMPRAS ===== -->
+    <!-- ===== TAB 3: MIS COMPRAS ===== -->
     <div id="tab-compras" class="tab-content">
         <div class="welcome-section">
             <h1>📋 Historial de Compras</h1>
@@ -1048,7 +1085,11 @@
     <script src="js/auth.js"></script>
     <script src="js/dashboard.js"></script>
     <script>
-        // Control del menú desplegable "Mi Cuenta"
+        // ============================================
+        // FUNCIONES DEL MENÚ MI CUENTA
+        // ============================================
+        
+        // Toggle del menú desplegable
         document.addEventListener('DOMContentLoaded', function() {
             var btnMiCuenta = document.getElementById('btnMiCuenta');
             var menuDesplegable = document.getElementById('menuDesplegable');
@@ -1056,7 +1097,11 @@
             if (btnMiCuenta && menuDesplegable) {
                 btnMiCuenta.addEventListener('click', function(e) {
                     e.stopPropagation();
-                    menuDesplegable.style.display = (menuDesplegable.style.display === 'block') ? 'none' : 'block';
+                    if (menuDesplegable.style.display === 'block') {
+                        menuDesplegable.style.display = 'none';
+                    } else {
+                        menuDesplegable.style.display = 'block';
+                    }
                 });
                 
                 document.addEventListener('click', function(event) {
@@ -1066,26 +1111,12 @@
                     }
                 });
             }
-
-            // Manejador seguro para las pestañas de navegación principales
-            var tabButtons = document.querySelectorAll('.dashboard-tabs button');
-            tabButtons.forEach(function(button) {
-                button.addEventListener('click', function() {
-                    var tabId = this.getAttribute('data-tab');
-                    if (!tabId) return;
-                    
-                    tabButtons.forEach(function(btn) { btn.classList.remove('active'); });
-                    document.querySelectorAll('.tab-content').forEach(function(content) { content.classList.remove('active'); });
-                    
-                    this.classList.add('active');
-                    var targetTab = document.getElementById(tabId);
-                    if (targetTab) targetTab.classList.add('active');
-                });
-            });
         });
 
-        // Función para abrir la sección/tab de "Mis Direcciones" desde el menú desplegable
+        // Función para abrir "Mis Direcciones"
         function abrirMisDirecciones() {
+            console.log('📍 Abriendo "Mis Direcciones"...');
+            
             var menu = document.getElementById('menuDesplegable');
             if (menu) menu.style.display = 'none';
             
@@ -1095,15 +1126,15 @@
             tabs.forEach(function(btn) { btn.classList.remove('active'); });
             contents.forEach(function(tab) { tab.classList.remove('active'); });
             
-            var contentDirecciones = document.getElementById('tab-direcciones');
-            if (contentDirecciones) {
-                contentDirecciones.classList.add('active');
+            var tabDirecciones = document.querySelector('[data-tab="tab-direcciones"]');
+            if (tabDirecciones) {
+                tabDirecciones.classList.add('active');
+                var content = document.getElementById('tab-direcciones');
+                if (content) content.classList.add('active');
             }
             
             if (typeof cargarDireccionesCliente === 'function') {
                 cargarDireccionesCliente();
-            } else {
-                console.warn('La función cargarDireccionesCliente() no está definida.');
             }
         }
 
