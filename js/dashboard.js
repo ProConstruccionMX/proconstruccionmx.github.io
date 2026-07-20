@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     await cargarDireccionesCliente();
     
     configurarTabs();
-    configurarMenuUsuario(); // ⭐ ESTA FUNCIÓN CREA EL BOTÓN "MI CUENTA"
+    configurarMenuUsuario();
     
     if (clienteData) {
         document.getElementById('welcomeName').textContent = clienteData.nombre;
@@ -826,146 +826,44 @@ function renderizarCarrito() {
 }
 
 // ============================================
-// ⭐⭐⭐ MENÚ DE USUARIO - MI CUENTA (CORREGIDO) ⭐⭐⭐
+// MENÚ DE USUARIO - MI CUENTA
 // ============================================
 
 function configurarMenuUsuario() {
     console.log('🔧 Configurando menú "Mi Cuenta"...');
     
-    const userInfo = document.querySelector('.user-info');
-    if (!userInfo) {
-        console.error('❌ No se encontró .user-info');
-        return;
-    }
+    const btnMiCuenta = document.getElementById('btnMiCuenta');
+    const menuDesplegable = document.getElementById('menuDesplegable');
     
-    // Verificar si ya existe el botón para no duplicarlo
-    if (document.querySelector('.btn-mi-cuenta')) {
-        console.log('ℹ️ El botón "Mi Cuenta" ya existe');
-        return;
-    }
-    
-    // Crear contenedor del menú
-    const menuContainer = document.createElement('div');
-    menuContainer.className = 'menu-usuario-container';
-    menuContainer.style.cssText = `
-        position: relative;
-        display: inline-block;
-    `;
-    
-    // ⭐ Botón Mi Cuenta
-    const btnMiCuenta = document.createElement('button');
-    btnMiCuenta.className = 'btn-mi-cuenta';
-    btnMiCuenta.innerHTML = '<i class="fas fa-user-cog"></i> Mi Cuenta';
-    btnMiCuenta.style.cssText = `
-        background: #1a4d8c;
-        color: white;
-        border: none;
-        padding: 0.5rem 1.2rem;
-        border-radius: 50px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s;
-        font-family: 'Inter', sans-serif;
-        font-size: 0.85rem;
-        white-space: nowrap;
-    `;
-    
-    btnMiCuenta.addEventListener('mouseenter', function() {
-        this.style.background = '#0A2540';
-        this.style.transform = 'translateY(-2px)';
-    });
-    btnMiCuenta.addEventListener('mouseleave', function() {
-        this.style.background = '#1a4d8c';
-        this.style.transform = 'translateY(0)';
-    });
-    
-    btnMiCuenta.addEventListener('click', function(e) {
-        e.stopPropagation();
-        const menu = document.getElementById('menuDesplegable');
-        if (menu) {
-            const isVisible = menu.style.display === 'block';
-            menu.style.display = isVisible ? 'none' : 'block';
-        }
-    });
-    
-    // ⭐ Menú desplegable
-    const menuDesplegable = document.createElement('div');
-    menuDesplegable.id = 'menuDesplegable';
-    menuDesplegable.style.cssText = `
-        display: none;
-        position: absolute;
-        top: 100%;
-        right: 0;
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.15);
-        min-width: 200px;
-        z-index: 1000;
-        overflow: hidden;
-        margin-top: 0.5rem;
-        border: 1px solid #e2e8f0;
-    `;
-    
-    // Opciones del menú
-    const opciones = [
-        { icon: 'fa-address-book', text: 'Mis Direcciones', action: 'abrirMisDirecciones()' }
-    ];
-    
-    opciones.forEach(op => {
-        const item = document.createElement('a');
-        item.href = '#';
-        item.style.cssText = `
-            display: block;
-            padding: 0.8rem 1.5rem;
-            color: #4a5568;
-            text-decoration: none;
-            transition: all 0.3s;
-            font-weight: 500;
-            font-size: 0.9rem;
-            font-family: 'Inter', sans-serif;
-        `;
-        item.addEventListener('mouseenter', function() {
-            this.style.background = '#f8f9fa';
-            this.style.color = '#0A2540';
+    if (btnMiCuenta && menuDesplegable) {
+        // Click en el botón para mostrar/ocultar el menú
+        btnMiCuenta.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const isVisible = menuDesplegable.style.display === 'block';
+            menuDesplegable.style.display = isVisible ? 'none' : 'block';
         });
-        item.addEventListener('mouseleave', function() {
-            this.style.background = 'transparent';
-            this.style.color = '#4a5568';
+        
+        // Cerrar menú al hacer clic fuera
+        document.addEventListener('click', function(event) {
+            const container = document.querySelector('.menu-usuario-container');
+            if (container && !container.contains(event.target)) {
+                menuDesplegable.style.display = 'none';
+            }
         });
-        item.innerHTML = `<i class="fas ${op.icon}" style="width:20px;"></i> ${op.text}`;
-        item.addEventListener('click', function(e) {
-            e.preventDefault();
-            const menu = document.getElementById('menuDesplegable');
-            if (menu) menu.style.display = 'none';
-            eval(op.action);
-        });
-        menuDesplegable.appendChild(item);
-    });
-    
-    menuContainer.appendChild(btnMiCuenta);
-    menuContainer.appendChild(menuDesplegable);
-    
-    // Insertar ANTES del botón Cerrar Sesión
-    const btnCerrar = userInfo.querySelector('.btn-cerrar');
-    if (btnCerrar) {
-        userInfo.insertBefore(menuContainer, btnCerrar);
+        
+        console.log('✅ Menú "Mi Cuenta" configurado correctamente');
     } else {
-        userInfo.appendChild(menuContainer);
+        console.warn('⚠️ No se encontró el botón "Mi Cuenta" en el HTML');
     }
-    
-    // Cerrar menú al hacer clic fuera
-    document.addEventListener('click', function(event) {
-        if (!menuContainer.contains(event.target)) {
-            const menu = document.getElementById('menuDesplegable');
-            if (menu) menu.style.display = 'none';
-        }
-    });
-    
-    console.log('✅ Menú "Mi Cuenta" configurado correctamente');
 }
 
+// Función para abrir "Mis Direcciones"
 function abrirMisDirecciones() {
     console.log('📍 Abriendo "Mis Direcciones"...');
+    
+    // Cerrar el menú
+    const menu = document.getElementById('menuDesplegable');
+    if (menu) menu.style.display = 'none';
     
     // Activar la pestaña de direcciones
     const tabs = document.querySelectorAll('.dashboard-tabs button');
@@ -983,8 +881,6 @@ function abrirMisDirecciones() {
         console.log('✅ Pestaña "Mis Direcciones" activada');
     } else {
         console.warn('⚠️ No se encontró la pestaña "Mis Direcciones"');
-        // Si no existe, redirigir a la URL con hash
-        window.location.hash = 'direcciones';
     }
     
     // Recargar direcciones
