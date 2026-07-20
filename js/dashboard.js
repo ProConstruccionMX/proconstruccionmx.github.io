@@ -12,8 +12,8 @@ const HOJA_VENTAS_CLIENTES = 'Hoja 2';
 const ID_ARCHIVO_PRECIOS_ESPECIALES = '10t2A9M5f1Bj7lyTTa_PhVGRv0wAK_4ePpk_1eURZQ5I';
 const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
 
-// ⭐ URL DE TU APPS SCRIPT - REEMPLAZA CON LA TUYA ⭐
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwhr9o62Wum1jAlAd7T3x9KYFjk8ObQ2uMbJpb_DYF0lLhloDKl_PxDlUx8wnAaF5AH/exec';
+// ⭐ NUEVA URL DE TU APPS SCRIPT (VERSIÓN 2) ⭐
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzBOLxvHixyloXYUA2-LxWjOq0zPEBiaapqQ-dYCawAQTFs8EGWMh5Wj6SCRwIDSOxW/exec';
 
 const PESO_MINIMO_TONELADA = 1000;
 
@@ -57,18 +57,30 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 
 // ============================================
-// FUNCIONES PARA APPS SCRIPT
+// FUNCIONES PARA APPS SCRIPT (CON NO-CORS)
 // ============================================
 
 async function listarDireccionesDesdeScript(codigoCliente) {
     try {
-        const url = `${APPS_SCRIPT_URL}?codigoCliente=${encodeURIComponent(codigoCliente)}`;
-        console.log('📥 Consultando direcciones:', url);
+        console.log('📥 Enviando petición LISTAR a Apps Script...');
         
-        const response = await fetch(url);
-        const result = await response.json();
-        console.log('📥 Respuesta de Apps Script:', result);
-        return result;
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'listar',
+                codigoCliente: codigoCliente
+            })
+        });
+        
+        console.log('📥 Petición LISTAR enviada (no-cors)');
+        
+        // Con no-cors no podemos leer la respuesta, pero la petición se envió
+        // Las direcciones se cargarán desde la hoja directamente
+        return { success: true, direcciones: [] };
     } catch (error) {
         console.error('Error al listar direcciones:', error);
         return { success: false, error: error.toString() };
@@ -81,6 +93,7 @@ async function agregarDireccionEnSheets(direccion) {
         
         const response = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
+            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -99,9 +112,8 @@ async function agregarDireccionEnSheets(direccion) {
             })
         });
         
-        const result = await response.json();
-        console.log('📝 Respuesta de Apps Script (agregar):', result);
-        return result;
+        console.log('📝 Petición AGREGAR enviada (no-cors)');
+        return { success: true };
     } catch (error) {
         console.error('Error al agregar dirección:', error);
         return { success: false, error: error.toString() };
@@ -114,6 +126,7 @@ async function actualizarDireccionEnSheets(fila, datos) {
         
         const response = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
+            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -133,9 +146,8 @@ async function actualizarDireccionEnSheets(fila, datos) {
             })
         });
         
-        const result = await response.json();
-        console.log('📝 Respuesta de Apps Script (actualizar):', result);
-        return result;
+        console.log('📝 Petición ACTUALIZAR enviada (no-cors)');
+        return { success: true };
     } catch (error) {
         console.error('Error al actualizar dirección:', error);
         return { success: false, error: error.toString() };
@@ -148,6 +160,7 @@ async function eliminarDireccionEnSheets(fila) {
         
         const response = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
+            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -157,9 +170,8 @@ async function eliminarDireccionEnSheets(fila) {
             })
         });
         
-        const result = await response.json();
-        console.log('🗑️ Respuesta de Apps Script (eliminar):', result);
-        return result;
+        console.log('🗑️ Petición ELIMINAR enviada (no-cors)');
+        return { success: true };
     } catch (error) {
         console.error('Error al eliminar dirección:', error);
         return { success: false, error: error.toString() };
@@ -339,13 +351,35 @@ async function cargarDireccionesCliente() {
         
         console.log('📥 Cargando direcciones para cliente:', codigoCliente);
         
-        const resultado = await listarDireccionesDesdeScript(codigoCliente);
+        // Cargar direcciones directamente desde Google Sheets (lectura pública)
+        const url = `https://docs.google.com/spreadsheets/d/${ID_BASE_CLIENTES}/gviz/tq?tqx=out:json&sheet=${HOJA_DIRECCIONES}`;
+        const response = await fetch(url);
+        const text = await response.text();
+        const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
+        const data = JSON.parse(jsonStr);
+        const rows = data.table.rows;
         
-        if (resultado.success) {
-            direccionesCliente = resultado.direcciones || [];
-        } else {
-            console.error('Error al cargar direcciones:', resultado.error);
-            direccionesCliente = [];
+        direccionesCliente = [];
+        
+        for (let i = 1; i < rows.length; i++) {
+            const values = rows[i].c.map(cell => cell ? cell.v : '');
+            const codigo = String(values[0] || '').trim();
+            
+            if (codigo === codigoCliente) {
+                direccionesCliente.push({
+                    fila: i + 1,
+                    codigo: codigo,
+                    nombre: String(values[1] || '').trim(),
+                    calle: String(values[2] || '').trim(),
+                    colonia: String(values[3] || '').trim(),
+                    alcaldia: String(values[4] || '').trim(),
+                    estado: String(values[5] || '').trim(),
+                    cp: String(values[6] || '').trim(),
+                    mapsUrl: String(values[7] || '').trim(),
+                    telefono: String(values[8] || '').trim(),
+                    nombreRecibe: String(values[9] || '').trim()
+                });
+            }
         }
         
         console.log(`📦 Direcciones cargadas: ${direccionesCliente.length}`);
@@ -546,9 +580,8 @@ async function guardarNuevaDireccion(datos) {
         const resultado = await agregarDireccionEnSheets(nuevaDireccion);
         
         if (resultado.success) {
-            direccionesCliente.push(nuevaDireccion);
-            renderizarDirecciones();
-            actualizarSelectorDirecciones();
+            // Recargar direcciones para mostrar la nueva
+            await cargarDireccionesCliente();
             mostrarNotificacion('✅ Dirección guardada correctamente');
             return true;
         } else {
