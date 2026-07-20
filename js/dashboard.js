@@ -214,7 +214,7 @@ async function cargarPreciosEspeciales() {
 }
 
 // ============================================
-// FUNCIONES DE DIRECCIONES
+// FUNCIONES DE DIRECCIONES (LEER Y ESCRIBIR)
 // ============================================
 
 async function cargarDireccionesCliente() {
@@ -235,7 +235,6 @@ async function cargarDireccionesCliente() {
         const rows = data.table.rows;
         
         direccionesCliente = [];
-        let filaIndex = 1;
         
         for (let i = 1; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
@@ -243,7 +242,7 @@ async function cargarDireccionesCliente() {
             
             if (codigo === codigoCliente) {
                 direccionesCliente.push({
-                    fila: i + 1,
+                    fila: i + 1, // Número de fila real en Google Sheets
                     codigo: codigo,
                     nombre: String(values[1] || '').trim(),
                     calle: String(values[2] || '').trim(),
@@ -260,6 +259,7 @@ async function cargarDireccionesCliente() {
         
         console.log(`📦 Direcciones cargadas: ${direccionesCliente.length}`);
         renderizarDirecciones();
+        actualizarSelectorDirecciones();
         
     } catch (error) {
         console.error('❌ Error al cargar direcciones:', error);
@@ -313,10 +313,29 @@ function renderizarDirecciones() {
     container.innerHTML = html;
 }
 
+function actualizarSelectorDirecciones() {
+    const select = document.getElementById('direccionSelector');
+    if (!select) return;
+    
+    select.innerHTML = '<option value="">-- Selecciona una dirección guardada --</option>';
+    direccionesCliente.forEach((dir, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = dir.nombre || `Dirección ${index + 1}`;
+        select.appendChild(option);
+    });
+    select.value = '';
+}
+
+// ============================================
+// EDITAR DIRECCIÓN
+// ============================================
+
 function editarDireccion(index) {
     const dir = direccionesCliente[index];
     if (!dir) return;
     
+    document.getElementById('editDirIndex').value = index;
     document.getElementById('editDirNombre').value = dir.nombre || '';
     document.getElementById('editDirCalle').value = dir.calle || '';
     document.getElementById('editDirColonia').value = dir.colonia || '';
@@ -326,7 +345,6 @@ function editarDireccion(index) {
     document.getElementById('editDirMaps').value = dir.mapsUrl || '';
     document.getElementById('editDirTelefono').value = dir.telefono || '';
     document.getElementById('editDirNombreRecibe').value = dir.nombreRecibe || '';
-    document.getElementById('editDirIndex').value = index;
     
     document.getElementById('modalEditarDireccion').classList.add('active');
 }
@@ -359,15 +377,30 @@ async function guardarEdicionDireccion() {
         return;
     }
     
-    direccionesCliente[index] = {
-        ...dir,
-        ...datosActualizados
-    };
-    
-    renderizarDirecciones();
-    cerrarModalEditarDireccion();
-    mostrarNotificacion('✅ Dirección actualizada correctamente');
+    try {
+        // Actualizar en Google Sheets
+        await actualizarDireccionEnSheets(dir.fila, datosActualizados);
+        
+        // Actualizar localmente
+        direccionesCliente[index] = {
+            ...dir,
+            ...datosActualizados
+        };
+        
+        renderizarDirecciones();
+        actualizarSelectorDirecciones();
+        cerrarModalEditarDireccion();
+        mostrarNotificacion('✅ Dirección actualizada correctamente');
+        
+    } catch (error) {
+        console.error('❌ Error al actualizar dirección:', error);
+        mostrarNotificacion('❌ Error al guardar los cambios. Intenta de nuevo.');
+    }
 }
+
+// ============================================
+// ELIMINAR DIRECCIÓN
+// ============================================
 
 async function eliminarDireccion(index) {
     const dir = direccionesCliente[index];
@@ -375,9 +408,108 @@ async function eliminarDireccion(index) {
     
     if (!confirm(`¿Seguro que quieres eliminar la dirección "${dir.nombre}"?`)) return;
     
-    direccionesCliente.splice(index, 1);
-    renderizarDirecciones();
-    mostrarNotificacion('🗑️ Dirección eliminada correctamente');
+    try {
+        // Eliminar de Google Sheets
+        await eliminarDireccionEnSheets(dir.fila);
+        
+        // Eliminar localmente
+        direccionesCliente.splice(index, 1);
+        
+        renderizarDirecciones();
+        actualizarSelectorDirecciones();
+        mostrarNotificacion('🗑️ Dirección eliminada correctamente');
+        
+    } catch (error) {
+        console.error('❌ Error al eliminar dirección:', error);
+        mostrarNotificacion('❌ Error al eliminar la dirección. Intenta de nuevo.');
+    }
+}
+
+// ============================================
+// GUARDAR NUEVA DIRECCIÓN
+// ============================================
+
+async function guardarNuevaDireccion(datos) {
+    try {
+        const codigoCliente = sessionStorage.getItem('codigoCliente');
+        if (!codigoCliente) {
+            mostrarNotificacion('⚠️ Error: No se pudo identificar al cliente.');
+            return false;
+        }
+        
+        const nuevaDireccion = {
+            fila: 0, // Se asignará después de guardar
+            codigo: codigoCliente,
+            nombre: datos.nombre,
+            calle: datos.calle,
+            colonia: datos.colonia,
+            alcaldia: datos.alcaldia,
+            estado: datos.estado,
+            cp: datos.cp,
+            mapsUrl: datos.mapsUrl || '',
+            telefono: datos.telefono,
+            nombreRecibe: datos.nombreRecibe
+        };
+        
+        // Guardar en Google Sheets
+        await agregarDireccionEnSheets(nuevaDireccion);
+        
+        // Agregar localmente
+        direccionesCliente.push(nuevaDireccion);
+        
+        renderizarDirecciones();
+        actualizarSelectorDirecciones();
+        mostrarNotificacion('✅ Dirección guardada correctamente');
+        
+        return true;
+        
+    } catch (error) {
+        console.error('❌ Error al guardar dirección:', error);
+        mostrarNotificacion('❌ Error al guardar la dirección');
+        return false;
+    }
+}
+
+// ============================================
+// FUNCIONES PARA INTERACTUAR CON GOOGLE SHEETS
+// ============================================
+
+async function agregarDireccionEnSheets(direccion) {
+    // Esta función debe hacer una solicitud POST a un script de Google Apps Script
+    // Por ahora, simulamos la operación
+    console.log('📝 Agregando dirección a Google Sheets:', direccion);
+    
+    // Simulamos un retraso
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // En producción, aquí iría la llamada al API de Google Sheets o Apps Script
+    // con los datos de la nueva dirección
+    
+    return true;
+}
+
+async function actualizarDireccionEnSheets(fila, datos) {
+    console.log(`📝 Actualizando dirección en fila ${fila}:`, datos);
+    
+    // Simulamos un retraso
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // En producción, aquí iría la llamada al API de Google Sheets o Apps Script
+    // para actualizar la fila específica
+    
+    return true;
+}
+
+async function eliminarDireccionEnSheets(fila) {
+    console.log(`🗑️ Eliminando dirección en fila ${fila}`);
+    
+    // Simulamos un retraso
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // En producción, aquí iría la llamada al API de Google Sheets o Apps Script
+    // para eliminar la fila específica
+    
+    return true;
 }
 
 // ============================================
@@ -836,14 +968,12 @@ function configurarMenuUsuario() {
     const menuDesplegable = document.getElementById('menuDesplegable');
     
     if (btnMiCuenta && menuDesplegable) {
-        // Click en el botón para mostrar/ocultar el menú
         btnMiCuenta.addEventListener('click', function(e) {
             e.stopPropagation();
             const isVisible = menuDesplegable.style.display === 'block';
             menuDesplegable.style.display = isVisible ? 'none' : 'block';
         });
         
-        // Cerrar menú al hacer clic fuera
         document.addEventListener('click', function(event) {
             const container = document.querySelector('.menu-usuario-container');
             if (container && !container.contains(event.target)) {
@@ -857,22 +987,18 @@ function configurarMenuUsuario() {
     }
 }
 
-// Función para abrir "Mis Direcciones"
 function abrirMisDirecciones() {
     console.log('📍 Abriendo "Mis Direcciones"...');
     
-    // Cerrar el menú
     const menu = document.getElementById('menuDesplegable');
     if (menu) menu.style.display = 'none';
     
-    // Activar la pestaña de direcciones
     const tabs = document.querySelectorAll('.dashboard-tabs button');
     const contents = document.querySelectorAll('.tab-content');
     
     tabs.forEach(btn => btn.classList.remove('active'));
     contents.forEach(tab => tab.classList.remove('active'));
     
-    // Buscar y activar la pestaña de direcciones
     const tabDirecciones = document.querySelector('[data-tab="tab-direcciones"]');
     if (tabDirecciones) {
         tabDirecciones.classList.add('active');
@@ -883,7 +1009,6 @@ function abrirMisDirecciones() {
         console.warn('⚠️ No se encontró la pestaña "Mis Direcciones"');
     }
     
-    // Recargar direcciones
     cargarDireccionesCliente();
 }
 
@@ -903,24 +1028,21 @@ function abrirModalDireccion() {
         return;
     }
     
-    // Cargar direcciones del cliente
     cargarDireccionesCliente();
+    actualizarSelectorDirecciones();
     
-    // Llenar el selector de direcciones
-    const select = document.getElementById('direccionSelector');
-    if (select) {
-        select.innerHTML = '<option value="">-- Selecciona una dirección guardada --</option>';
-        direccionesCliente.forEach((dir, index) => {
-            const option = document.createElement('option');
-            option.value = index;
-            option.textContent = dir.nombre || `Dirección ${index + 1}`;
-            select.appendChild(option);
-        });
-        select.value = '';
-        select.onchange = function() {
-            cargarDireccionSeleccionada();
-        };
-    }
+    document.getElementById('dirCalle').value = '';
+    document.getElementById('dirColonia').value = '';
+    document.getElementById('dirAlcaldia').value = '';
+    document.getElementById('dirEstado').value = '';
+    document.getElementById('dirCP').value = '';
+    document.getElementById('dirMaps').value = '';
+    document.getElementById('dirTelefono').value = '';
+    document.getElementById('dirNombreRecibe').value = '';
+    document.getElementById('dirGuardarNombre').value = '';
+    document.getElementById('dirGuardarCheck').checked = false;
+    document.getElementById('dirGuardarCampos').style.display = 'none';
+    document.getElementById('modalDireccionMensaje').innerHTML = '';
     
     document.getElementById('modalDireccion').classList.add('active');
 }
@@ -955,16 +1077,13 @@ function cargarDireccionSeleccionada() {
     
     document.getElementById('dirGuardarCheck').checked = false;
     document.getElementById('dirGuardarCampos').style.display = 'none';
-    document.getElementById('dirGuardarCheck').onchange = function() {
-        document.getElementById('dirGuardarCampos').style.display = this.checked ? 'block' : 'none';
-    };
 }
 
 function cerrarModalDireccion() {
     document.getElementById('modalDireccion').classList.remove('active');
 }
 
-function continuarConPago() {
+async function continuarConPago() {
     const calle = document.getElementById('dirCalle').value.trim();
     const colonia = document.getElementById('dirColonia').value.trim();
     const alcaldia = document.getElementById('dirAlcaldia').value.trim();
@@ -974,7 +1093,7 @@ function continuarConPago() {
     const nombreRecibe = document.getElementById('dirNombreRecibe').value.trim();
     
     if (!calle || !colonia || !alcaldia || !estado || !cp || !telefono || !nombreRecibe) {
-        mostrarNotificacion('⚠️ Por favor, completa todos los campos obligatorios de dirección.');
+        mostrarMensajeModalDireccion('error', '⚠️ Por favor, completa todos los campos obligatorios de dirección.');
         return;
     }
     
@@ -982,12 +1101,12 @@ function continuarConPago() {
     const nombreDireccion = document.getElementById('dirGuardarNombre').value.trim();
     
     if (guardarDireccion && !nombreDireccion) {
-        mostrarNotificacion('⚠️ Por favor, asigna un nombre a la dirección para guardarla.');
+        mostrarMensajeModalDireccion('error', '⚠️ Por favor, asigna un nombre a la dirección para guardarla.');
         return;
     }
     
     if (guardarDireccion && nombreDireccion) {
-        guardarNuevaDireccion({
+        const guardado = await guardarNuevaDireccion({
             nombre: nombreDireccion,
             calle: calle,
             colonia: colonia,
@@ -998,6 +1117,11 @@ function continuarConPago() {
             telefono: telefono,
             nombreRecibe: nombreRecibe
         });
+        
+        if (!guardado) {
+            mostrarMensajeModalDireccion('error', '❌ Error al guardar la dirección. Intenta de nuevo.');
+            return;
+        }
     }
     
     window.datosEnvio = {
@@ -1015,35 +1139,11 @@ function continuarConPago() {
     abrirModalPago();
 }
 
-async function guardarNuevaDireccion(datos) {
-    try {
-        const codigoCliente = sessionStorage.getItem('codigoCliente');
-        if (!codigoCliente) {
-            mostrarNotificacion('⚠️ Error: No se pudo identificar al cliente.');
-            return;
-        }
-        
-        direccionesCliente.push({
-            fila: direccionesCliente.length + 2,
-            codigo: codigoCliente,
-            nombre: datos.nombre,
-            calle: datos.calle,
-            colonia: datos.colonia,
-            alcaldia: datos.alcaldia,
-            estado: datos.estado,
-            cp: datos.cp,
-            mapsUrl: datos.mapsUrl || '',
-            telefono: datos.telefono,
-            nombreRecibe: datos.nombreRecibe
-        });
-        
-        renderizarDirecciones();
-        mostrarNotificacion('✅ Dirección guardada correctamente');
-        
-    } catch (error) {
-        console.error('❌ Error al guardar dirección:', error);
-        mostrarNotificacion('❌ Error al guardar la dirección');
-    }
+function mostrarMensajeModalDireccion(tipo, mensaje) {
+    const div = document.getElementById('modalDireccionMensaje');
+    div.className = tipo === 'exito' ? 'mensaje-exito' : 'mensaje-error';
+    div.innerHTML = mensaje;
+    div.style.display = 'block';
 }
 
 // ============================================
@@ -1493,6 +1593,8 @@ function mostrarNotificacion(mensaje) {
         z-index: 2000;
         box-shadow: 0 8px 30px rgba(0,0,0,0.2);
         animation: fadeInUp 0.3s ease-out;
+        max-width: 90%;
+        text-align: center;
     `;
     div.textContent = mensaje;
     document.body.appendChild(div);
@@ -1508,6 +1610,7 @@ function mostrarMensajeModal(tipo, mensaje) {
     const div = document.getElementById('modalMensaje');
     div.className = tipo === 'exito' ? 'mensaje-exito' : 'mensaje-error';
     div.innerHTML = mensaje;
+    div.style.display = 'block';
 }
 
 function configurarTabs() {
