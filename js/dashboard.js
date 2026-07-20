@@ -12,11 +12,8 @@ const HOJA_VENTAS_CLIENTES = 'Hoja 2';
 const ID_ARCHIVO_PRECIOS_ESPECIALES = '10t2A9M5f1Bj7lyTTa_PhVGRv0wAK_4ePpk_1eURZQ5I';
 const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
 
-// ⭐ NUEVA URL DE TU APPS SCRIPT (VERSIÓN 2) ⭐
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzBOLxvHixyloXYUA2-LxWjOq0zPEBiaapqQ-dYCawAQTFs8EGWMh5Wj6SCRwIDSOxW/exec';
-
-// ⭐ URL para leer direcciones directamente desde Google Sheets ⭐
-const DIRECCIONES_URL = `https://docs.google.com/spreadsheets/d/${ID_BASE_CLIENTES}/gviz/tq?tqx=out:json&sheet=${HOJA_DIRECCIONES}`;
+// ⭐ NUEVA URL DE TU APPS SCRIPT (VERSIÓN 3) ⭐
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxKIKNB52jTXypzskerIu9VsYOHyszXFsori2kMbbD17wY4JYqC_PEFwmgwU72l2NOm/exec';
 
 const PESO_MINIMO_TONELADA = 1000;
 
@@ -60,8 +57,43 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 
 // ============================================
-// FUNCIONES PARA APPS SCRIPT (SOLO ESCRITURA)
+// FUNCIONES PARA APPS SCRIPT (CON JSONP PARA LEER)
 // ============================================
+
+async function listarDireccionesDesdeScript(codigoCliente) {
+    try {
+        console.log('📥 Enviando petición LISTAR a Apps Script...');
+        
+        return new Promise((resolve, reject) => {
+            const callbackName = 'jsonp_callback_' + Date.now();
+            
+            const script = document.createElement('script');
+            const url = `${APPS_SCRIPT_URL}?action=listar&codigoCliente=${encodeURIComponent(codigoCliente)}&callback=${callbackName}`;
+            
+            console.log('📥 URL JSONP:', url);
+            
+            window[callbackName] = function(data) {
+                console.log('📥 Respuesta JSONP recibida:', data);
+                delete window[callbackName];
+                document.body.removeChild(script);
+                resolve(data);
+            };
+            
+            script.onerror = function() {
+                console.error('❌ Error en JSONP');
+                delete window[callbackName];
+                document.body.removeChild(script);
+                reject(new Error('Error al cargar las direcciones'));
+            };
+            
+            script.src = url;
+            document.body.appendChild(script);
+        });
+    } catch (error) {
+        console.error('Error al listar direcciones:', error);
+        return { success: false, error: error.toString() };
+    }
+}
 
 async function agregarDireccionEnSheets(direccion) {
     try {
@@ -314,7 +346,7 @@ async function cargarPreciosEspeciales() {
 }
 
 // ============================================
-// FUNCIONES DE DIRECCIONES (LECTURA DIRECTA)
+// FUNCIONES DE DIRECCIONES (USANDO APPS SCRIPT CON JSONP)
 // ============================================
 
 async function cargarDireccionesCliente() {
@@ -326,42 +358,14 @@ async function cargarDireccionesCliente() {
         }
         
         console.log('📥 Cargando direcciones para cliente:', codigoCliente);
-        console.log('📥 URL de direcciones:', DIRECCIONES_URL);
         
-        // Cargar direcciones directamente desde Google Sheets
-        const response = await fetch(DIRECCIONES_URL);
-        const text = await response.text();
+        const resultado = await listarDireccionesDesdeScript(codigoCliente);
         
-        console.log('📥 Respuesta recibida, longitud:', text.length);
-        
-        // Extraer el JSON de la respuesta (formato gviz)
-        const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
-        const data = JSON.parse(jsonStr);
-        const rows = data.table.rows;
-        
-        console.log('📊 Filas en la hoja Direcciones:', rows.length);
-        
-        direccionesCliente = [];
-        
-        for (let i = 1; i < rows.length; i++) {
-            const values = rows[i].c.map(cell => cell ? cell.v : '');
-            const codigo = String(values[0] || '').trim();
-            
-            if (codigo === codigoCliente) {
-                direccionesCliente.push({
-                    fila: i + 1,
-                    codigo: codigo,
-                    nombre: String(values[1] || '').trim(),
-                    calle: String(values[2] || '').trim(),
-                    colonia: String(values[3] || '').trim(),
-                    alcaldia: String(values[4] || '').trim(),
-                    estado: String(values[5] || '').trim(),
-                    cp: String(values[6] || '').trim(),
-                    mapsUrl: String(values[7] || '').trim(),
-                    telefono: String(values[8] || '').trim(),
-                    nombreRecibe: String(values[9] || '').trim()
-                });
-            }
+        if (resultado.success) {
+            direccionesCliente = resultado.direcciones || [];
+        } else {
+            console.error('Error al cargar direcciones:', resultado.error);
+            direccionesCliente = [];
         }
         
         console.log(`📦 Direcciones cargadas: ${direccionesCliente.length}`);
@@ -370,7 +374,6 @@ async function cargarDireccionesCliente() {
         
     } catch (error) {
         console.error('❌ Error al cargar direcciones:', error);
-        console.error('❌ Detalle del error:', error.message);
         direccionesCliente = [];
         renderizarDirecciones();
         actualizarSelectorDirecciones();
@@ -493,7 +496,6 @@ async function guardarEdicionDireccion() {
         const resultado = await actualizarDireccionEnSheets(dir.fila, datosActualizados);
         
         if (resultado.success) {
-            // Actualizar localmente
             direccionesCliente[index] = {
                 ...dir,
                 ...datosActualizados
@@ -504,7 +506,6 @@ async function guardarEdicionDireccion() {
             cerrarModalEditarDireccion();
             mostrarNotificacion('✅ Dirección actualizada correctamente');
             
-            // Recargar para confirmar los cambios
             setTimeout(() => {
                 cargarDireccionesCliente();
             }, 1000);
@@ -536,7 +537,6 @@ async function eliminarDireccion(index) {
             actualizarSelectorDirecciones();
             mostrarNotificacion('🗑️ Dirección eliminada correctamente');
             
-            // Recargar para confirmar los cambios
             setTimeout(() => {
                 cargarDireccionesCliente();
             }, 1000);
@@ -578,7 +578,6 @@ async function guardarNuevaDireccion(datos) {
         
         if (resultado.success) {
             mostrarNotificacion('✅ Dirección guardada correctamente');
-            // Recargar direcciones
             await cargarDireccionesCliente();
             return true;
         } else {
