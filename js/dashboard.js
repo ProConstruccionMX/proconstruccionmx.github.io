@@ -12,7 +12,6 @@ const HOJA_VENTAS_CLIENTES = 'Hoja 2';
 const ID_ARCHIVO_PRECIOS_ESPECIALES = '10t2A9M5f1Bj7lyTTa_PhVGRv0wAK_4ePpk_1eURZQ5I';
 const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
 
-// ⭐ URL DE TU APPS SCRIPT (VERSIÓN 3) ⭐
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxKIKNB52jTXypzskerIu9VsYOHyszXFsori2kMbbD17wY4JYqC_PEFwmgwU72l2NOm/exec';
 
 const PESO_MINIMO_TONELADA = 1000;
@@ -95,7 +94,7 @@ async function agregarDireccionEnSheets(direccion) {
 
 async function actualizarDireccionEnSheets(fila, datos) {
     try {
-        console.log('📝 Enviando a Apps Script - ACTUALIZAR:', { fila, datos });
+        console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila:', fila, datos);
         
         const response = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
@@ -119,7 +118,7 @@ async function actualizarDireccionEnSheets(fila, datos) {
             })
         });
         
-        console.log('📝 Petición ACTUALIZAR enviada');
+        console.log('📝 Petición ACTUALIZAR enviada para fila:', fila);
         return { success: true };
     } catch (error) {
         console.error('Error al actualizar dirección:', error);
@@ -129,7 +128,7 @@ async function actualizarDireccionEnSheets(fila, datos) {
 
 async function eliminarDireccionEnSheets(fila) {
     try {
-        console.log('🗑️ Enviando a Apps Script - ELIMINAR:', fila);
+        console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila:', fila);
         
         const response = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
@@ -143,7 +142,7 @@ async function eliminarDireccionEnSheets(fila) {
             })
         });
         
-        console.log('🗑️ Petición ELIMINAR enviada');
+        console.log('🗑️ Petición ELIMINAR enviada para fila:', fila);
         return { success: true };
     } catch (error) {
         console.error('Error al eliminar dirección:', error);
@@ -332,7 +331,6 @@ async function cargarDireccionesCliente() {
         
         console.log('📥 Respuesta recibida, longitud:', text.length);
         
-        // Extraer el JSON de la respuesta (formato gviz)
         const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
         const data = JSON.parse(jsonStr);
         const rows = data.table.rows;
@@ -347,8 +345,11 @@ async function cargarDireccionesCliente() {
             const codigo = String(values[0] || '').trim();
             
             if (codigo === codigoCliente) {
+                const filaReal = i + 1; // La fila real en Google Sheets (1 = encabezado, 2 = primer dato)
+                console.log(`📌 Dirección encontrada en fila ${filaReal}: ${String(values[1] || '').trim()}`);
+                
                 direccionesCliente.push({
-                    fila: i + 1,
+                    fila: filaReal,
                     codigo: codigo,
                     nombre: String(values[1] || '').trim(),
                     calle: String(values[2] || '').trim(),
@@ -396,7 +397,7 @@ function renderizarDirecciones() {
         html += `
             <div class="direccion-card" id="dir-card-${index}">
                 <div class="direccion-header">
-                    <h4><i class="fas fa-home"></i> ${dir.nombre || 'Sin nombre'}</h4>
+                    <h4><i class="fas fa-home"></i> ${dir.nombre || 'Sin nombre'} <span style="font-size:0.7rem;color:var(--text-gray);">(Fila ${dir.fila})</span></h4>
                     <div class="direccion-actions">
                         <button class="btn-editar" onclick="editarDireccion(${index})">
                             <i class="fas fa-edit"></i>
@@ -431,7 +432,7 @@ function actualizarSelectorDirecciones() {
     direccionesCliente.forEach((dir, index) => {
         const option = document.createElement('option');
         option.value = index;
-        option.textContent = dir.nombre || `Dirección ${index + 1}`;
+        option.textContent = dir.nombre || `Dirección ${index + 1} (Fila ${dir.fila})`;
         select.appendChild(option);
     });
     select.value = '';
@@ -445,6 +446,8 @@ function editarDireccion(index) {
     const dir = direccionesCliente[index];
     if (!dir) return;
     
+    console.log('✏️ Editando dirección en fila:', dir.fila);
+    
     document.getElementById('editDirIndex').value = index;
     document.getElementById('editDirNombre').value = dir.nombre || '';
     document.getElementById('editDirCalle').value = dir.calle || '';
@@ -455,6 +458,7 @@ function editarDireccion(index) {
     document.getElementById('editDirMaps').value = dir.mapsUrl || '';
     document.getElementById('editDirTelefono').value = dir.telefono || '';
     document.getElementById('editDirNombreRecibe').value = dir.nombreRecibe || '';
+    document.getElementById('editDirFila').value = dir.fila;
     
     document.getElementById('modalEditarDireccion').classList.add('active');
 }
@@ -467,6 +471,9 @@ async function guardarEdicionDireccion() {
     const index = parseInt(document.getElementById('editDirIndex').value);
     const dir = direccionesCliente[index];
     if (!dir) return;
+    
+    const fila = parseInt(document.getElementById('editDirFila').value);
+    console.log('💾 Guardando edición para fila:', fila);
     
     const datosActualizados = {
         codigo: dir.codigo,
@@ -489,12 +496,14 @@ async function guardarEdicionDireccion() {
     }
     
     try {
-        const resultado = await actualizarDireccionEnSheets(dir.fila, datosActualizados);
+        const resultado = await actualizarDireccionEnSheets(fila, datosActualizados);
         
         if (resultado.success) {
+            // Actualizar localmente
             direccionesCliente[index] = {
                 ...dir,
-                ...datosActualizados
+                ...datosActualizados,
+                fila: fila
             };
             
             renderizarDirecciones();
@@ -522,7 +531,9 @@ async function eliminarDireccion(index) {
     const dir = direccionesCliente[index];
     if (!dir) return;
     
-    if (!confirm(`¿Seguro que quieres eliminar la dirección "${dir.nombre}"?`)) return;
+    console.log('🗑️ Eliminando dirección en fila:', dir.fila);
+    
+    if (!confirm(`¿Seguro que quieres eliminar la dirección "${dir.nombre}" (Fila ${dir.fila})?`)) return;
     
     try {
         const resultado = await eliminarDireccionEnSheets(dir.fila);
