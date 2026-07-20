@@ -64,6 +64,55 @@
             background: #b91c1c;
             transform: translateY(-2px);
         }
+        .btn-mi-cuenta {
+            background: #1a4d8c;
+            color: white;
+            border: none;
+            padding: 0.5rem 1.2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+        .btn-mi-cuenta:hover {
+            background: #0A2540;
+            transform: translateY(-2px);
+        }
+        .menu-usuario-container {
+            position: relative;
+            display: inline-block;
+        }
+        .menu-desplegable {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+            min-width: 200px;
+            z-index: 1000;
+            overflow: hidden;
+            margin-top: 0.5rem;
+            border: 1px solid #e2e8f0;
+        }
+        .menu-desplegable a {
+            display: block;
+            padding: 0.8rem 1.5rem;
+            color: #4a5568;
+            text-decoration: none;
+            transition: all 0.3s;
+            font-weight: 500;
+            font-size: 0.9rem;
+            font-family: 'Inter', sans-serif;
+        }
+        .menu-desplegable a:hover {
+            background: #f8f9fa;
+            color: #0A2540;
+        }
         .dashboard-tabs {
             display: flex;
             gap: 0.5rem;
@@ -701,7 +750,7 @@
 </head>
 <body>
 
-    <!-- ===== HEADER CON BOTÓN MI CUENTA ===== -->
+    <!-- HEADER CON BOTÓN MI CUENTA -->
     <header class="dashboard-header">
         <a href="index.html" class="logo">ProConstrucción <span>MX</span></a>
         <div class="user-info">
@@ -709,46 +758,12 @@
             <span class="user-email" id="userEmailDisplay">usuario@correo.com</span>
             
             <!-- ⭐ BOTÓN MI CUENTA CON MENÚ DESPLEGABLE ⭐ -->
-            <div class="menu-usuario-container" style="position:relative; display:inline-block;">
-                <button class="btn-mi-cuenta" id="btnMiCuenta" style="
-                    background: #1a4d8c;
-                    color: white;
-                    border: none;
-                    padding: 0.5rem 1.2rem;
-                    border-radius: 50px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: all 0.3s;
-                    font-family: 'Inter', sans-serif;
-                    font-size: 0.85rem;
-                    white-space: nowrap;
-                ">
+            <div class="menu-usuario-container">
+                <button class="btn-mi-cuenta" id="btnMiCuenta">
                     <i class="fas fa-user-cog"></i> Mi Cuenta
                 </button>
-                <div id="menuDesplegable" style="
-                    display: none;
-                    position: absolute;
-                    top: 100%;
-                    right: 0;
-                    background: white;
-                    border-radius: 12px;
-                    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
-                    min-width: 200px;
-                    z-index: 1000;
-                    overflow: hidden;
-                    margin-top: 0.5rem;
-                    border: 1px solid #e2e8f0;
-                ">
-                    <a href="#" onclick="abrirMisDirecciones(); return false;" style="
-                        display: block;
-                        padding: 0.8rem 1.5rem;
-                        color: #4a5568;
-                        text-decoration: none;
-                        transition: all 0.3s;
-                        font-weight: 500;
-                        font-size: 0.9rem;
-                        font-family: 'Inter', sans-serif;
-                    " onmouseover="this.style.background='#f8f9fa'; this.style.color='#0A2540';" onmouseout="this.style.background='transparent'; this.style.color='#4a5568';">
+                <div class="menu-desplegable" id="menuDesplegable">
+                    <a href="#" onclick="abrirMisDirecciones(); return false;">
                         <i class="fas fa-address-book" style="width:20px;"></i> Mis Direcciones
                     </a>
                 </div>
@@ -1053,5 +1068,54 @@
 
     <script src="js/auth.js"></script>
     <script src="js/dashboard.js"></script>
+    <script>
+        // ============================================
+        // CONFIGURAR MENÚ DESPLEGABLE DESDE EL HTML
+        // ============================================
+        document.addEventListener('DOMContentLoaded', function() {
+            const btnMiCuenta = document.getElementById('btnMiCuenta');
+            const menuDesplegable = document.getElementById('menuDesplegable');
+            
+            if (btnMiCuenta && menuDesplegable) {
+                btnMiCuenta.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const isVisible = menuDesplegable.style.display === 'block';
+                    menuDesplegable.style.display = isVisible ? 'none' : 'block';
+                });
+                
+                document.addEventListener('click', function(event) {
+                    const container = document.querySelector('.menu-usuario-container');
+                    if (container && !container.contains(event.target)) {
+                        menuDesplegable.style.display = 'none';
+                    }
+                });
+            }
+        });
+
+        // Función para abrir "Mis Direcciones"
+        function abrirMisDirecciones() {
+            console.log('📍 Abriendo "Mis Direcciones"...');
+            
+            const menu = document.getElementById('menuDesplegable');
+            if (menu) menu.style.display = 'none';
+            
+            const tabs = document.querySelectorAll('.dashboard-tabs button');
+            const contents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(btn => btn.classList.remove('active'));
+            contents.forEach(tab => tab.classList.remove('active'));
+            
+            const tabDirecciones = document.querySelector('[data-tab="tab-direcciones"]');
+            if (tabDirecciones) {
+                tabDirecciones.classList.add('active');
+                const content = document.getElementById('tab-direcciones');
+                if (content) content.classList.add('active');
+            }
+            
+            if (typeof cargarDireccionesCliente === 'function') {
+                cargarDireccionesCliente();
+            }
+        }
+    </script>
 </body>
 </html>
