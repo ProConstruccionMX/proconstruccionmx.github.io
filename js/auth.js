@@ -10,6 +10,9 @@ const EMAILJS_CONFIG = {
     userID: '_gOxtGSQmrhTdoRuX'
 };
 
+// ⭐ Variable global para almacenar el código del cliente
+let codigoClienteGlobal = null;
+
 // Función para obtener datos de Google Sheets (ignorando encabezados)
 async function obtenerClientes() {
     try {
@@ -19,7 +22,6 @@ async function obtenerClientes() {
         const data = JSON.parse(jsonStr);
         const rows = data.table.rows;
         
-        // Ignorar la primera fila (encabezados)
         const clientes = [];
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
@@ -44,6 +46,33 @@ async function obtenerClientes() {
     }
 }
 
+// ⭐ NUEVA FUNCIÓN: Obtener código de cliente por email
+async function obtenerCodigoCliente(email) {
+    try {
+        const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${SHEET_NAME}`;
+        const response = await fetch(url);
+        const text = await response.text();
+        const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
+        const data = JSON.parse(jsonStr);
+        const rows = data.table.rows;
+        
+        for (let i = 1; i < rows.length; i++) {
+            const values = rows[i].c.map(cell => cell ? cell.v : '');
+            const correo = String(values[3] || '').trim();
+            
+            if (correo.toLowerCase() === email.toLowerCase()) {
+                const codigo = String(values[0] || '').trim();
+                console.log('🔑 Código de cliente encontrado:', codigo);
+                return codigo;
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error('Error al obtener código de cliente:', error);
+        return null;
+    }
+}
+
 // Función para autenticar usuario
 async function autenticarUsuario(email, password) {
     const clientes = await obtenerClientes();
@@ -56,7 +85,6 @@ async function autenticarUsuario(email, password) {
     );
     
     console.log('🔍 Buscando:', emailLimpio);
-    console.log('📋 Clientes encontrados:', clientes.map(c => c.correo));
     
     if (!cliente) {
         return { success: false, message: '❌ Correo no registrado. Contacta a tu asesor.' };
@@ -72,10 +100,18 @@ async function autenticarUsuario(email, password) {
         return { success: false, message: '❌ Contraseña incorrecta. Intenta de nuevo.' };
     }
     
+    // ⭐ Obtener el código del cliente y guardarlo globalmente
+    const codigo = await obtenerCodigoCliente(email);
+    if (codigo) {
+        codigoClienteGlobal = codigo;
+        sessionStorage.setItem('codigoCliente', codigo);
+    }
+    
     return { 
         success: true, 
         message: '✅ Inicio de sesión exitoso',
-        email: cliente.correo
+        email: cliente.correo,
+        codigo: codigo
     };
 }
 
@@ -170,6 +206,9 @@ async function handleLogin(event) {
         if (result.success) {
             sessionStorage.setItem('userLoggedIn', 'true');
             sessionStorage.setItem('userEmail', result.email);
+            if (result.codigo) {
+                sessionStorage.setItem('codigoCliente', result.codigo);
+            }
             
             successDiv.querySelector('#successText').textContent = '¡Bienvenido! Redirigiendo...';
             successDiv.classList.add('show');
