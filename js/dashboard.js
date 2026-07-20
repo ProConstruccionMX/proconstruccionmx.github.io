@@ -338,12 +338,14 @@ async function cargarDireccionesCliente() {
         
         console.log('📥 Cargando direcciones para cliente:', codigoCliente);
         
-        // Leer directamente desde Google Sheets (formato público)
+        // Leer directamente desde Google Sheets usando el formato público
         const url = `https://docs.google.com/spreadsheets/d/${ID_BASE_CLIENTES}/gviz/tq?tqx=out:json&sheet=${HOJA_DIRECCIONES}`;
         console.log('📥 URL de direcciones:', url);
         
         const response = await fetch(url);
         const text = await response.text();
+        
+        console.log('📥 Respuesta recibida, longitud:', text.length);
         
         // Extraer el JSON de la respuesta (formato gviz)
         const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
@@ -381,7 +383,7 @@ async function cargarDireccionesCliente() {
         
     } catch (error) {
         console.error('❌ Error al cargar direcciones:', error);
-        console.error('❌ Detalle:', error.message);
+        console.error('❌ Detalle del error:', error.message);
         direccionesCliente = [];
         renderizarDirecciones();
         actualizarSelectorDirecciones();
