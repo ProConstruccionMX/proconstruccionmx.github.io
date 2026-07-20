@@ -57,61 +57,35 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 
 // ============================================
-// FUNCIONES PARA APPS SCRIPT (VIA IFRAME PARA ESCRIBIR)
+// FUNCIONES PARA APPS SCRIPT (ESCRITURA CON NO-CORS)
 // ============================================
-
-function enviarPorIframe(data) {
-    return new Promise((resolve) => {
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.name = 'iframe_' + Date.now();
-        document.body.appendChild(iframe);
-        
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = APPS_SCRIPT_URL;
-        form.target = iframe.name;
-        form.enctype = 'multipart/form-data';
-        
-        for (const [key, value] of Object.entries(data)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-        }
-        
-        document.body.appendChild(form);
-        form.submit();
-        
-        setTimeout(() => {
-            document.body.removeChild(iframe);
-            document.body.removeChild(form);
-            resolve({ success: true });
-        }, 2000);
-    });
-}
 
 async function agregarDireccionEnSheets(direccion) {
     try {
         console.log('📝 Enviando a Apps Script - AGREGAR:', direccion);
         
-        const data = {
-            action: 'agregar',
-            codigo: direccion.codigo,
-            nombre: direccion.nombre,
-            calle: direccion.calle,
-            colonia: direccion.colonia,
-            alcaldia: direccion.alcaldia,
-            estado: direccion.estado,
-            cp: direccion.cp,
-            mapsUrl: direccion.mapsUrl || '',
-            telefono: direccion.telefono,
-            nombreRecibe: direccion.nombreRecibe
-        };
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'agregar',
+                codigo: direccion.codigo,
+                nombre: direccion.nombre,
+                calle: direccion.calle,
+                colonia: direccion.colonia,
+                alcaldia: direccion.alcaldia,
+                estado: direccion.estado,
+                cp: direccion.cp,
+                mapsUrl: direccion.mapsUrl || '',
+                telefono: direccion.telefono,
+                nombreRecibe: direccion.nombreRecibe
+            })
+        });
         
-        await enviarPorIframe(data);
-        console.log('📝 Petición AGREGAR enviada (via iframe)');
+        console.log('📝 Petición AGREGAR enviada');
         return { success: true };
     } catch (error) {
         console.error('Error al agregar dirección:', error);
@@ -123,23 +97,29 @@ async function actualizarDireccionEnSheets(fila, datos) {
     try {
         console.log('📝 Enviando a Apps Script - ACTUALIZAR:', { fila, datos });
         
-        const data = {
-            action: 'actualizar',
-            fila: fila,
-            codigo: datos.codigo || sessionStorage.getItem('codigoCliente'),
-            nombre: datos.nombre,
-            calle: datos.calle,
-            colonia: datos.colonia,
-            alcaldia: datos.alcaldia,
-            estado: datos.estado,
-            cp: datos.cp,
-            mapsUrl: datos.mapsUrl || '',
-            telefono: datos.telefono,
-            nombreRecibe: datos.nombreRecibe
-        };
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'actualizar',
+                fila: fila,
+                codigo: datos.codigo || sessionStorage.getItem('codigoCliente'),
+                nombre: datos.nombre,
+                calle: datos.calle,
+                colonia: datos.colonia,
+                alcaldia: datos.alcaldia,
+                estado: datos.estado,
+                cp: datos.cp,
+                mapsUrl: datos.mapsUrl || '',
+                telefono: datos.telefono,
+                nombreRecibe: datos.nombreRecibe
+            })
+        });
         
-        await enviarPorIframe(data);
-        console.log('📝 Petición ACTUALIZAR enviada (via iframe)');
+        console.log('📝 Petición ACTUALIZAR enviada');
         return { success: true };
     } catch (error) {
         console.error('Error al actualizar dirección:', error);
@@ -151,13 +131,19 @@ async function eliminarDireccionEnSheets(fila) {
     try {
         console.log('🗑️ Enviando a Apps Script - ELIMINAR:', fila);
         
-        const data = {
-            action: 'eliminar',
-            fila: fila
-        };
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'eliminar',
+                fila: fila
+            })
+        });
         
-        await enviarPorIframe(data);
-        console.log('🗑️ Petición ELIMINAR enviada (via iframe)');
+        console.log('🗑️ Petición ELIMINAR enviada');
         return { success: true };
     } catch (error) {
         console.error('Error al eliminar dirección:', error);
@@ -325,7 +311,7 @@ async function cargarPreciosEspeciales() {
 }
 
 // ============================================
-// FUNCIONES DE DIRECCIONES (LECTURA DIRECTA DESDE GOOGLE SHEETS)
+// ⭐ FUNCIONES DE DIRECCIONES (LECTURA DIRECTA DESDE GOOGLE SHEETS) ⭐
 // ============================================
 
 async function cargarDireccionesCliente() {
@@ -338,9 +324,9 @@ async function cargarDireccionesCliente() {
         
         console.log('📥 Cargando direcciones para cliente:', codigoCliente);
         
-        // Leer directamente desde Google Sheets usando el formato público
+        // ⭐ LEER DIRECTAMENTE DESDE GOOGLE SHEETS (SIN JSONP) ⭐
         const url = `https://docs.google.com/spreadsheets/d/${ID_BASE_CLIENTES}/gviz/tq?tqx=out:json&sheet=${HOJA_DIRECCIONES}`;
-        console.log('📥 URL de direcciones:', url);
+        console.log('📥 URL:', url);
         
         const response = await fetch(url);
         const text = await response.text();
