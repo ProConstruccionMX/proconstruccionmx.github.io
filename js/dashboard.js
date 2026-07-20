@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     await cargarDireccionesCliente();
     
     configurarTabs();
-    configurarMenuUsuario();
+    configurarMenuUsuario(); // ⭐ ESTA FUNCIÓN CREA EL BOTÓN "MI CUENTA"
     
     if (clienteData) {
         document.getElementById('welcomeName').textContent = clienteData.nombre;
@@ -235,7 +235,7 @@ async function cargarDireccionesCliente() {
         const rows = data.table.rows;
         
         direccionesCliente = [];
-        let filaIndex = 1; // Para saber qué fila editar/eliminar
+        let filaIndex = 1;
         
         for (let i = 1; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
@@ -243,7 +243,7 @@ async function cargarDireccionesCliente() {
             
             if (codigo === codigoCliente) {
                 direccionesCliente.push({
-                    fila: i + 1, // +1 porque las filas en Google Sheets empiezan en 1
+                    fila: i + 1,
                     codigo: codigo,
                     nombre: String(values[1] || '').trim(),
                     calle: String(values[2] || '').trim(),
@@ -317,7 +317,6 @@ function editarDireccion(index) {
     const dir = direccionesCliente[index];
     if (!dir) return;
     
-    // Llenar el modal de edición
     document.getElementById('editDirNombre').value = dir.nombre || '';
     document.getElementById('editDirCalle').value = dir.calle || '';
     document.getElementById('editDirColonia').value = dir.colonia || '';
@@ -353,7 +352,6 @@ async function guardarEdicionDireccion() {
         nombreRecibe: document.getElementById('editDirNombreRecibe').value.trim()
     };
     
-    // Validar campos obligatorios
     if (!datosActualizados.nombre || !datosActualizados.calle || !datosActualizados.colonia || 
         !datosActualizados.alcaldia || !datosActualizados.estado || !datosActualizados.cp || 
         !datosActualizados.telefono || !datosActualizados.nombreRecibe) {
@@ -361,10 +359,6 @@ async function guardarEdicionDireccion() {
         return;
     }
     
-    // Actualizar en la hoja de Google Sheets (simulado)
-    // En producción usarías Google Apps Script o SheetDB
-    
-    // Actualizar localmente
     direccionesCliente[index] = {
         ...dir,
         ...datosActualizados
@@ -381,10 +375,6 @@ async function eliminarDireccion(index) {
     
     if (!confirm(`¿Seguro que quieres eliminar la dirección "${dir.nombre}"?`)) return;
     
-    // Eliminar de la hoja de Google Sheets (simulado)
-    // En producción usarías Google Apps Script o SheetDB
-    
-    // Eliminar localmente
     direccionesCliente.splice(index, 1);
     renderizarDirecciones();
     mostrarNotificacion('🗑️ Dirección eliminada correctamente');
@@ -836,49 +826,69 @@ function renderizarCarrito() {
 }
 
 // ============================================
-// MENÚ DE USUARIO - MI CUENTA
+// ⭐⭐⭐ MENÚ DE USUARIO - MI CUENTA (CORREGIDO) ⭐⭐⭐
 // ============================================
 
 function configurarMenuUsuario() {
+    console.log('🔧 Configurando menú "Mi Cuenta"...');
+    
     const userInfo = document.querySelector('.user-info');
-    if (!userInfo) return;
+    if (!userInfo) {
+        console.error('❌ No se encontró .user-info');
+        return;
+    }
+    
+    // Verificar si ya existe el botón para no duplicarlo
+    if (document.querySelector('.btn-mi-cuenta')) {
+        console.log('ℹ️ El botón "Mi Cuenta" ya existe');
+        return;
+    }
     
     // Crear contenedor del menú
     const menuContainer = document.createElement('div');
     menuContainer.className = 'menu-usuario-container';
-    menuContainer.style.position = 'relative';
-    menuContainer.style.display = 'inline-block';
+    menuContainer.style.cssText = `
+        position: relative;
+        display: inline-block;
+    `;
     
-    // Botón Mi Cuenta
+    // ⭐ Botón Mi Cuenta
     const btnMiCuenta = document.createElement('button');
     btnMiCuenta.className = 'btn-mi-cuenta';
     btnMiCuenta.innerHTML = '<i class="fas fa-user-cog"></i> Mi Cuenta';
     btnMiCuenta.style.cssText = `
-        background: var(--primary-blue);
+        background: #1a4d8c;
         color: white;
         border: none;
-        padding: 0.5rem 1.5rem;
+        padding: 0.5rem 1.2rem;
         border-radius: 50px;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.3s;
         font-family: 'Inter', sans-serif;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
+        white-space: nowrap;
     `;
-    btnMiCuenta.onmouseover = () => {
-        btnMiCuenta.style.background = 'var(--primary-dark)';
-        btnMiCuenta.style.transform = 'translateY(-2px)';
-    };
-    btnMiCuenta.onmouseout = () => {
-        btnMiCuenta.style.background = 'var(--primary-blue)';
-        btnMiCuenta.style.transform = 'translateY(0)';
-    };
-    btnMiCuenta.onclick = () => {
-        const menu = document.getElementById('menuDesplegable');
-        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-    };
     
-    // Menú desplegable
+    btnMiCuenta.addEventListener('mouseenter', function() {
+        this.style.background = '#0A2540';
+        this.style.transform = 'translateY(-2px)';
+    });
+    btnMiCuenta.addEventListener('mouseleave', function() {
+        this.style.background = '#1a4d8c';
+        this.style.transform = 'translateY(0)';
+    });
+    
+    btnMiCuenta.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const menu = document.getElementById('menuDesplegable');
+        if (menu) {
+            const isVisible = menu.style.display === 'block';
+            menu.style.display = isVisible ? 'none' : 'block';
+        }
+    });
+    
+    // ⭐ Menú desplegable
     const menuDesplegable = document.createElement('div');
     menuDesplegable.id = 'menuDesplegable';
     menuDesplegable.style.cssText = `
@@ -890,7 +900,7 @@ function configurarMenuUsuario() {
         border-radius: 12px;
         box-shadow: 0 8px 30px rgba(0,0,0,0.15);
         min-width: 200px;
-        z-index: 100;
+        z-index: 1000;
         overflow: hidden;
         margin-top: 0.5rem;
         border: 1px solid #e2e8f0;
@@ -907,33 +917,35 @@ function configurarMenuUsuario() {
         item.style.cssText = `
             display: block;
             padding: 0.8rem 1.5rem;
-            color: var(--text-gray);
+            color: #4a5568;
             text-decoration: none;
             transition: all 0.3s;
             font-weight: 500;
             font-size: 0.9rem;
+            font-family: 'Inter', sans-serif;
         `;
-        item.onmouseover = () => {
-            item.style.background = 'var(--gray-light)';
-            item.style.color = 'var(--primary-dark)';
-        };
-        item.onmouseout = () => {
-            item.style.background = 'transparent';
-            item.style.color = 'var(--text-gray)';
-        };
-        item.innerHTML = `<i class="fas ${op.icon}"></i> ${op.text}`;
-        item.onclick = (e) => {
+        item.addEventListener('mouseenter', function() {
+            this.style.background = '#f8f9fa';
+            this.style.color = '#0A2540';
+        });
+        item.addEventListener('mouseleave', function() {
+            this.style.background = 'transparent';
+            this.style.color = '#4a5568';
+        });
+        item.innerHTML = `<i class="fas ${op.icon}" style="width:20px;"></i> ${op.text}`;
+        item.addEventListener('click', function(e) {
             e.preventDefault();
-            document.getElementById('menuDesplegable').style.display = 'none';
+            const menu = document.getElementById('menuDesplegable');
+            if (menu) menu.style.display = 'none';
             eval(op.action);
-        };
+        });
         menuDesplegable.appendChild(item);
     });
     
     menuContainer.appendChild(btnMiCuenta);
     menuContainer.appendChild(menuDesplegable);
     
-    // Insertar antes del botón Cerrar Sesión
+    // Insertar ANTES del botón Cerrar Sesión
     const btnCerrar = userInfo.querySelector('.btn-cerrar');
     if (btnCerrar) {
         userInfo.insertBefore(menuContainer, btnCerrar);
@@ -944,21 +956,35 @@ function configurarMenuUsuario() {
     // Cerrar menú al hacer clic fuera
     document.addEventListener('click', function(event) {
         if (!menuContainer.contains(event.target)) {
-            menuDesplegable.style.display = 'none';
+            const menu = document.getElementById('menuDesplegable');
+            if (menu) menu.style.display = 'none';
         }
     });
+    
+    console.log('✅ Menú "Mi Cuenta" configurado correctamente');
 }
 
 function abrirMisDirecciones() {
-    // Mostrar la pestaña de direcciones
-    document.querySelectorAll('.dashboard-tabs button').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+    console.log('📍 Abriendo "Mis Direcciones"...');
     
-    // Si existe la pestaña, activarla
+    // Activar la pestaña de direcciones
+    const tabs = document.querySelectorAll('.dashboard-tabs button');
+    const contents = document.querySelectorAll('.tab-content');
+    
+    tabs.forEach(btn => btn.classList.remove('active'));
+    contents.forEach(tab => tab.classList.remove('active'));
+    
+    // Buscar y activar la pestaña de direcciones
     const tabDirecciones = document.querySelector('[data-tab="tab-direcciones"]');
     if (tabDirecciones) {
         tabDirecciones.classList.add('active');
-        document.getElementById('tab-direcciones').classList.add('active');
+        const content = document.getElementById('tab-direcciones');
+        if (content) content.classList.add('active');
+        console.log('✅ Pestaña "Mis Direcciones" activada');
+    } else {
+        console.warn('⚠️ No se encontró la pestaña "Mis Direcciones"');
+        // Si no existe, redirigir a la URL con hash
+        window.location.hash = 'direcciones';
     }
     
     // Recargar direcciones
@@ -1007,7 +1033,6 @@ function cargarDireccionSeleccionada() {
     const select = document.getElementById('direccionSelector');
     const index = parseInt(select.value);
     if (isNaN(index) || index < 0 || index >= direccionesCliente.length) {
-        // Limpiar campos
         document.getElementById('dirCalle').value = '';
         document.getElementById('dirColonia').value = '';
         document.getElementById('dirAlcaldia').value = '';
@@ -1032,7 +1057,6 @@ function cargarDireccionSeleccionada() {
     document.getElementById('dirTelefono').value = dir.telefono || '';
     document.getElementById('dirNombreRecibe').value = dir.nombreRecibe || '';
     
-    // Ocultar opción de guardar si se seleccionó una dirección existente
     document.getElementById('dirGuardarCheck').checked = false;
     document.getElementById('dirGuardarCampos').style.display = 'none';
     document.getElementById('dirGuardarCheck').onchange = function() {
@@ -1045,7 +1069,6 @@ function cerrarModalDireccion() {
 }
 
 function continuarConPago() {
-    // Validar dirección
     const calle = document.getElementById('dirCalle').value.trim();
     const colonia = document.getElementById('dirColonia').value.trim();
     const alcaldia = document.getElementById('dirAlcaldia').value.trim();
@@ -1059,7 +1082,6 @@ function continuarConPago() {
         return;
     }
     
-    // Verificar si se debe guardar la dirección
     const guardarDireccion = document.getElementById('dirGuardarCheck').checked;
     const nombreDireccion = document.getElementById('dirGuardarNombre').value.trim();
     
@@ -1068,7 +1090,6 @@ function continuarConPago() {
         return;
     }
     
-    // Guardar dirección si se solicitó
     if (guardarDireccion && nombreDireccion) {
         guardarNuevaDireccion({
             nombre: nombreDireccion,
@@ -1083,7 +1104,6 @@ function continuarConPago() {
         });
     }
     
-    // Guardar dirección en variable global
     window.datosEnvio = {
         calle: calle,
         colonia: colonia,
@@ -1107,10 +1127,6 @@ async function guardarNuevaDireccion(datos) {
             return;
         }
         
-        // Guardar en Google Sheets (simulado)
-        // En producción usarías Google Apps Script o SheetDB
-        
-        // Agregar localmente
         direccionesCliente.push({
             fila: direccionesCliente.length + 2,
             codigo: codigoCliente,
@@ -1366,7 +1382,6 @@ async function procesarPagoCredito() {
 
 async function guardarVentaEnSheets(datos) {
     try {
-        // Hoja 1: Productos
         for (const producto of datos.productos) {
             const datosProducto = [
                 datos.fecha.toISOString().split('T')[0],
@@ -1386,7 +1401,6 @@ async function guardarVentaEnSheets(datos) {
             await guardarFilaGoogleSheets(ID_VENTAS, HOJA_VENTAS_PRODUCTOS, datosProducto);
         }
         
-        // Hoja 2: Clientes
         const datosCliente = [
             datos.fecha.toISOString().split('T')[0],
             datos.folio,
