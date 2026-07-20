@@ -65,7 +65,6 @@
             transform: translateY(-2px);
         }
 
-        /* ESTILOS DEL BOTÓN MI CUENTA */
         .btn-mi-cuenta {
             background: #1a4d8c !important;
             color: white !important;
@@ -154,7 +153,6 @@
             display: block;
         }
 
-        /* ===== SECCIÓN COTIZAR ===== */
         .welcome-section {
             background: white;
             border-radius: 16px;
@@ -244,7 +242,6 @@
             background: #475569;
         }
 
-        /* Resultados de búsqueda */
         .results-section {
             background: white;
             border-radius: 16px;
@@ -357,7 +354,6 @@
             margin-bottom: 1rem;
         }
 
-        /* ===== CARRITO ===== */
         .cart-section {
             background: white;
             border-radius: 16px;
@@ -474,7 +470,6 @@
             background: #475569;
         }
 
-        /* ===== DIRECCIONES ===== */
         .direcciones-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -542,7 +537,6 @@
             color: var(--primary-dark);
         }
 
-        /* ===== MODALES ===== */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -666,6 +660,7 @@
             border-radius: 12px;
             text-align: center;
             margin: 1rem 0;
+            display: none;
         }
         .modal .mensaje-error {
             background: #fee2e2;
@@ -674,6 +669,7 @@
             border-radius: 12px;
             text-align: center;
             margin: 1rem 0;
+            display: none;
         }
         .file-upload {
             border: 2px dashed #e2e8f0;
@@ -735,7 +731,6 @@
             cursor: pointer;
         }
 
-        /* ===== RESPONSIVE ===== */
         @media (max-width: 768px) {
             .dashboard-header { flex-direction: column; align-items: stretch; text-align: center; }
             .user-info { justify-content: center; flex-wrap: wrap; }
@@ -750,6 +745,25 @@
             .direcciones-grid { grid-template-columns: 1fr; }
             .btn-mi-cuenta { font-size: 0.8rem !important; padding: 0.3rem 1rem !important; }
         }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -761,9 +775,8 @@
             <span class="user-name" id="userNameDisplay"><i class="fas fa-user"></i> Cliente</span>
             <span class="user-email" id="userEmailDisplay">usuario@correo.com</span>
             
-            <!-- ⭐ BOTÓN MI CUENTA CON MENÚ DESPLEGABLE ⭐ -->
             <div class="menu-usuario-container">
-                <button class="btn-mi-cuenta" id="btnMiCuenta" onclick="toggleMenu()">
+                <button class="btn-mi-cuenta" id="btnMiCuenta">
                     <i class="fas fa-user-cog"></i> Mi Cuenta
                 </button>
                 <div class="menu-desplegable" id="menuDesplegable">
@@ -795,7 +808,6 @@
             </div>
         </div>
 
-        <!-- Buscador -->
         <div class="search-section">
             <h2><i class="fas fa-search"></i> Buscar Productos</h2>
             <div class="search-box">
@@ -805,7 +817,6 @@
             </div>
         </div>
 
-        <!-- Resultados -->
         <div class="results-section" id="resultsSection">
             <h3><i class="fas fa-list"></i> Productos Disponibles</h3>
             <div id="resultsContent">
@@ -817,7 +828,6 @@
             </div>
         </div>
 
-        <!-- Carrito -->
         <div class="cart-section" id="cartSection">
             <h2><i class="fas fa-shopping-cart"></i> Carrito de Compra</h2>
             <div id="cartContent">
@@ -883,11 +893,11 @@
             <h2>📦 Dirección de Envío</h2>
             <p class="subtitle">Selecciona una dirección guardada o ingresa una nueva</p>
 
-            <div id="modalDireccionMensaje"></div>
+            <div id="modalDireccionMensaje" style="display:none;"></div>
 
             <div class="form-group">
                 <label>Selecciona una dirección guardada</label>
-                <select id="direccionSelector">
+                <select id="direccionSelector" onchange="cargarDireccionSeleccionada()">
                     <option value="">-- Selecciona una dirección --</option>
                 </select>
             </div>
@@ -1008,7 +1018,7 @@
             <h2>💳 Realizar Compra</h2>
             <p class="subtitle">Selecciona el método de pago</p>
 
-            <div id="modalMensaje"></div>
+            <div id="modalMensaje" style="display:none;"></div>
 
             <div class="opciones-pago">
                 <button onclick="seleccionarPago('transferencia')" id="btnTransferencia">
@@ -1019,7 +1029,6 @@
                 </button>
             </div>
 
-            <!-- Formulario Transferencia -->
             <div id="formTransferencia" style="display:none;">
                 <div class="datos-bancarios">
                     <p><strong>PROCONSTRUCCIONMX SAS DE CV</strong></p>
@@ -1048,7 +1057,6 @@
                 </button>
             </div>
 
-            <!-- Formulario Crédito -->
             <div id="formCredito" style="display:none;">
                 <div class="form-group">
                     <label>Días de crédito</label>
@@ -1077,7 +1085,6 @@
         // FUNCIONES DEL MENÚ MI CUENTA
         // ============================================
         
-        // Función para mostrar/ocultar el menú
         function toggleMenu() {
             var menu = document.getElementById('menuDesplegable');
             if (menu) {
@@ -1089,7 +1096,6 @@
             }
         }
 
-        // Cerrar menú al hacer clic fuera
         document.addEventListener('click', function(event) {
             var container = document.querySelector('.menu-usuario-container');
             var menu = document.getElementById('menuDesplegable');
@@ -1098,15 +1104,12 @@
             }
         });
 
-        // Función para abrir "Mis Direcciones"
         function abrirMisDirecciones() {
             console.log('📍 Abriendo "Mis Direcciones"...');
             
-            // Cerrar el menú
             var menu = document.getElementById('menuDesplegable');
             if (menu) menu.style.display = 'none';
             
-            // Activar la pestaña de direcciones
             var tabs = document.querySelectorAll('.dashboard-tabs button');
             var contents = document.querySelectorAll('.tab-content');
             
@@ -1120,10 +1123,15 @@
                 if (content) content.classList.add('active');
             }
             
-            // Recargar direcciones
             if (typeof cargarDireccionesCliente === 'function') {
                 cargarDireccionesCliente();
             }
+        }
+
+        // Función para cerrar sesión (definida en auth.js)
+        function cerrarSesion() {
+            sessionStorage.clear();
+            window.location.href = 'login.html';
         }
     </script>
 </body>
