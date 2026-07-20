@@ -60,24 +60,8 @@ document.addEventListener('DOMContentLoaded', async function() {
 // FUNCIONES PARA APPS SCRIPT (VIA IFRAME PARA ESCRIBIR)
 // ============================================
 
-async function agregarDireccionEnSheets(direccion) {
-    try {
-        console.log('📝 Enviando a Apps Script - AGREGAR:', direccion);
-        
-        const formData = new FormData();
-        formData.append('action', 'agregar');
-        formData.append('codigo', direccion.codigo);
-        formData.append('nombre', direccion.nombre);
-        formData.append('calle', direccion.calle);
-        formData.append('colonia', direccion.colonia);
-        formData.append('alcaldia', direccion.alcaldia);
-        formData.append('estado', direccion.estado);
-        formData.append('cp', direccion.cp);
-        formData.append('mapsUrl', direccion.mapsUrl || '');
-        formData.append('telefono', direccion.telefono);
-        formData.append('nombreRecibe', direccion.nombreRecibe);
-        
-        // Crear un iframe oculto para enviar la petición
+function enviarPorIframe(data) {
+    return new Promise((resolve) => {
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
         iframe.name = 'iframe_' + Date.now();
@@ -89,7 +73,7 @@ async function agregarDireccionEnSheets(direccion) {
         form.target = iframe.name;
         form.enctype = 'multipart/form-data';
         
-        for (const [key, value] of formData.entries()) {
+        for (const [key, value] of Object.entries(data)) {
             const input = document.createElement('input');
             input.type = 'hidden';
             input.name = key;
@@ -100,12 +84,33 @@ async function agregarDireccionEnSheets(direccion) {
         document.body.appendChild(form);
         form.submit();
         
-        // Eliminar el iframe y el form después de un tiempo
         setTimeout(() => {
             document.body.removeChild(iframe);
             document.body.removeChild(form);
+            resolve({ success: true });
         }, 2000);
+    });
+}
+
+async function agregarDireccionEnSheets(direccion) {
+    try {
+        console.log('📝 Enviando a Apps Script - AGREGAR:', direccion);
         
+        const data = {
+            action: 'agregar',
+            codigo: direccion.codigo,
+            nombre: direccion.nombre,
+            calle: direccion.calle,
+            colonia: direccion.colonia,
+            alcaldia: direccion.alcaldia,
+            estado: direccion.estado,
+            cp: direccion.cp,
+            mapsUrl: direccion.mapsUrl || '',
+            telefono: direccion.telefono,
+            nombreRecibe: direccion.nombreRecibe
+        };
+        
+        await enviarPorIframe(data);
         console.log('📝 Petición AGREGAR enviada (via iframe)');
         return { success: true };
     } catch (error) {
@@ -118,48 +123,22 @@ async function actualizarDireccionEnSheets(fila, datos) {
     try {
         console.log('📝 Enviando a Apps Script - ACTUALIZAR:', { fila, datos });
         
-        const formData = new FormData();
-        formData.append('action', 'actualizar');
-        formData.append('fila', fila);
-        formData.append('codigo', datos.codigo || sessionStorage.getItem('codigoCliente'));
-        formData.append('nombre', datos.nombre);
-        formData.append('calle', datos.calle);
-        formData.append('colonia', datos.colonia);
-        formData.append('alcaldia', datos.alcaldia);
-        formData.append('estado', datos.estado);
-        formData.append('cp', datos.cp);
-        formData.append('mapsUrl', datos.mapsUrl || '');
-        formData.append('telefono', datos.telefono);
-        formData.append('nombreRecibe', datos.nombreRecibe);
+        const data = {
+            action: 'actualizar',
+            fila: fila,
+            codigo: datos.codigo || sessionStorage.getItem('codigoCliente'),
+            nombre: datos.nombre,
+            calle: datos.calle,
+            colonia: datos.colonia,
+            alcaldia: datos.alcaldia,
+            estado: datos.estado,
+            cp: datos.cp,
+            mapsUrl: datos.mapsUrl || '',
+            telefono: datos.telefono,
+            nombreRecibe: datos.nombreRecibe
+        };
         
-        // Crear un iframe oculto para enviar la petición
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.name = 'iframe_' + Date.now();
-        document.body.appendChild(iframe);
-        
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = APPS_SCRIPT_URL;
-        form.target = iframe.name;
-        form.enctype = 'multipart/form-data';
-        
-        for (const [key, value] of formData.entries()) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-        }
-        
-        document.body.appendChild(form);
-        form.submit();
-        
-        setTimeout(() => {
-            document.body.removeChild(iframe);
-            document.body.removeChild(form);
-        }, 2000);
-        
+        await enviarPorIframe(data);
         console.log('📝 Petición ACTUALIZAR enviada (via iframe)');
         return { success: true };
     } catch (error) {
@@ -172,38 +151,12 @@ async function eliminarDireccionEnSheets(fila) {
     try {
         console.log('🗑️ Enviando a Apps Script - ELIMINAR:', fila);
         
-        const formData = new FormData();
-        formData.append('action', 'eliminar');
-        formData.append('fila', fila);
+        const data = {
+            action: 'eliminar',
+            fila: fila
+        };
         
-        // Crear un iframe oculto para enviar la petición
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.name = 'iframe_' + Date.now();
-        document.body.appendChild(iframe);
-        
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = APPS_SCRIPT_URL;
-        form.target = iframe.name;
-        form.enctype = 'multipart/form-data';
-        
-        for (const [key, value] of formData.entries()) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-        }
-        
-        document.body.appendChild(form);
-        form.submit();
-        
-        setTimeout(() => {
-            document.body.removeChild(iframe);
-            document.body.removeChild(form);
-        }, 2000);
-        
+        await enviarPorIframe(data);
         console.log('🗑️ Petición ELIMINAR enviada (via iframe)');
         return { success: true };
     } catch (error) {
@@ -372,7 +325,7 @@ async function cargarPreciosEspeciales() {
 }
 
 // ============================================
-// FUNCIONES DE DIRECCIONES (LECTURA DIRECTA)
+// FUNCIONES DE DIRECCIONES (LECTURA DIRECTA DESDE GOOGLE SHEETS)
 // ============================================
 
 async function cargarDireccionesCliente() {
@@ -385,7 +338,7 @@ async function cargarDireccionesCliente() {
         
         console.log('📥 Cargando direcciones para cliente:', codigoCliente);
         
-        // Leer directamente desde Google Sheets
+        // Leer directamente desde Google Sheets (formato público)
         const url = `https://docs.google.com/spreadsheets/d/${ID_BASE_CLIENTES}/gviz/tq?tqx=out:json&sheet=${HOJA_DIRECCIONES}`;
         console.log('📥 URL de direcciones:', url);
         
@@ -428,6 +381,7 @@ async function cargarDireccionesCliente() {
         
     } catch (error) {
         console.error('❌ Error al cargar direcciones:', error);
+        console.error('❌ Detalle:', error.message);
         direccionesCliente = [];
         renderizarDirecciones();
         actualizarSelectorDirecciones();
