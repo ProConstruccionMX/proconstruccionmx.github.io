@@ -64,21 +64,24 @@
             background: #b91c1c;
             transform: translateY(-2px);
         }
+
+        /* ESTILOS DEL BOTÓN MI CUENTA */
         .btn-mi-cuenta {
-            background: #1a4d8c;
-            color: white;
-            border: none;
-            padding: 0.5rem 1.2rem;
-            border-radius: 50px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-family: 'Inter', sans-serif;
-            font-size: 0.85rem;
-            white-space: nowrap;
+            background: #1a4d8c !important;
+            color: white !important;
+            border: none !important;
+            padding: 0.5rem 1.2rem !important;
+            border-radius: 50px !important;
+            font-weight: 600 !important;
+            cursor: pointer !important;
+            transition: all 0.3s !important;
+            font-family: 'Inter', sans-serif !important;
+            font-size: 0.85rem !important;
+            white-space: nowrap !important;
+            display: inline-block !important;
         }
         .btn-mi-cuenta:hover {
-            background: #0A2540;
+            background: #0A2540 !important;
             transform: translateY(-2px);
         }
         .menu-usuario-container {
@@ -113,6 +116,7 @@
             background: #f8f9fa;
             color: #0A2540;
         }
+
         .dashboard-tabs {
             display: flex;
             gap: 0.5rem;
@@ -759,7 +763,7 @@
             
             <!-- ⭐ BOTÓN MI CUENTA CON MENÚ DESPLEGABLE ⭐ -->
             <div class="menu-usuario-container">
-                <button class="btn-mi-cuenta" id="btnMiCuenta">
+                <button class="btn-mi-cuenta" id="btnMiCuenta" onclick="toggleMenu()">
                     <i class="fas fa-user-cog"></i> Mi Cuenta
                 </button>
                 <div class="menu-desplegable" id="menuDesplegable">
@@ -1070,25 +1074,27 @@
     <script src="js/dashboard.js"></script>
     <script>
         // ============================================
-        // CONFIGURAR MENÚ DESPLEGABLE DESDE EL HTML
+        // FUNCIONES DEL MENÚ MI CUENTA
         // ============================================
-        document.addEventListener('DOMContentLoaded', function() {
-            const btnMiCuenta = document.getElementById('btnMiCuenta');
-            const menuDesplegable = document.getElementById('menuDesplegable');
-            
-            if (btnMiCuenta && menuDesplegable) {
-                btnMiCuenta.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const isVisible = menuDesplegable.style.display === 'block';
-                    menuDesplegable.style.display = isVisible ? 'none' : 'block';
-                });
-                
-                document.addEventListener('click', function(event) {
-                    const container = document.querySelector('.menu-usuario-container');
-                    if (container && !container.contains(event.target)) {
-                        menuDesplegable.style.display = 'none';
-                    }
-                });
+        
+        // Función para mostrar/ocultar el menú
+        function toggleMenu() {
+            var menu = document.getElementById('menuDesplegable');
+            if (menu) {
+                if (menu.style.display === 'block') {
+                    menu.style.display = 'none';
+                } else {
+                    menu.style.display = 'block';
+                }
+            }
+        }
+
+        // Cerrar menú al hacer clic fuera
+        document.addEventListener('click', function(event) {
+            var container = document.querySelector('.menu-usuario-container');
+            var menu = document.getElementById('menuDesplegable');
+            if (container && menu && !container.contains(event.target)) {
+                menu.style.display = 'none';
             }
         });
 
@@ -1096,22 +1102,25 @@
         function abrirMisDirecciones() {
             console.log('📍 Abriendo "Mis Direcciones"...');
             
-            const menu = document.getElementById('menuDesplegable');
+            // Cerrar el menú
+            var menu = document.getElementById('menuDesplegable');
             if (menu) menu.style.display = 'none';
             
-            const tabs = document.querySelectorAll('.dashboard-tabs button');
-            const contents = document.querySelectorAll('.tab-content');
+            // Activar la pestaña de direcciones
+            var tabs = document.querySelectorAll('.dashboard-tabs button');
+            var contents = document.querySelectorAll('.tab-content');
             
-            tabs.forEach(btn => btn.classList.remove('active'));
-            contents.forEach(tab => tab.classList.remove('active'));
+            tabs.forEach(function(btn) { btn.classList.remove('active'); });
+            contents.forEach(function(tab) { tab.classList.remove('active'); });
             
-            const tabDirecciones = document.querySelector('[data-tab="tab-direcciones"]');
+            var tabDirecciones = document.querySelector('[data-tab="tab-direcciones"]');
             if (tabDirecciones) {
                 tabDirecciones.classList.add('active');
-                const content = document.getElementById('tab-direcciones');
+                var content = document.getElementById('tab-direcciones');
                 if (content) content.classList.add('active');
             }
             
+            // Recargar direcciones
             if (typeof cargarDireccionesCliente === 'function') {
                 cargarDireccionesCliente();
             }
