@@ -12,7 +12,7 @@ const HOJA_VENTAS_CLIENTES = 'Hoja 2';
 const ID_ARCHIVO_PRECIOS_ESPECIALES = '10t2A9M5f1Bj7lyTTa_PhVGRv0wAK_4ePpk_1eURZQ5I';
 const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
 
-// ⭐ NUEVA URL DE TU APPS SCRIPT (VERSIÓN 3) ⭐
+// ⭐ URL DE TU APPS SCRIPT (VERSIÓN 3) ⭐
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxKIKNB52jTXypzskerIu9VsYOHyszXFsori2kMbbD17wY4JYqC_PEFwmgwU72l2NOm/exec';
 
 const PESO_MINIMO_TONELADA = 1000;
@@ -57,70 +57,56 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 
 // ============================================
-// FUNCIONES PARA APPS SCRIPT (CON JSONP PARA LEER)
+// FUNCIONES PARA APPS SCRIPT (VIA IFRAME PARA ESCRIBIR)
 // ============================================
-
-async function listarDireccionesDesdeScript(codigoCliente) {
-    try {
-        console.log('📥 Enviando petición LISTAR a Apps Script...');
-        
-        return new Promise((resolve, reject) => {
-            const callbackName = 'jsonp_callback_' + Date.now();
-            
-            const script = document.createElement('script');
-            const url = `${APPS_SCRIPT_URL}?action=listar&codigoCliente=${encodeURIComponent(codigoCliente)}&callback=${callbackName}`;
-            
-            console.log('📥 URL JSONP:', url);
-            
-            window[callbackName] = function(data) {
-                console.log('📥 Respuesta JSONP recibida:', data);
-                delete window[callbackName];
-                document.body.removeChild(script);
-                resolve(data);
-            };
-            
-            script.onerror = function() {
-                console.error('❌ Error en JSONP');
-                delete window[callbackName];
-                document.body.removeChild(script);
-                reject(new Error('Error al cargar las direcciones'));
-            };
-            
-            script.src = url;
-            document.body.appendChild(script);
-        });
-    } catch (error) {
-        console.error('Error al listar direcciones:', error);
-        return { success: false, error: error.toString() };
-    }
-}
 
 async function agregarDireccionEnSheets(direccion) {
     try {
         console.log('📝 Enviando a Apps Script - AGREGAR:', direccion);
         
-        const response = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                action: 'agregar',
-                codigo: direccion.codigo,
-                nombre: direccion.nombre,
-                calle: direccion.calle,
-                colonia: direccion.colonia,
-                alcaldia: direccion.alcaldia,
-                estado: direccion.estado,
-                cp: direccion.cp,
-                mapsUrl: direccion.mapsUrl || '',
-                telefono: direccion.telefono,
-                nombreRecibe: direccion.nombreRecibe
-            })
-        });
+        const formData = new FormData();
+        formData.append('action', 'agregar');
+        formData.append('codigo', direccion.codigo);
+        formData.append('nombre', direccion.nombre);
+        formData.append('calle', direccion.calle);
+        formData.append('colonia', direccion.colonia);
+        formData.append('alcaldia', direccion.alcaldia);
+        formData.append('estado', direccion.estado);
+        formData.append('cp', direccion.cp);
+        formData.append('mapsUrl', direccion.mapsUrl || '');
+        formData.append('telefono', direccion.telefono);
+        formData.append('nombreRecibe', direccion.nombreRecibe);
         
-        console.log('📝 Petición AGREGAR enviada (no-cors)');
+        // Crear un iframe oculto para enviar la petición
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.name = 'iframe_' + Date.now();
+        document.body.appendChild(iframe);
+        
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = APPS_SCRIPT_URL;
+        form.target = iframe.name;
+        form.enctype = 'multipart/form-data';
+        
+        for (const [key, value] of formData.entries()) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            form.appendChild(input);
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
+        
+        // Eliminar el iframe y el form después de un tiempo
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+            document.body.removeChild(form);
+        }, 2000);
+        
+        console.log('📝 Petición AGREGAR enviada (via iframe)');
         return { success: true };
     } catch (error) {
         console.error('Error al agregar dirección:', error);
@@ -132,29 +118,49 @@ async function actualizarDireccionEnSheets(fila, datos) {
     try {
         console.log('📝 Enviando a Apps Script - ACTUALIZAR:', { fila, datos });
         
-        const response = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                action: 'actualizar',
-                fila: fila,
-                codigo: datos.codigo || sessionStorage.getItem('codigoCliente'),
-                nombre: datos.nombre,
-                calle: datos.calle,
-                colonia: datos.colonia,
-                alcaldia: datos.alcaldia,
-                estado: datos.estado,
-                cp: datos.cp,
-                mapsUrl: datos.mapsUrl || '',
-                telefono: datos.telefono,
-                nombreRecibe: datos.nombreRecibe
-            })
-        });
+        const formData = new FormData();
+        formData.append('action', 'actualizar');
+        formData.append('fila', fila);
+        formData.append('codigo', datos.codigo || sessionStorage.getItem('codigoCliente'));
+        formData.append('nombre', datos.nombre);
+        formData.append('calle', datos.calle);
+        formData.append('colonia', datos.colonia);
+        formData.append('alcaldia', datos.alcaldia);
+        formData.append('estado', datos.estado);
+        formData.append('cp', datos.cp);
+        formData.append('mapsUrl', datos.mapsUrl || '');
+        formData.append('telefono', datos.telefono);
+        formData.append('nombreRecibe', datos.nombreRecibe);
         
-        console.log('📝 Petición ACTUALIZAR enviada (no-cors)');
+        // Crear un iframe oculto para enviar la petición
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.name = 'iframe_' + Date.now();
+        document.body.appendChild(iframe);
+        
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = APPS_SCRIPT_URL;
+        form.target = iframe.name;
+        form.enctype = 'multipart/form-data';
+        
+        for (const [key, value] of formData.entries()) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            form.appendChild(input);
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
+        
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+            document.body.removeChild(form);
+        }, 2000);
+        
+        console.log('📝 Petición ACTUALIZAR enviada (via iframe)');
         return { success: true };
     } catch (error) {
         console.error('Error al actualizar dirección:', error);
@@ -166,19 +172,39 @@ async function eliminarDireccionEnSheets(fila) {
     try {
         console.log('🗑️ Enviando a Apps Script - ELIMINAR:', fila);
         
-        const response = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                action: 'eliminar',
-                fila: fila
-            })
-        });
+        const formData = new FormData();
+        formData.append('action', 'eliminar');
+        formData.append('fila', fila);
         
-        console.log('🗑️ Petición ELIMINAR enviada (no-cors)');
+        // Crear un iframe oculto para enviar la petición
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.name = 'iframe_' + Date.now();
+        document.body.appendChild(iframe);
+        
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = APPS_SCRIPT_URL;
+        form.target = iframe.name;
+        form.enctype = 'multipart/form-data';
+        
+        for (const [key, value] of formData.entries()) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            form.appendChild(input);
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
+        
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+            document.body.removeChild(form);
+        }, 2000);
+        
+        console.log('🗑️ Petición ELIMINAR enviada (via iframe)');
         return { success: true };
     } catch (error) {
         console.error('Error al eliminar dirección:', error);
@@ -346,7 +372,7 @@ async function cargarPreciosEspeciales() {
 }
 
 // ============================================
-// FUNCIONES DE DIRECCIONES (USANDO APPS SCRIPT CON JSONP)
+// FUNCIONES DE DIRECCIONES (LECTURA DIRECTA)
 // ============================================
 
 async function cargarDireccionesCliente() {
@@ -359,13 +385,41 @@ async function cargarDireccionesCliente() {
         
         console.log('📥 Cargando direcciones para cliente:', codigoCliente);
         
-        const resultado = await listarDireccionesDesdeScript(codigoCliente);
+        // Leer directamente desde Google Sheets
+        const url = `https://docs.google.com/spreadsheets/d/${ID_BASE_CLIENTES}/gviz/tq?tqx=out:json&sheet=${HOJA_DIRECCIONES}`;
+        console.log('📥 URL de direcciones:', url);
         
-        if (resultado.success) {
-            direccionesCliente = resultado.direcciones || [];
-        } else {
-            console.error('Error al cargar direcciones:', resultado.error);
-            direccionesCliente = [];
+        const response = await fetch(url);
+        const text = await response.text();
+        
+        // Extraer el JSON de la respuesta (formato gviz)
+        const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
+        const data = JSON.parse(jsonStr);
+        const rows = data.table.rows;
+        
+        console.log(`📊 Filas en la hoja Direcciones: ${rows.length}`);
+        
+        direccionesCliente = [];
+        
+        for (let i = 1; i < rows.length; i++) {
+            const values = rows[i].c.map(cell => cell ? cell.v : '');
+            const codigo = String(values[0] || '').trim();
+            
+            if (codigo === codigoCliente) {
+                direccionesCliente.push({
+                    fila: i + 1,
+                    codigo: codigo,
+                    nombre: String(values[1] || '').trim(),
+                    calle: String(values[2] || '').trim(),
+                    colonia: String(values[3] || '').trim(),
+                    alcaldia: String(values[4] || '').trim(),
+                    estado: String(values[5] || '').trim(),
+                    cp: String(values[6] || '').trim(),
+                    mapsUrl: String(values[7] || '').trim(),
+                    telefono: String(values[8] || '').trim(),
+                    nombreRecibe: String(values[9] || '').trim()
+                });
+            }
         }
         
         console.log(`📦 Direcciones cargadas: ${direccionesCliente.length}`);
@@ -508,7 +562,7 @@ async function guardarEdicionDireccion() {
             
             setTimeout(() => {
                 cargarDireccionesCliente();
-            }, 1000);
+            }, 2000);
         } else {
             mostrarNotificacion('❌ Error al guardar los cambios: ' + (resultado.error || 'Intenta de nuevo'));
         }
@@ -539,7 +593,7 @@ async function eliminarDireccion(index) {
             
             setTimeout(() => {
                 cargarDireccionesCliente();
-            }, 1000);
+            }, 2000);
         } else {
             mostrarNotificacion('❌ Error al eliminar: ' + (resultado.error || 'Intenta de nuevo'));
         }
