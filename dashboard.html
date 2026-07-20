@@ -701,12 +701,59 @@
 </head>
 <body>
 
-    <!-- HEADER -->
+    <!-- ===== HEADER CON BOTÓN MI CUENTA ===== -->
     <header class="dashboard-header">
         <a href="index.html" class="logo">ProConstrucción <span>MX</span></a>
         <div class="user-info">
             <span class="user-name" id="userNameDisplay"><i class="fas fa-user"></i> Cliente</span>
             <span class="user-email" id="userEmailDisplay">usuario@correo.com</span>
+            
+            <!-- ⭐ BOTÓN MI CUENTA CON MENÚ DESPLEGABLE ⭐ -->
+            <div class="menu-usuario-container" style="position:relative; display:inline-block;">
+                <button class="btn-mi-cuenta" id="btnMiCuenta" style="
+                    background: #1a4d8c;
+                    color: white;
+                    border: none;
+                    padding: 0.5rem 1.2rem;
+                    border-radius: 50px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.3s;
+                    font-family: 'Inter', sans-serif;
+                    font-size: 0.85rem;
+                    white-space: nowrap;
+                ">
+                    <i class="fas fa-user-cog"></i> Mi Cuenta
+                </button>
+                <div id="menuDesplegable" style="
+                    display: none;
+                    position: absolute;
+                    top: 100%;
+                    right: 0;
+                    background: white;
+                    border-radius: 12px;
+                    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+                    min-width: 200px;
+                    z-index: 1000;
+                    overflow: hidden;
+                    margin-top: 0.5rem;
+                    border: 1px solid #e2e8f0;
+                ">
+                    <a href="#" onclick="abrirMisDirecciones(); return false;" style="
+                        display: block;
+                        padding: 0.8rem 1.5rem;
+                        color: #4a5568;
+                        text-decoration: none;
+                        transition: all 0.3s;
+                        font-weight: 500;
+                        font-size: 0.9rem;
+                        font-family: 'Inter', sans-serif;
+                    " onmouseover="this.style.background='#f8f9fa'; this.style.color='#0A2540';" onmouseout="this.style.background='transparent'; this.style.color='#4a5568';">
+                        <i class="fas fa-address-book" style="width:20px;"></i> Mis Direcciones
+                    </a>
+                </div>
+            </div>
+            
             <button class="btn-cerrar" onclick="cerrarSesion()"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</button>
         </div>
     </header>
