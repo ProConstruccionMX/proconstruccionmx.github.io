@@ -12,7 +12,8 @@ const HOJA_VENTAS_CLIENTES = 'Hoja 2';
 const ID_ARCHIVO_PRECIOS_ESPECIALES = '10t2A9M5f1Bj7lyTTa_PhVGRv0wAK_4ePpk_1eURZQ5I';
 const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
 
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxKIKNB52jTXypzskerIu9VsYOHyszXFsori2kMbbD17wY4JYqC_PEFwmgwU72l2NOm/exec';
+// ⭐ NUEVA URL DE APPS SCRIPT (VERSIÓN 6) ⭐
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyuNPKS-k5S0wRR3idKBy9h1sKf-yP-D8I8zjkewdVEmtgAdBXFlDNpXWIA_IRzJ4Rp/exec';
 
 const PESO_MINIMO_TONELADA = 1000;
 
@@ -56,7 +57,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 
 // ============================================
-// FUNCIONES PARA APPS SCRIPT (ESCRITURA)
+// FUNCIONES PARA APPS SCRIPT (CON FETCH NORMAL)
 // ============================================
 
 async function agregarDireccionEnSheets(direccion) {
@@ -65,7 +66,6 @@ async function agregarDireccionEnSheets(direccion) {
         
         const response = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -84,8 +84,9 @@ async function agregarDireccionEnSheets(direccion) {
             })
         });
         
-        console.log('📝 Petición AGREGAR enviada');
-        return { success: true };
+        const result = await response.json();
+        console.log('📝 Respuesta de Apps Script (agregar):', result);
+        return result;
     } catch (error) {
         console.error('Error al agregar dirección:', error);
         return { success: false, error: error.toString() };
@@ -94,12 +95,11 @@ async function agregarDireccionEnSheets(direccion) {
 
 async function actualizarDireccionEnSheets(fila, datos) {
     try {
-        console.log('📝 ACTUALIZAR - Fila enviada a Apps Script:', fila);
-        console.log('📝 ACTUALIZAR - Datos:', datos);
+        console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila:', fila);
+        console.log('📝 Datos:', datos);
         
         const response = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -119,8 +119,9 @@ async function actualizarDireccionEnSheets(fila, datos) {
             })
         });
         
-        console.log('📝 Petición ACTUALIZAR enviada para fila:', fila);
-        return { success: true };
+        const result = await response.json();
+        console.log('📝 Respuesta de Apps Script (actualizar):', result);
+        return result;
     } catch (error) {
         console.error('Error al actualizar dirección:', error);
         return { success: false, error: error.toString() };
@@ -129,11 +130,10 @@ async function actualizarDireccionEnSheets(fila, datos) {
 
 async function eliminarDireccionEnSheets(fila) {
     try {
-        console.log('🗑️ ELIMINAR - Fila enviada a Apps Script:', fila);
+        console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila:', fila);
         
         const response = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -143,8 +143,9 @@ async function eliminarDireccionEnSheets(fila) {
             })
         });
         
-        console.log('🗑️ Petición ELIMINAR enviada para fila:', fila);
-        return { success: true };
+        const result = await response.json();
+        console.log('🗑️ Respuesta de Apps Script (eliminar):', result);
+        return result;
     } catch (error) {
         console.error('Error al eliminar dirección:', error);
         return { success: false, error: error.toString() };
@@ -311,7 +312,7 @@ async function cargarPreciosEspeciales() {
 }
 
 // ============================================
-// ⭐ FUNCIONES DE DIRECCIONES - REWRITE COMPLETO ⭐
+// ⭐ FUNCIONES DE DIRECCIONES ⭐
 // ============================================
 
 async function cargarDireccionesCliente() {
@@ -337,24 +338,20 @@ async function cargarDireccionesCliente() {
         const rows = data.table.rows;
         
         console.log(`📊 Filas en la hoja Direcciones: ${rows.length}`);
-        console.log('📊 rows[0] (Encabezado):', rows[0] ? rows[0].c.map(c => c ? c.v : '') : 'vacío');
         
         direccionesCliente = [];
         
-        // ⭐ RECORREMOS TODAS LAS FILAS DESDE EL ÍNDICE 1 (fila 2 en Google Sheets)
+        // ⭐ i empieza en 1 (fila 2 en Google Sheets) ⭐
         for (let i = 1; i < rows.length; i++) {
-            const row = rows[i];
-            const values = row.c.map(cell => cell ? cell.v : '');
-            
-            console.log(`📊 Procesando fila ${i} (Google Sheets fila ${i + 1}):`, values);
-            
+            const values = rows[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[0] || '').trim();
             
+            console.log(`📊 Fila ${i} (Google Sheets ${i+1}): Código="${codigo}"`);
+            
             if (codigo === codigoCliente) {
-                // ⭐ La fila REAL en Google Sheets es i + 1 (porque el índice 0 es el encabezado)
+                // ⭐ LA FILA REAL ES i+1 (porque i=1 es la fila 2) ⭐
                 const filaReal = i + 1;
                 const nombre = String(values[1] || '').trim();
-                
                 console.log(`✅ Dirección encontrada: "${nombre}" en fila REAL ${filaReal}`);
                 
                 direccionesCliente.push({
@@ -382,7 +379,6 @@ async function cargarDireccionesCliente() {
         
     } catch (error) {
         console.error('❌ Error al cargar direcciones:', error);
-        console.error('❌ Detalle del error:', error.message);
         direccionesCliente = [];
         renderizarDirecciones();
         actualizarSelectorDirecciones();
@@ -462,7 +458,7 @@ function editarDireccion(index) {
     }
     
     console.log('✏️ EDITANDO - Dirección:', dir.nombre);
-    console.log('✏️ EDITANDO - Fila REAL de Google Sheets:', dir.fila);
+    console.log('✏️ EDITANDO - Fila REAL:', dir.fila);
     
     document.getElementById('editDirIndex').value = index;
     document.getElementById('editDirFila').value = dir.fila;
@@ -487,14 +483,13 @@ async function guardarEdicionDireccion() {
     const index = parseInt(document.getElementById('editDirIndex').value);
     const dir = direccionesCliente[index];
     if (!dir) {
-        console.error('❌ Dirección no encontrada en índice:', index);
         mostrarNotificacion('❌ Error: No se encontró la dirección a editar.');
         return;
     }
     
     const fila = parseInt(document.getElementById('editDirFila').value);
-    console.log('💾 GUARDANDO EDICIÓN - Dirección:', dir.nombre);
-    console.log('💾 GUARDANDO EDICIÓN - Fila REAL a actualizar:', fila);
+    console.log('💾 GUARDANDO - Dirección:', dir.nombre);
+    console.log('💾 GUARDANDO - Fila REAL a actualizar:', fila);
     
     const datosActualizados = {
         codigo: dir.codigo,
@@ -518,23 +513,15 @@ async function guardarEdicionDireccion() {
     
     try {
         const resultado = await actualizarDireccionEnSheets(fila, datosActualizados);
+        console.log('📝 Resultado de Apps Script:', resultado);
         
         if (resultado.success) {
-            // Actualizar localmente
-            direccionesCliente[index] = {
-                ...dir,
-                ...datosActualizados,
-                fila: fila
-            };
-            
+            direccionesCliente[index] = { ...dir, ...datosActualizados, fila: fila };
             renderizarDirecciones();
             actualizarSelectorDirecciones();
             cerrarModalEditarDireccion();
             mostrarNotificacion('✅ Dirección actualizada correctamente');
-            
-            setTimeout(() => {
-                cargarDireccionesCliente();
-            }, 2000);
+            setTimeout(() => cargarDireccionesCliente(), 1500);
         } else {
             mostrarNotificacion('❌ Error al guardar los cambios: ' + (resultado.error || 'Intenta de nuevo'));
         }
@@ -556,28 +543,26 @@ async function eliminarDireccion(index) {
     }
     
     console.log('🗑️ ELIMINANDO - Dirección:', dir.nombre);
-    console.log('🗑️ ELIMINANDO - Fila REAL a eliminar:', dir.fila);
+    console.log('🗑️ ELIMINANDO - Fila REAL:', dir.fila);
     
-    if (!confirm(`¿Seguro que quieres eliminar la dirección "${dir.nombre}" (Fila ${dir.fila})?`)) return;
+    if (!confirm(`¿Seguro que quieres eliminar "${dir.nombre}" (Fila ${dir.fila})?`)) return;
     
     try {
         const resultado = await eliminarDireccionEnSheets(dir.fila);
+        console.log('🗑️ Resultado de Apps Script:', resultado);
         
         if (resultado.success) {
             direccionesCliente.splice(index, 1);
             renderizarDirecciones();
             actualizarSelectorDirecciones();
             mostrarNotificacion('🗑️ Dirección eliminada correctamente');
-            
-            setTimeout(() => {
-                cargarDireccionesCliente();
-            }, 2000);
+            setTimeout(() => cargarDireccionesCliente(), 1500);
         } else {
             mostrarNotificacion('❌ Error al eliminar: ' + (resultado.error || 'Intenta de nuevo'));
         }
     } catch (error) {
         console.error('❌ Error al eliminar dirección:', error);
-        mostrarNotificacion('❌ Error al eliminar la dirección. Intenta de nuevo.');
+        mostrarNotificacion('❌ Error al eliminar la dirección.');
     }
 }
 
