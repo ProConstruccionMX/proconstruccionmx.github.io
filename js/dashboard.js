@@ -12,7 +12,6 @@ const HOJA_VENTAS_CLIENTES = 'Hoja 2';
 const ID_ARCHIVO_PRECIOS_ESPECIALES = '10t2A9M5f1Bj7lyTTa_PhVGRv0wAK_4ePpk_1eURZQ5I';
 const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
 
-// ⭐ URL DE APPS SCRIPT (ACTUALIZA CON LA NUEVA URL) ⭐
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyuNPKS-k5S0wRR3idKBy9h1sKf-yP-D8I8zjkewdVEmtgAdBXFlDNpXWIA_IRzJ4Rp/exec';
 
 const PESO_MINIMO_TONELADA = 1000;
@@ -312,7 +311,7 @@ async function cargarPreciosEspeciales() {
 }
 
 // ============================================
-// ⭐ FUNCIONES DE DIRECCIONES ⭐
+// ⭐ FUNCIONES DE DIRECCIONES - CON LOGS DE DEPURACIÓN ⭐
 // ============================================
 
 async function cargarDireccionesCliente() {
@@ -342,20 +341,32 @@ async function cargarDireccionesCliente() {
         // Mostrar el encabezado para depurar
         if (rows.length > 0) {
             const header = rows[0].c.map(cell => cell ? cell.v : '');
-            console.log('📊 Encabezado:', header);
+            console.log('📊 Encabezado (Fila 1):', header);
         }
         
         direccionesCliente = [];
         
-        // ⭐ i empieza en 1 para saltar el encabezado (fila 1) ⭐
+        // ⭐ RECORREMOS TODAS LAS FILAS DESDE i=1 (fila 2) ⭐
         for (let i = 1; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[0] || '').trim();
             
-            console.log(`📊 Fila ${i} (Google Sheets ${i+1}): Código="${codigo}"`);
+            // ⭐ LOG ESPECIAL PARA LA FILA 2 (i=1) ⭐
+            if (i === 1) {
+                console.log('🔍 ===== FILA 2 (Google Sheets) ====');
+                console.log('🔍 Valores completos:', values);
+                console.log('🔍 Código:', codigo);
+                console.log('🔍 Nombre:', String(values[1] || '').trim());
+                console.log('🔍 ================================');
+            }
             
-            if (codigo === codigoCliente) {
-                // ⭐ LA FILA REAL ES i+1 (porque i=1 es la fila 2) ⭐
+            console.log(`📊 Índice ${i} (Google Sheets fila ${i+1}): Código="${codigo}"`);
+            
+            // Comparación exacta
+            const esIgual = codigo === codigoCliente;
+            console.log(`📊 ¿Es igual a "${codigoCliente}"? ${esIgual}`);
+            
+            if (esIgual) {
                 const filaReal = i + 1;
                 const nombre = String(values[1] || '').trim();
                 console.log(`✅ Dirección encontrada: "${nombre}" en fila REAL ${filaReal}`);
