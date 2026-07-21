@@ -311,7 +311,7 @@ async function cargarPreciosEspeciales() {
 }
 
 // ============================================
-// ⭐ FUNCIONES DE DIRECCIONES - CON LOGS DE DEPURACIÓN ⭐
+// ⭐ FUNCIONES DE DIRECCIONES ⭐
 // ============================================
 
 async function cargarDireccionesCliente() {
@@ -346,27 +346,14 @@ async function cargarDireccionesCliente() {
         
         direccionesCliente = [];
         
-        // ⭐ RECORREMOS TODAS LAS FILAS DESDE i=1 (fila 2) ⭐
+        // ⭐ EMPEZAMOS DESDE i=1 (fila 2 en Google Sheets) ⭐
         for (let i = 1; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[0] || '').trim();
             
-            // ⭐ LOG ESPECIAL PARA LA FILA 2 (i=1) ⭐
-            if (i === 1) {
-                console.log('🔍 ===== FILA 2 (Google Sheets) ====');
-                console.log('🔍 Valores completos:', values);
-                console.log('🔍 Código:', codigo);
-                console.log('🔍 Nombre:', String(values[1] || '').trim());
-                console.log('🔍 ================================');
-            }
+            console.log(`📊 Fila ${i} (Google Sheets ${i+1}): Código="${codigo}"`);
             
-            console.log(`📊 Índice ${i} (Google Sheets fila ${i+1}): Código="${codigo}"`);
-            
-            // Comparación exacta
-            const esIgual = codigo === codigoCliente;
-            console.log(`📊 ¿Es igual a "${codigoCliente}"? ${esIgual}`);
-            
-            if (esIgual) {
+            if (codigo === codigoCliente) {
                 const filaReal = i + 1;
                 const nombre = String(values[1] || '').trim();
                 console.log(`✅ Dirección encontrada: "${nombre}" en fila REAL ${filaReal}`);
