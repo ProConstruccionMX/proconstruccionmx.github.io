@@ -310,7 +310,7 @@ async function cargarPreciosEspeciales() {
 }
 
 // ============================================
-// ⭐ FUNCIONES DE DIRECCIONES ⭐
+// ⭐ FUNCIONES DE DIRECCIONES - CORREGIDAS ⭐
 // ============================================
 
 async function cargarDireccionesCliente() {
@@ -339,18 +339,21 @@ async function cargarDireccionesCliente() {
         
         direccionesCliente = [];
         
-        // ⭐ i empieza en 1 (fila 2 en la hoja) para saltar el encabezado ⭐
-        // La fila REAL en Google Sheets es i + 1
+        // ⭐ IMPORTANTE: El índice 0 es el encabezado (fila 1)
+        // El índice 1 es la primera fila de datos (fila 2 de Google Sheets)
+        // La fila REAL en Google Sheets es i (porque el índice 0 es el encabezado)
         for (let i = 1; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[0] || '').trim();
             
             if (codigo === codigoCliente) {
-                const filaReal = i + 1; // Fila real en Google Sheets
+                // ⭐ La fila real en Google Sheets es i + 1
+                // Ejemplo: i=1 → fila 2, i=2 → fila 3, etc.
+                const filaReal = i + 1;
                 console.log(`📌 Dirección encontrada en fila ${filaReal}: ${String(values[1] || '').trim()}`);
                 
                 direccionesCliente.push({
-                    fila: filaReal,
+                    fila: filaReal, // Guardamos la fila real de Google Sheets
                     codigo: codigo,
                     nombre: String(values[1] || '').trim(),
                     calle: String(values[2] || '').trim(),
