@@ -12,7 +12,7 @@ const HOJA_VENTAS_CLIENTES = 'Hoja 2';
 const ID_ARCHIVO_PRECIOS_ESPECIALES = '10t2A9M5f1Bj7lyTTa_PhVGRv0wAK_4ePpk_1eURZQ5I';
 const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
 
-// ⭐ NUEVA URL DE APPS SCRIPT (VERSIÓN 6) ⭐
+// ⭐ URL DE APPS SCRIPT (ACTUALIZA CON LA NUEVA URL) ⭐
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyuNPKS-k5S0wRR3idKBy9h1sKf-yP-D8I8zjkewdVEmtgAdBXFlDNpXWIA_IRzJ4Rp/exec';
 
 const PESO_MINIMO_TONELADA = 1000;
@@ -84,6 +84,10 @@ async function agregarDireccionEnSheets(direccion) {
             })
         });
         
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const result = await response.json();
         console.log('📝 Respuesta de Apps Script (agregar):', result);
         return result;
@@ -119,6 +123,10 @@ async function actualizarDireccionEnSheets(fila, datos) {
             })
         });
         
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const result = await response.json();
         console.log('📝 Respuesta de Apps Script (actualizar):', result);
         return result;
@@ -142,6 +150,10 @@ async function eliminarDireccionEnSheets(fila) {
                 fila: fila
             })
         });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         
         const result = await response.json();
         console.log('🗑️ Respuesta de Apps Script (eliminar):', result);
@@ -312,7 +324,7 @@ async function cargarPreciosEspeciales() {
 }
 
 // ============================================
-// ⭐ FUNCIONES DE DIRECCIONES ⭐
+// ⭐ FUNCIONES DE DIRECCIONES CORREGIDAS ⭐
 // ============================================
 
 async function cargarDireccionesCliente() {
@@ -339,9 +351,15 @@ async function cargarDireccionesCliente() {
         
         console.log(`📊 Filas en la hoja Direcciones: ${rows.length}`);
         
+        // ⭐ MOSTRAR EL ENCABEZADO PARA DEPURAR ⭐
+        if (rows.length > 0) {
+            const header = rows[0].c.map(cell => cell ? cell.v : '');
+            console.log('📊 Encabezado:', header);
+        }
+        
         direccionesCliente = [];
         
-        // ⭐ i empieza en 1 (fila 2 en Google Sheets) ⭐
+        // ⭐ EMPEZAMOS DESDE i=1 (fila 2 en Google Sheets) ⭐
         for (let i = 1; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[0] || '').trim();
@@ -371,7 +389,6 @@ async function cargarDireccionesCliente() {
         }
         
         console.log(`📦 Direcciones cargadas: ${direccionesCliente.length}`);
-        // Mostrar las filas que se cargaron
         direccionesCliente.forEach(d => console.log(`   - ${d.nombre} (Fila ${d.fila})`));
         
         renderizarDirecciones();
