@@ -1,21 +1,42 @@
 // ============================================
-// CONFIGURACIÓN
+// CONFIGURACIÓN - IDS DE GOOGLE SHEETS
 // ============================================
 const ID_PRODUCTOS = '1tRhmgmbhL47vBIldtSFnrvFlFLHYADKq23BKGnRAWQk';
 const HOJA_PRODUCTOS = 'Hoja 1';
+
 const ID_BASE_CLIENTES = '1yCQ-cJJ7PALDYSwIcpsj1ZfACtNLJwfOR7HY-mPzgx4';
 const HOJA_BASE_CLIENTES = 'Hoja 1';
 const HOJA_DIRECCIONES = 'Direcciones';
-const ID_VENTAS = '1ncuIR0-QJWl8OcwLUTFoyCZ0qwCafQaXfc0y6vYzFTc';
-const HOJA_VENTAS_PRODUCTOS = 'Hoja 1';
-const HOJA_VENTAS_CLIENTES = 'Hoja 2';
+
+const ID_ESTADISTICAS = '1jCvEvZ2aBF2nRhE_Jsw_S_8yDFYZgaWwIUNu9pNNKGc';
+const HOJA_EST_PRODUCTOS = 'Productos';
+const HOJA_EST_CLIENTES = 'Clientes';
+
+const ID_USUARIOS = '1Q5V6Wie_kQwqvnofuVzIcyerRaKZxJ2lvMHK6LY9gaU';
+const HOJA_USUARIOS = 'Hoja 1';
+
 const ID_ARCHIVO_PRECIOS_ESPECIALES = '10t2A9M5f1Bj7lyTTa_PhVGRv0wAK_4ePpk_1eURZQ5I';
 const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
 
-// ⭐ URL CORRECTA DE APPS SCRIPT ⭐
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx70lC_04Z0sTIktd7eyBS65TE6vMkZ8kH6LQun-_X1jJRCsO9K9Bgm-7nQ0pEiAUY/exec';
+const ID_COTIZACIONES = '1S4qoHh3lTDoSUwDNeilmN6QKk8uhmvxjwvRQpEHQbS0';
+const HOJA_COTIZACIONES = 'Hoja 1';
+
+// ⭐ NUEVA URL DEL SCRIPT EN EL ARCHIVO DE ESTADÍSTICAS ⭐
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyRT70rT0pgG6IX4vjjvX44DuPnQqF1evnkQ7Vdz4XVyaZj0j3v4Em36U5FwLBlaRRxtQ/exec';
+
+// ⭐ CONFIGURACIÓN DE VENTAS WEB ⭐
+const EMAIL_VENTAS = 'ventas@proconstruccionmx.com';
+const DIAS_CREDITO_FIJO = 20;
+const SUCURSAL_WEB = 'Web';
 
 const PESO_MINIMO_TONELADA = 1000;
+
+// ⭐ Configuración de EmailJS ⭐
+const EMAILJS_CONFIG = {
+    serviceID: 'service_o2zvkzo',
+    templateID: 'template_usum2d8',
+    userID: '_gOxtGSQmrhTdoRuX'
+};
 
 let clienteData = null;
 let productosGlobales = [];
@@ -95,7 +116,6 @@ async function agregarDireccionEnSheets(direccion) {
 
 async function actualizarDireccionEnSheets(fila, datos) {
     try {
-        // ⭐ SOLUCIÓN DEFINITIVA: Apps Script resta 1 automáticamente, enviamos fila + 1
         const filaEnviar = fila + 1;
         console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         console.log('📝 Datos:', datos);
@@ -136,7 +156,6 @@ async function actualizarDireccionEnSheets(fila, datos) {
 
 async function eliminarDireccionEnSheets(fila) {
     try {
-        // ⭐ SOLUCIÓN DEFINITIVA: Apps Script resta 1 automáticamente, enviamos fila + 1
         const filaEnviar = fila + 1;
         console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         
@@ -160,6 +179,34 @@ async function eliminarDireccionEnSheets(fila) {
         return { success: true };
     } catch (error) {
         console.error('Error al eliminar dirección:', error);
+        return { success: false, error: error.toString() };
+    }
+}
+
+async function guardarFilaGoogleSheets(sheetName, datos) {
+    try {
+        console.log('📝 guardarFilaGoogleSheets - SheetName:', sheetName);
+        console.log('📝 guardarFilaGoogleSheets - Datos:', datos);
+        
+        const body = {
+            action: 'guardarFila',
+            sheetName: sheetName,
+            datos: datos
+        };
+        
+        await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body)
+        });
+        
+        console.log(`✅ Fila guardada en ${sheetName}`);
+        return { success: true };
+    } catch (error) {
+        console.error('Error al guardar fila:', error);
         return { success: false, error: error.toString() };
     }
 }
@@ -351,7 +398,6 @@ async function cargarDireccionesCliente() {
         
         console.log(`📊 Filas en la hoja Direcciones: ${rows.length}`);
         
-        // Mostrar todas las filas para depurar
         for (let i = 0; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             console.log(`📊 Fila ${i} (Google Sheets ${i+1}):`, values);
@@ -359,12 +405,9 @@ async function cargarDireccionesCliente() {
         
         direccionesCliente = [];
         
-        // Procesamos TODAS las filas desde i=0
         for (let i = 0; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[0] || '').trim();
-            
-            // La fila real es i + 1 (porque i=0 es la fila 1)
             const filaReal = i + 1;
             
             console.log(`📊 Procesando Fila ${i} (Google Sheets ${filaReal}): Código="${codigo}"`);
@@ -1146,6 +1189,13 @@ async function continuarConPago() {
     const cp = document.getElementById('dirCP').value.trim();
     const telefono = document.getElementById('dirTelefono').value.trim();
     const nombreRecibe = document.getElementById('dirNombreRecibe').value.trim();
+    const mapsUrl = document.getElementById('dirMaps').value.trim();
+    
+    // ⭐ Validar que la URL de Google Maps sea obligatoria
+    if (!mapsUrl) {
+        mostrarMensajeModalDireccion('error', '⚠️ La URL de Google Maps es obligatoria. Por favor, proporciona la ubicación exacta.');
+        return;
+    }
     
     if (!calle || !colonia || !alcaldia || !estado || !cp || !telefono || !nombreRecibe) {
         mostrarMensajeModalDireccion('error', '⚠️ Por favor, completa todos los campos obligatorios de dirección.');
@@ -1168,7 +1218,7 @@ async function continuarConPago() {
             alcaldia: alcaldia,
             estado: estado,
             cp: cp,
-            mapsUrl: document.getElementById('dirMaps').value.trim(),
+            mapsUrl: mapsUrl,
             telefono: telefono,
             nombreRecibe: nombreRecibe
         });
@@ -1185,9 +1235,10 @@ async function continuarConPago() {
         alcaldia: alcaldia,
         estado: estado,
         cp: cp,
-        mapsUrl: document.getElementById('dirMaps').value.trim() || 'No proporcionado',
+        mapsUrl: mapsUrl,
         telefono: telefono,
-        nombreRecibe: nombreRecibe
+        nombreRecibe: nombreRecibe,
+        nombreDireccion: guardarDireccion ? nombreDireccion : 'Sin nombre'
     };
     
     cerrarModalDireccion();
@@ -1280,8 +1331,20 @@ function calcularTotal() {
 async function procesarPagoTransferencia() {
     const referencia = document.getElementById('referenciaTransferencia').value.trim();
     
+    // ⭐ Validar que la referencia sea obligatoria
+    if (!referencia) {
+        mostrarMensajeModal('error', '⚠️ El número de referencia o folio de transferencia es obligatorio.');
+        return;
+    }
+    
     if (!comprobanteBase64) {
         mostrarMensajeModal('error', '⚠️ Por favor, sube el comprobante de transferencia.');
+        return;
+    }
+    
+    // ⭐ Validar que la URL de Google Maps sea obligatoria
+    if (!window.datosEnvio || !window.datosEnvio.mapsUrl || window.datosEnvio.mapsUrl === 'No proporcionado') {
+        mostrarMensajeModal('error', '⚠️ La URL de Google Maps es obligatoria. Por favor, proporciona la ubicación exacta.');
         return;
     }
     
@@ -1312,22 +1375,26 @@ async function procesarPagoTransferencia() {
             subtotal: total / 1.16,
             iva: total - (total / 1.16),
             tipoPago: 'Transferencia',
-            referencia: referencia || 'No especificada',
+            referencia: referencia,
             comprobante: comprobanteBase64,
             comprobanteNombre: comprobanteNombre,
             comprobanteTipo: comprobanteTipo,
-            sucursal: clienteData.sucursal || 'Matriz'
+            sucursal: SUCURSAL_WEB,
+            nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre'
         };
         
-        await guardarVentaEnSheets(datosVenta);
-        await enviarCorreoVenta(datosVenta);
+        // ⭐ Guardar en estadísticas
+        await guardarVentaEnEstadisticas(datosVenta);
+        
+        // ⭐ Enviar correo a ventas
+        await enviarCorreoVentaWeb(datosVenta);
         
         mostrarMensajeModal('exito', `
             ✅ ¡Compra realizada con éxito!<br>
             <strong>Folio:</strong> ${folio}<br>
             <strong>Total:</strong> ${formatoMexicano(total)}<br>
             <strong>Método:</strong> Transferencia<br>
-            ${referencia ? `<strong>Referencia:</strong> ${referencia}` : ''}<br><br>
+            <strong>Referencia:</strong> ${referencia}<br><br>
             Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles y comprobante.
         `);
         
@@ -1351,12 +1418,13 @@ async function procesarPagoTransferencia() {
 }
 
 async function procesarPagoCredito() {
-    const dias = parseInt(document.getElementById('diasCredito').value) || 30;
-    const anticipo = parseFloat(document.getElementById('anticipoCredito').value) || 0;
+    // ⭐ Días de crédito fijos (20 días)
+    const dias = DIAS_CREDITO_FIJO;
     const total = calcularTotal();
     
-    if (anticipo > total) {
-        mostrarMensajeModal('error', '⚠️ El anticipo no puede ser mayor al total.');
+    // ⭐ Validar que la URL de Google Maps sea obligatoria
+    if (!window.datosEnvio || !window.datosEnvio.mapsUrl || window.datosEnvio.mapsUrl === 'No proporcionado') {
+        mostrarMensajeModal('error', '⚠️ La URL de Google Maps es obligatoria. Por favor, proporciona la ubicación exacta.');
         return;
     }
     
@@ -1367,7 +1435,6 @@ async function procesarPagoCredito() {
     try {
         const folio = generarFolio();
         const fecha = new Date();
-        const saldoPendiente = total - anticipo;
         const fechaPago = new Date(fecha);
         fechaPago.setDate(fechaPago.getDate() + dias);
         
@@ -1390,24 +1457,27 @@ async function procesarPagoCredito() {
             iva: total - (total / 1.16),
             tipoPago: 'Crédito',
             diasCredito: dias,
-            anticipo: anticipo,
-            saldoPendiente: saldoPendiente,
+            anticipo: 0,
+            saldoPendiente: total,
             fechaPago: fechaPago,
-            sucursal: clienteData.sucursal || 'Matriz'
+            sucursal: SUCURSAL_WEB,
+            nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre'
         };
         
-        await guardarVentaEnSheets(datosVenta);
-        await enviarCorreoVenta(datosVenta);
+        // ⭐ Guardar en estadísticas
+        await guardarVentaEnEstadisticas(datosVenta);
+        
+        // ⭐ Enviar correo a ventas
+        await enviarCorreoVentaWeb(datosVenta);
         
         mostrarMensajeModal('exito', `
             ✅ ¡Crédito aprobado!<br>
             <strong>Folio:</strong> ${folio}<br>
             <strong>Total:</strong> ${formatoMexicano(total)}<br>
-            <strong>Anticipo:</strong> ${formatoMexicano(anticipo)}<br>
-            <strong>Saldo pendiente:</strong> ${formatoMexicano(saldoPendiente)}<br>
-            <strong>Días de crédito:</strong> ${dias}<br>
+            <strong>Días de crédito:</strong> ${dias} días fijos<br>
             <strong>Fecha de pago:</strong> ${fechaPago.toLocaleDateString('es-MX')}<br><br>
-            Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.
+            Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.<br>
+            <span style="color:#92400e;font-size:0.9rem;">⚠️ Si no se cumple con el pago en la fecha establecida, se podrá eliminar el crédito.</span>
         `);
         
         carrito = [];
@@ -1430,186 +1500,251 @@ async function procesarPagoCredito() {
 }
 
 // ============================================
-// GUARDAR EN GOOGLE SHEETS
+// FUNCIONES PARA GUARDAR EN ESTADÍSTICAS
 // ============================================
 
-async function guardarVentaEnSheets(datos) {
+async function guardarVentaEnEstadisticas(datos) {
     try {
+        console.log('📊 Guardando venta en estadísticas...');
+        
+        // 1. Guardar en HOJA_EST_PRODUCTOS
         for (const producto of datos.productos) {
-            const datosProducto = [
+            let precioCompra = 0;
+            let ganancia = 0;
+            
+            const productoCompleto = productosGlobales.find(p => p.clave === producto.clave);
+            if (productoCompleto) {
+                precioCompra = productoCompleto.precioCompra || 0;
+                const costoTotal = precioCompra * producto.cantidad;
+                ganancia = producto.importe - costoTotal;
+            }
+            
+            let creditoPendiente = 0;
+            let creditoLiquidado = 0;
+            if (datos.tipoPago === 'Crédito' && datos.total > 0) {
+                const proporcion = producto.importe / datos.total;
+                creditoPendiente = datos.saldoPendiente * proporcion;
+                creditoLiquidado = 0;
+            }
+            
+            const filaProducto = [
                 datos.fecha.toISOString().split('T')[0],
                 datos.folio,
-                producto.clave,
-                producto.cantidad,
-                producto.importe,
                 producto.nombre,
-                datos.cliente.codigo,
-                'Cliente Web',
-                producto.descuento,
-                producto.precio,
-                producto.cantidad * producto.precio,
-                producto.precio * producto.cantidad * (producto.descuento / 100),
-                'Sin verificar'
+                producto.cantidad,
+                producto.importe.toFixed(2),
+                ganancia.toFixed(2),
+                '', // Comisión (sin tarjeta en web)
+                creditoPendiente.toFixed(2),
+                creditoLiquidado.toFixed(2),
+                datos.tipoPago === 'Crédito' ? datos.diasCredito : 0,
+                datos.tipoPago === 'Crédito' ? datos.fechaPago.toLocaleDateString('es-MX') : '',
+                datos.sucursal
             ];
-            await guardarFilaGoogleSheets(ID_VENTAS, HOJA_VENTAS_PRODUCTOS, datosProducto);
+            
+            await guardarFilaGoogleSheets(HOJA_EST_PRODUCTOS, filaProducto);
         }
         
-        const datosCliente = [
-            datos.fecha.toISOString().split('T')[0],
-            datos.folio,
-            datos.cliente.codigo,
-            datos.cliente.nombre,
-            datos.total,
-            datos.tipoPago === 'Crédito' ? datos.saldoPendiente : 0,
-            datos.tipoPago === 'Crédito' ? datos.anticipo : datos.total,
-            'NO',
-            datos.sucursal,
-            datos.tipoPago,
-            datos.tipoPago === 'Crédito' ? 'Pago diferido' : 'Pago en una sola exhibición'
-        ];
-        await guardarFilaGoogleSheets(ID_VENTAS, HOJA_VENTAS_CLIENTES, datosCliente);
+        // 2. Guardar en HOJA_EST_CLIENTES
+        const facturaTexto = 'NO';
+        const formaPago = datos.tipoPago.toUpperCase();
+        const tipoPago = datos.tipoPago === 'Crédito' ? 'Pago diferido en parcialidades' : 'Pago en una sola exhibición';
+        const estadoPago = datos.tipoPago === 'Transferencia' ? 'Validando' : 'Pendiente';
+        const nombreDireccion = datos.nombreDireccion || 'Sin nombre';
         
-        console.log('✅ Venta guardada exitosamente');
+        const filaCliente = [
+            datos.fecha.toISOString().split('T')[0],  // A: Fecha
+            datos.folio,                               // B: Folio
+            datos.cliente.codigo,                      // C: Código Cliente
+            datos.cliente.nombre,                      // D: Nombre Cliente
+            datos.total.toFixed(2),                    // E: Monto
+            datos.tipoPago === 'Crédito' ? datos.saldoPendiente.toFixed(2) : '0.00', // F: Crédito Pendiente
+            '0.00',                                    // G: Crédito Liquidado
+            facturaTexto,                              // H: Factura
+            datos.sucursal,                            // I: Sucursal
+            formaPago,                                 // J: Forma Pago
+            tipoPago,                                  // K: Tipo Pago
+            '',                                        // L: (vacío)
+            estadoPago,                                // M: Estado Pago (Validando para transferencia)
+            nombreDireccion                            // N: Nombre de la dirección
+        ];
+        
+        await guardarFilaGoogleSheets(HOJA_EST_CLIENTES, filaCliente);
+        
+        console.log('✅ Venta guardada en estadísticas correctamente');
         
     } catch (error) {
-        console.error('Error al guardar venta:', error);
+        console.error('❌ Error al guardar en estadísticas:', error);
         throw error;
     }
 }
 
-async function guardarFilaGoogleSheets(sheetId, sheetName, datos) {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            resolve({ success: true });
-        }, 500);
-    });
-}
+// ============================================
+// FUNCIÓN PARA ENVIAR CORREO A VENTAS
+// ============================================
 
-async function enviarCorreoVenta(datos) {
-    const emailDestino = 'ventas@proconstruccionmx.com';
-    const asunto = `🧾 NUEVA COMPRA - ${datos.folio} - ${datos.cliente.nombre}`;
-    
-    let htmlProductos = '';
-    datos.productos.forEach(p => {
-        htmlProductos += `
-            <tr>
-                <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${p.clave}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${p.nombre}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align:center;">${p.cantidad}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align:right;">${formatoMexicano(p.precio)}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align:center;">${p.descuento}%</td>
-                <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align:right;">${formatoMexicano(p.importe)}</td>
-            </tr>
-        `;
-    });
-    
-    let htmlDireccion = '';
-    if (datos.direccion) {
-        htmlDireccion = `
-            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-            <h3 style="color: #0A2540;">📦 Dirección de Envío</h3>
-            <p><strong>Calle y número:</strong> ${datos.direccion.calle}</p>
-            <p><strong>Colonia:</strong> ${datos.direccion.colonia}</p>
-            <p><strong>Alcaldía/Municipio:</strong> ${datos.direccion.alcaldia}</p>
-            <p><strong>Estado:</strong> ${datos.direccion.estado}</p>
-            <p><strong>Código Postal:</strong> ${datos.direccion.cp}</p>
-            <p><strong>Teléfono de contacto:</strong> ${datos.direccion.telefono}</p>
-            <p><strong>Nombre de quien recibe:</strong> ${datos.direccion.nombreRecibe}</p>
-            ${datos.direccion.mapsUrl && datos.direccion.mapsUrl !== 'No proporcionado' ? `<p><strong>Google Maps:</strong> <a href="${datos.direccion.mapsUrl}" target="_blank">Ver mapa</a></p>` : ''}
-        `;
-    }
-    
-    const html = `
-        <!DOCTYPE html>
-        <html>
-        <head><meta charset="UTF-8"></head>
-        <body style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
-            <div style="background: #0A2540; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
-                <h1 style="color: white; margin: 0;">ProConstrucción <span style="color: #F5A623;">MX</span></h1>
-                <p style="color: #94a3b8; margin: 5px 0 0 0;">Nueva compra desde el portal de clientes</p>
-            </div>
-            <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
-                <h2 style="color: #0A2540;">🧾 ${datos.folio}</h2>
-                <p style="color: #4a5568;"><strong>Fecha:</strong> ${datos.fecha.toLocaleString('es-MX')}</p>
-                <p style="color: #4a5568;"><strong>Método de pago:</strong> ${datos.tipoPago}</p>
-                
+async function enviarCorreoVentaWeb(datos) {
+    try {
+        console.log('📧 Enviando correo a ventas@proconstruccionmx.com...');
+        
+        const emailDestino = EMAIL_VENTAS;
+        const asunto = `🛒 NUEVA COMPRA WEB - ${datos.folio} - ${datos.cliente.nombre}`;
+        
+        let htmlProductos = '';
+        datos.productos.forEach(p => {
+            htmlProductos += `
+                <tr>
+                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${p.clave}</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${p.nombre}</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align:center;">${p.cantidad}</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align:right;">${formatoMexicano(p.precio)}</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align:center;">${p.descuento}%</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align:right;">${formatoMexicano(p.importe)}</td>
+                </tr>
+            `;
+        });
+        
+        let htmlDireccion = '';
+        if (datos.direccion) {
+            htmlDireccion = `
                 <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-                
-                <h3 style="color: #0A2540;">👤 Datos del Cliente</h3>
-                <p><strong>Nombre:</strong> ${datos.cliente.nombre}</p>
-                <p><strong>Código:</strong> ${datos.cliente.codigo}</p>
-                <p><strong>Correo:</strong> ${datos.cliente.correo}</p>
-                <p><strong>Teléfono:</strong> ${datos.cliente.telefono || 'No especificado'}</p>
-                <p><strong>Giro:</strong> ${datos.cliente.giro || 'No especificado'}</p>
-                <p><strong>Sucursal:</strong> ${datos.sucursal}</p>
-                <p><strong>Descuento Base:</strong> ${datos.cliente.descuento}%</p>
-                
-                ${htmlDireccion}
-                
-                <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-                
-                <h3 style="color: #0A2540;">📦 Productos</h3>
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background: #f8f9fa;">
-                            <th style="padding: 10px; text-align:left;">Clave</th>
-                            <th style="padding: 10px; text-align:left;">Producto</th>
-                            <th style="padding: 10px; text-align:center;">Cant.</th>
-                            <th style="padding: 10px; text-align:right;">Precio</th>
-                            <th style="padding: 10px; text-align:center;">Dto.%</th>
-                            <th style="padding: 10px; text-align:right;">Importe</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${htmlProductos}
-                    </tbody>
-                </table>
-                
-                <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-                
-                <div style="text-align: right;">
-                    <p><strong>Subtotal sin descuento:</strong> ${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16))}</p>
-                    <p><strong>Descuento total:</strong> -${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16) - datos.total)}</p>
-                    <p><strong>Subtotal:</strong> ${formatoMexicano(datos.subtotal)}</p>
-                    <p><strong>IVA (16%):</strong> ${formatoMexicano(datos.iva)}</p>
-                    <p style="font-size: 1.4rem; font-weight: 700; color: #0A2540;">
-                        <strong>TOTAL:</strong> ${formatoMexicano(datos.total)}
+                <h3 style="color: #0A2540;">📦 Dirección de Envío</h3>
+                <p><strong>Nombre de la dirección:</strong> ${datos.nombreDireccion || 'Sin nombre'}</p>
+                <p><strong>Calle y número:</strong> ${datos.direccion.calle}</p>
+                <p><strong>Colonia:</strong> ${datos.direccion.colonia}</p>
+                <p><strong>Alcaldía/Municipio:</strong> ${datos.direccion.alcaldia}</p>
+                <p><strong>Estado:</strong> ${datos.direccion.estado}</p>
+                <p><strong>Código Postal:</strong> ${datos.direccion.cp}</p>
+                <p><strong>Teléfono de contacto:</strong> ${datos.direccion.telefono}</p>
+                <p><strong>Nombre de quien recibe:</strong> ${datos.direccion.nombreRecibe}</p>
+                ${datos.direccion.mapsUrl && datos.direccion.mapsUrl !== 'No proporcionado' ? `<p><strong>Google Maps:</strong> <a href="${datos.direccion.mapsUrl}" target="_blank">Ver mapa</a></p>` : ''}
+            `;
+        }
+        
+        let infoPago = '';
+        if (datos.tipoPago === 'Transferencia') {
+            infoPago = `
+                <p><strong>Número de referencia/folio:</strong> ${datos.referencia}</p>
+                <p><strong>Comprobante:</strong> ${datos.comprobanteNombre} (Adjunto en este correo)</p>
+            `;
+        } else if (datos.tipoPago === 'Crédito') {
+            infoPago = `
+                <p><strong>Días de crédito:</strong> ${datos.diasCredito} días</p>
+                <p><strong>Saldo pendiente:</strong> ${formatoMexicano(datos.saldoPendiente)}</p>
+                <p><strong>Fecha de pago:</strong> ${datos.fechaPago.toLocaleDateString('es-MX')}</p>
+                <p style="color:#92400e;font-weight:600;">⚠️ Si no se cumple con el pago, se podrá eliminar el crédito.</p>
+            `;
+        }
+        
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset="UTF-8"></head>
+            <body style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
+                <div style="background: #0A2540; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+                    <h1 style="color: white; margin: 0;">ProConstrucción <span style="color: #F5A623;">MX</span></h1>
+                    <p style="color: #94a3b8; margin: 5px 0 0 0;">🛒 Nueva compra desde el portal web</p>
+                </div>
+                <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                    <h2 style="color: #0A2540;">🧾 ${datos.folio}</h2>
+                    <p style="color: #4a5568;"><strong>Fecha:</strong> ${datos.fecha.toLocaleString('es-MX')}</p>
+                    <p style="color: #4a5568;"><strong>Método de pago:</strong> ${datos.tipoPago}</p>
+                    
+                    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                    
+                    <h3 style="color: #0A2540;">👤 Datos del Cliente</h3>
+                    <p><strong>Nombre:</strong> ${datos.cliente.nombre}</p>
+                    <p><strong>Código:</strong> ${datos.cliente.codigo}</p>
+                    <p><strong>Correo:</strong> ${datos.cliente.correo}</p>
+                    <p><strong>Teléfono:</strong> ${datos.cliente.telefono || 'No especificado'}</p>
+                    <p><strong>Giro:</strong> ${datos.cliente.giro || 'No especificado'}</p>
+                    <p><strong>Sucursal:</strong> ${datos.sucursal}</p>
+                    <p><strong>Descuento Base:</strong> ${datos.cliente.descuento}%</p>
+                    
+                    ${htmlDireccion}
+                    
+                    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                    
+                    <h3 style="color: #0A2540;">📦 Productos</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f8f9fa;">
+                                <th style="padding: 10px; text-align:left;">Clave</th>
+                                <th style="padding: 10px; text-align:left;">Producto</th>
+                                <th style="padding: 10px; text-align:center;">Cant.</th>
+                                <th style="padding: 10px; text-align:right;">Precio</th>
+                                <th style="padding: 10px; text-align:center;">Dto.%</th>
+                                <th style="padding: 10px; text-align:right;">Importe</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${htmlProductos}
+                        </tbody>
+                    </table>
+                    
+                    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                    
+                    <div style="text-align: right;">
+                        <p><strong>Subtotal sin descuento:</strong> ${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16))}</p>
+                        <p><strong>Descuento total:</strong> -${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16) - datos.total)}</p>
+                        <p><strong>Subtotal:</strong> ${formatoMexicano(datos.subtotal)}</p>
+                        <p><strong>IVA (16%):</strong> ${formatoMexicano(datos.iva)}</p>
+                        <p style="font-size: 1.4rem; font-weight: 700; color: #0A2540;">
+                            <strong>TOTAL:</strong> ${formatoMexicano(datos.total)}
+                        </p>
+                    </div>
+                    
+                    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                    
+                    <h3 style="color: #0A2540;">💳 Información de Pago</h3>
+                    <p><strong>Método:</strong> ${datos.tipoPago}</p>
+                    ${infoPago}
+                    
+                    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                    
+                    <p style="text-align: center; color: #718096; font-size: 0.8rem;">
+                        Este es un correo automático generado por el sistema de cotización de ProConstrucción MX.<br>
+                        © ${new Date().getFullYear()} ProConstrucción MX - Todos los derechos reservados
                     </p>
                 </div>
-                
-                <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-                
-                <h3 style="color: #0A2540;">💳 Información de Pago</h3>
-                <p><strong>Método:</strong> ${datos.tipoPago}</p>
-                ${datos.tipoPago === 'Transferencia' ? `
-                    <p><strong>Referencia:</strong> ${datos.referencia || 'No especificada'}</p>
-                    <p><strong>Comprobante:</strong> ${datos.comprobanteNombre} (Adjunto en este correo)</p>
-                ` : ''}
-                ${datos.tipoPago === 'Crédito' ? `
-                    <p><strong>Días de crédito:</strong> ${datos.diasCredito}</p>
-                    <p><strong>Anticipo:</strong> ${formatoMexicano(datos.anticipo)}</p>
-                    <p><strong>Saldo pendiente:</strong> ${formatoMexicano(datos.saldoPendiente)}</p>
-                    <p><strong>Fecha de pago:</strong> ${datos.fechaPago.toLocaleDateString('es-MX')}</p>
-                ` : ''}
-                
-                <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-                
-                <p style="text-align: center; color: #718096; font-size: 0.8rem;">
-                    Este es un correo automático generado por el sistema de cotización de ProConstrucción MX.<br>
-                    © ${new Date().getFullYear()} ProConstrucción MX - Todos los derechos reservados
-                </p>
-            </div>
-        </body>
-        </html>
-    `;
-    
-    console.log('📧 Enviando correo a:', emailDestino);
-    
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            resolve({ success: true });
-        }, 500);
-    });
+            </body>
+            </html>
+        `;
+        
+        // Si hay comprobante, prepararlo para adjuntar
+        let attachmentBase64 = null;
+        if (datos.comprobante) {
+            attachmentBase64 = datos.comprobante;
+        }
+        
+        // Enviar correo con EmailJS
+        const templateParams = {
+            to_email: emailDestino,
+            from_name: datos.cliente.nombre,
+            subject: asunto,
+            message: html,
+            folio: datos.folio,
+            cliente: datos.cliente.nombre,
+            codigo: datos.cliente.codigo,
+            total: formatoMexicano(datos.total),
+            referencia: datos.referencia || 'N/A',
+            tipo_pago: datos.tipoPago
+        };
+        
+        const response = await emailjs.send(
+            EMAILJS_CONFIG.serviceID,
+            EMAILJS_CONFIG.templateID,
+            templateParams,
+            EMAILJS_CONFIG.userID
+        );
+        
+        console.log('✅ Correo enviado a ventas:', response);
+        return { success: true };
+        
+    } catch (error) {
+        console.error('❌ Error al enviar correo:', error);
+        return { success: false, error: error.toString() };
+    }
 }
 
 // ============================================
