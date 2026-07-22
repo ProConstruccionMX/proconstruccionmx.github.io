@@ -94,9 +94,9 @@ async function agregarDireccionEnSheets(direccion) {
 
 async function actualizarDireccionEnSheets(fila, datos) {
     try {
-        // ⭐ IMPORTANTE: Apps Script resta 1 automáticamente, así que enviamos fila + 1
-        const filaEnviar = fila + 1;
-        console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila original:', fila, '→ Enviando:', filaEnviar);
+        // ⭐ IMPORTANTE: Apps Script espera índice 0-based, restamos 1
+        const filaEnviar = fila - 1;
+        console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila original:', fila, '→ Enviando (0-based):', filaEnviar);
         console.log('📝 Datos:', datos);
         
         const body = {
@@ -135,9 +135,9 @@ async function actualizarDireccionEnSheets(fila, datos) {
 
 async function eliminarDireccionEnSheets(fila) {
     try {
-        // ⭐ IMPORTANTE: Apps Script resta 1 automáticamente, así que enviamos fila + 1
-        const filaEnviar = fila + 1;
-        console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila original:', fila, '→ Enviando:', filaEnviar);
+        // ⭐ IMPORTANTE: Apps Script espera índice 0-based, restamos 1
+        const filaEnviar = fila - 1;
+        console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila original:', fila, '→ Enviando (0-based):', filaEnviar);
         
         const body = {
             action: 'eliminar',
