@@ -94,12 +94,15 @@ async function agregarDireccionEnSheets(direccion) {
 
 async function actualizarDireccionEnSheets(fila, datos) {
     try {
-        console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila:', fila);
+        // ⭐ IMPORTANTE: Apps Script está restando 1 automáticamente
+        // ⭐ Para compensar, enviamos fila + 1
+        const filaEnviar = fila + 1;
+        console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         console.log('📝 Datos:', datos);
         
         const body = {
             action: 'actualizar',
-            fila: fila,
+            fila: filaEnviar,
             codigo: datos.codigo || sessionStorage.getItem('codigoCliente'),
             nombre: datos.nombre,
             calle: datos.calle,
@@ -123,7 +126,7 @@ async function actualizarDireccionEnSheets(fila, datos) {
             body: JSON.stringify(body)
         });
         
-        console.log('📝 Petición ACTUALIZAR enviada (no-cors) para fila:', fila);
+        console.log('📝 Petición ACTUALIZAR enviada (no-cors) para fila:', filaEnviar);
         return { success: true };
     } catch (error) {
         console.error('Error al actualizar dirección:', error);
@@ -133,11 +136,14 @@ async function actualizarDireccionEnSheets(fila, datos) {
 
 async function eliminarDireccionEnSheets(fila) {
     try {
-        console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila:', fila);
+        // ⭐ IMPORTANTE: Apps Script está restando 1 automáticamente
+        // ⭐ Para compensar, enviamos fila + 1
+        const filaEnviar = fila + 1;
+        console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         
         const body = {
             action: 'eliminar',
-            fila: fila
+            fila: filaEnviar
         };
         
         console.log('🗑️ Body enviado:', JSON.stringify(body));
@@ -151,7 +157,7 @@ async function eliminarDireccionEnSheets(fila) {
             body: JSON.stringify(body)
         });
         
-        console.log('🗑️ Petición ELIMINAR enviada (no-cors) para fila:', fila);
+        console.log('🗑️ Petición ELIMINAR enviada (no-cors) para fila:', filaEnviar);
         return { success: true };
     } catch (error) {
         console.error('Error al eliminar dirección:', error);
