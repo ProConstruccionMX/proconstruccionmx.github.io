@@ -470,12 +470,12 @@
             background: #475569;
         }
 
-        .direcciones-grid {
+        .direcciones-grid, .facturacion-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
             gap: 1.5rem;
         }
-        .direccion-card {
+        .direccion-card, .facturacion-card {
             background: white;
             border-radius: 16px;
             padding: 1.5rem;
@@ -483,11 +483,12 @@
             border: 1px solid #e2e8f0;
             transition: all 0.3s;
         }
-        .direccion-card:hover {
+        .direccion-card:hover, .facturacion-card:hover {
             box-shadow: 0 8px 25px rgba(0,0,0,0.08);
             border-color: var(--accent-orange);
         }
-        .direccion-card .direccion-header {
+        .direccion-card .direccion-header,
+        .facturacion-card .facturacion-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -495,16 +496,19 @@
             padding-bottom: 0.8rem;
             border-bottom: 1px solid #e2e8f0;
         }
-        .direccion-card .direccion-header h4 {
+        .direccion-card .direccion-header h4,
+        .facturacion-card .facturacion-header h4 {
             color: var(--primary-dark);
             font-size: 1.1rem;
             margin: 0;
         }
-        .direccion-card .direccion-header .direccion-actions {
+        .direccion-card .direccion-header .direccion-actions,
+        .facturacion-card .facturacion-header .facturacion-actions {
             display: flex;
             gap: 0.5rem;
         }
-        .direccion-card .direccion-header button {
+        .direccion-card .direccion-header button,
+        .facturacion-card .facturacion-header button {
             padding: 0.3rem 0.8rem;
             border: none;
             border-radius: 8px;
@@ -512,28 +516,34 @@
             transition: all 0.3s;
             font-family: 'Inter', sans-serif;
         }
-        .direccion-card .direccion-header .btn-editar {
+        .direccion-card .direccion-header .btn-editar,
+        .facturacion-card .facturacion-header .btn-editar {
             background: #dbeafe;
             color: #1e40af;
         }
-        .direccion-card .direccion-header .btn-editar:hover {
+        .direccion-card .direccion-header .btn-editar:hover,
+        .facturacion-card .facturacion-header .btn-editar:hover {
             background: #1e40af;
             color: white;
         }
-        .direccion-card .direccion-header .btn-eliminar {
+        .direccion-card .direccion-header .btn-eliminar,
+        .facturacion-card .facturacion-header .btn-eliminar {
             background: #fee2e2;
             color: #dc2626;
         }
-        .direccion-card .direccion-header .btn-eliminar:hover {
+        .direccion-card .direccion-header .btn-eliminar:hover,
+        .facturacion-card .facturacion-header .btn-eliminar:hover {
             background: #dc2626;
             color: white;
         }
-        .direccion-card .direccion-body p {
+        .direccion-card .direccion-body p,
+        .facturacion-card .facturacion-body p {
             margin: 0.3rem 0;
             font-size: 0.9rem;
             color: var(--text-gray);
         }
-        .direccion-card .direccion-body strong {
+        .direccion-card .direccion-body strong,
+        .facturacion-card .facturacion-body strong {
             color: var(--primary-dark);
         }
 
@@ -731,6 +741,31 @@
             cursor: pointer;
         }
 
+        .factura-toggle {
+            display: flex;
+            gap: 1rem;
+            margin: 0.5rem 0 1rem 0;
+        }
+        .factura-toggle button {
+            padding: 0.5rem 2rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            background: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+            flex: 1;
+        }
+        .factura-toggle button:hover {
+            border-color: var(--accent-orange);
+            background: var(--gray-light);
+        }
+        .factura-toggle button.selected {
+            border-color: var(--accent-orange);
+            background: #fef3c7;
+        }
+
         @media (max-width: 768px) {
             .dashboard-header { flex-direction: column; align-items: stretch; text-align: center; }
             .user-info { justify-content: center; flex-wrap: wrap; }
@@ -742,7 +777,7 @@
             .cart-table .cantidad-input { width: 45px; }
             .modal { padding: 1.5rem; }
             .modal .opciones-pago { flex-direction: column; }
-            .direcciones-grid { grid-template-columns: 1fr; }
+            .direcciones-grid, .facturacion-grid { grid-template-columns: 1fr; }
             .btn-mi-cuenta { font-size: 0.8rem !important; padding: 0.3rem 1rem !important; }
         }
 
@@ -783,6 +818,9 @@
                     <a href="#" onclick="abrirMisDirecciones(); return false;">
                         <i class="fas fa-address-book" style="width:20px;"></i> Mis Direcciones
                     </a>
+                    <a href="#" onclick="abrirDatosFacturacion(); return false;">
+                        <i class="fas fa-file-invoice" style="width:20px;"></i> Datos de Facturación
+                    </a>
                 </div>
             </div>
             
@@ -794,6 +832,7 @@
     <div class="dashboard-tabs">
         <button class="active" data-tab="tab-cotizar"><i class="fas fa-shopping-cart"></i> Cotizar</button>
         <button data-tab="tab-direcciones"><i class="fas fa-address-book"></i> Mis Direcciones</button>
+        <button data-tab="tab-facturacion"><i class="fas fa-file-invoice"></i> Datos de Facturación</button>
         <button data-tab="tab-compras"><i class="fas fa-history"></i> Mis Compras</button>
     </div>
 
@@ -870,7 +909,24 @@
         </div>
     </div>
 
-    <!-- ===== TAB 3: MIS COMPRAS ===== -->
+    <!-- ===== TAB 3: DATOS DE FACTURACIÓN ===== -->
+    <div id="tab-facturacion" class="tab-content">
+        <div class="welcome-section">
+            <h1>📄 Datos de Facturación</h1>
+            <p>Aquí puedes ver, editar y eliminar tus datos de facturación guardados.</p>
+        </div>
+        <div class="cart-section" id="facturacionSection">
+            <div id="facturacionContent">
+                <div class="empty-state">
+                    <i class="fas fa-file-invoice"></i>
+                    <h4>Sin datos de facturación registrados</h4>
+                    <p>Agrega tus datos de facturación desde el formulario de compra.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== TAB 4: MIS COMPRAS ===== -->
     <div id="tab-compras" class="tab-content">
         <div class="welcome-section">
             <h1>📋 Historial de Compras</h1>
@@ -1013,6 +1069,49 @@
         </div>
     </div>
 
+    <!-- ===== MODAL DE EDICIÓN DE FACTURACIÓN ===== -->
+    <div class="modal-overlay" id="modalEditarFacturacion">
+        <div class="modal">
+            <h2>✏️ Editar Datos de Facturación</h2>
+            <p class="subtitle">Actualiza los datos de facturación</p>
+
+            <input type="hidden" id="editFactIndex">
+            <input type="hidden" id="editFactFila">
+
+            <div class="form-group">
+                <label>Razón Social <span style="color:red;">*</span></label>
+                <input type="text" id="editFactRazonSocial" placeholder="Ej: ProConstrucción MX SAS DE CV">
+            </div>
+            <div class="form-group">
+                <label>RFC <span style="color:red;">*</span></label>
+                <input type="text" id="editFactRFC" placeholder="Ej: PRO2605135X4">
+            </div>
+            <div class="form-group">
+                <label>Uso de CFDI <span style="color:red;">*</span></label>
+                <input type="text" id="editFactUsoCFDI" placeholder="Ej: G03 - Gastos en general">
+            </div>
+            <div class="form-group">
+                <label>Código Postal <span style="color:red;">*</span></label>
+                <input type="text" id="editFactCP" placeholder="Ej: 03100">
+            </div>
+            <div class="form-group">
+                <label>Régimen Fiscal <span style="color:red;">*</span></label>
+                <input type="text" id="editFactRegimen" placeholder="Ej: 601 - General de Ley Personas Morales">
+            </div>
+            <div class="form-group">
+                <label>Correo <span style="color:red;">*</span></label>
+                <input type="email" id="editFactCorreo" placeholder="Ej: facturacion@empresa.com">
+            </div>
+
+            <button class="btn-enviar" onclick="guardarEdicionFacturacion()">
+                <i class="fas fa-save"></i> Guardar Cambios
+            </button>
+            <button class="btn-cerrar-modal" onclick="cerrarModalEditarFacturacion()">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+        </div>
+    </div>
+
     <!-- ===== MODAL DE PAGO ===== -->
     <div class="modal-overlay" id="modalPago">
         <div class="modal">
@@ -1037,6 +1136,33 @@
                     <p><strong>NÚMERO DE CUENTA:</strong> 0127744064</p>
                     <p><strong>CUENTA CLABE:</strong> 012180001277440643</p>
                 </div>
+                
+                <!-- ⭐ SELECCIÓN DE FACTURA ⭐ -->
+                <div class="form-group">
+                    <label>¿Deseas factura? <span style="color:red;">*</span></label>
+                    <div class="factura-toggle" id="facturaToggle">
+                        <button class="selected" onclick="seleccionarFactura('no')" id="facturaNo">No</button>
+                        <button onclick="seleccionarFactura('si')" id="facturaSi">Sí</button>
+                    </div>
+                </div>
+
+                <!-- ⭐ SELECCIÓN DE RAZÓN SOCIAL (solo si factura = Sí) ⭐ -->
+                <div id="facturaRazonSocialContainer" style="display:none;">
+                    <div class="form-group">
+                        <label>Selecciona la razón social para facturar <span style="color:red;">*</span></label>
+                        <select id="facturaRazonSocialSelect" onchange="cargarDatosFacturaSeleccionados()">
+                            <option value="">-- Selecciona una razón social --</option>
+                        </select>
+                    </div>
+                    <div id="facturaDatosPreview" style="display:none; background:var(--gray-light); padding:1rem; border-radius:12px; margin-bottom:1rem;">
+                        <p><strong>RFC:</strong> <span id="facturaPreviewRFC">---</span></p>
+                        <p><strong>Uso de CFDI:</strong> <span id="facturaPreviewUso">---</span></p>
+                        <p><strong>C.P.:</strong> <span id="facturaPreviewCP">---</span></p>
+                        <p><strong>Régimen Fiscal:</strong> <span id="facturaPreviewRegimen">---</span></p>
+                        <p><strong>Correo:</strong> <span id="facturaPreviewCorreo">---</span></p>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label>Monto a transferir: <strong id="montoTransferencia">$0.00</strong></label>
                 </div>
@@ -1125,6 +1251,30 @@
             
             if (typeof cargarDireccionesCliente === 'function') {
                 cargarDireccionesCliente();
+            }
+        }
+
+        function abrirDatosFacturacion() {
+            console.log('📄 Abriendo "Datos de Facturación"...');
+            
+            var menu = document.getElementById('menuDesplegable');
+            if (menu) menu.style.display = 'none';
+            
+            var tabs = document.querySelectorAll('.dashboard-tabs button');
+            var contents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(function(btn) { btn.classList.remove('active'); });
+            contents.forEach(function(tab) { tab.classList.remove('active'); });
+            
+            var tabFacturacion = document.querySelector('[data-tab="tab-facturacion"]');
+            if (tabFacturacion) {
+                tabFacturacion.classList.add('active');
+                var content = document.getElementById('tab-facturacion');
+                if (content) content.classList.add('active');
+            }
+            
+            if (typeof cargarFacturacionCliente === 'function') {
+                cargarFacturacionCliente();
             }
         }
 
