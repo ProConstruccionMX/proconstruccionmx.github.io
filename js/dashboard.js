@@ -26,7 +26,7 @@ const HOJA_COTIZACIONES = 'Hoja 1';
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyRT70rT0pgG6IX4vjjvX44DuPnQqF1evnkQ7Vdz4XVyaZj0j3v4Em36U5FwLBlaRRxtQ/exec';
 
-// ⭐ NUEVA URL DEL SCRIPT DE FACTURACIÓN ⭐
+// ⭐ URL DEL SCRIPT DE FACTURACIÓN ⭐
 const APPS_SCRIPT_FACTURACION_URL = 'https://script.google.com/macros/s/AKfycbz8DPOrcbwOFIh2wXWv505_TWmNQc9apM6GsjCEGQ7vamRJmU-AOidb5fL2mqRVTr3_sQ/exec';
 
 const EMAIL_VENTAS = 'ventas@proconstruccionmx.com';
@@ -116,7 +116,7 @@ async function agregarDireccionEnSheets(direccion) {
 
 async function actualizarDireccionEnSheets(fila, datos) {
     try {
-        const filaEnviar = fila;
+        const filaEnviar = fila + 1;
         console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         console.log('📝 Datos:', datos);
         
@@ -156,7 +156,7 @@ async function actualizarDireccionEnSheets(fila, datos) {
 
 async function eliminarDireccionEnSheets(fila) {
     try {
-        const filaEnviar = fila;
+        const filaEnviar = fila + 1;
         console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         
         const body = {
@@ -587,7 +587,9 @@ async function cargarFacturacionCliente() {
         
         console.log('📥 Cargando datos de facturación para cliente:', codigoCliente);
         
-        const url = `https://docs.google.com/spreadsheets/d/${ID_FACTURACION}/gviz/tq?tqx=out:json&sheet=${HOJA_FACTURACION}`;
+        // ⭐ CODIFICAR EL NOMBRE DE LA HOJA CORRECTAMENTE ⭐
+        const sheetNameEncoded = encodeURIComponent(HOJA_FACTURACION);
+        const url = `https://docs.google.com/spreadsheets/d/${ID_FACTURACION}/gviz/tq?tqx=out:json&sheet=${sheetNameEncoded}`;
         console.log('📥 URL:', url);
         
         const response = await fetch(url);
@@ -595,6 +597,7 @@ async function cargarFacturacionCliente() {
         
         console.log('📥 Respuesta recibida, longitud:', text.length);
         
+        // ⭐ Verificar si la respuesta es HTML (error de autenticación) o contiene function()
         if (text.includes('<!DOCTYPE html>') || text.includes('Sign in') || text.includes('function()')) {
             console.error('❌ El archivo de facturación no es accesible. Verifica que esté compartido públicamente.');
             facturacionCliente = [];
@@ -603,7 +606,18 @@ async function cargarFacturacionCliente() {
             return;
         }
         
-        const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
+        // ⭐ Buscar el JSON correctamente
+        const startIndex = text.indexOf('(');
+        const endIndex = text.lastIndexOf(')');
+        if (startIndex === -1 || endIndex === -1) {
+            console.error('❌ No se pudo encontrar JSON en la respuesta');
+            facturacionCliente = [];
+            renderizarFacturacion();
+            actualizarSelectorFacturacion();
+            return;
+        }
+        
+        const jsonStr = text.substring(startIndex + 1, endIndex);
         const data = JSON.parse(jsonStr);
         const rows = data.table.rows;
         
