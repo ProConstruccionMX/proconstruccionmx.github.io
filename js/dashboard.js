@@ -63,7 +63,7 @@ async function agregarDireccionEnSheets(direccion) {
     try {
         console.log('📝 Enviando a Apps Script - AGREGAR:', direccion);
         
-        const response = await fetch(APPS_SCRIPT_URL, {
+        await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: {
@@ -97,7 +97,7 @@ async function actualizarDireccionEnSheets(fila, datos) {
         console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila:', fila);
         console.log('📝 Datos:', datos);
         
-        const response = await fetch(APPS_SCRIPT_URL, {
+        await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: {
@@ -131,7 +131,7 @@ async function eliminarDireccionEnSheets(fila) {
     try {
         console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila:', fila);
         
-        const response = await fetch(APPS_SCRIPT_URL, {
+        await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: {
@@ -338,29 +338,26 @@ async function cargarDireccionesCliente() {
         
         console.log(`📊 Filas en la hoja Direcciones: ${rows.length}`);
         
-        // Mostrar el encabezado para depurar
-        if (rows.length > 0) {
-            const header = rows[0].c.map(cell => cell ? cell.v : '');
-            console.log('📊 Encabezado (Fila 1):', header);
+        // Mostrar todas las filas para depurar
+        for (let i = 0; i < rows.length; i++) {
+            const values = rows[i].c.map(cell => cell ? cell.v : '');
+            console.log(`📊 Fila ${i} (Google Sheets ${i+1}):`, values);
         }
         
         direccionesCliente = [];
         
-        // ⭐ IMPORTANTE: i=0 es la fila 1 en Google Sheets (encabezado o datos)
-        // ⭐ Si la fila 1 tiene datos (no encabezado), empezamos desde i=0
-        // ⭐ Si la fila 1 es encabezado, empezamos desde i=1
-        // ⭐ Vamos a empezar desde i=0 porque vemos que la fila 1 tiene datos del cliente
-        
+        // ⭐ IMPORTANTE: Procesamos TODAS las filas desde i=0
+        // ⭐ Porque tu fila 1 tiene datos del cliente (NO es encabezado)
         for (let i = 0; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[0] || '').trim();
             
-            // ⭐ La fila real es i + 1
+            // ⭐ La fila real es i + 1 (porque i=0 es la fila 1)
             const filaReal = i + 1;
             
-            console.log(`📊 Fila ${i} (Google Sheets ${filaReal}): Código="${codigo}"`);
+            console.log(`📊 Procesando Fila ${i} (Google Sheets ${filaReal}): Código="${codigo}"`);
             
-            // ⭐ Si el código coincide, agregamos la dirección
+            // ⭐ Si el código coincide con el cliente, agregamos la dirección
             if (codigo === codigoCliente) {
                 const nombre = String(values[1] || '').trim();
                 console.log(`✅ Dirección encontrada: "${nombre}" en fila REAL ${filaReal}`);
@@ -368,7 +365,7 @@ async function cargarDireccionesCliente() {
                 direccionesCliente.push({
                     fila: filaReal,
                     codigo: codigo,
-                    nombre: nombre,
+                    nombre: nombre || 'Sin nombre',
                     calle: String(values[2] || '').trim(),
                     colonia: String(values[3] || '').trim(),
                     alcaldia: String(values[4] || '').trim(),
