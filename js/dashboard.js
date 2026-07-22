@@ -31,8 +31,6 @@ const SUCURSAL_WEB = 'Web';
 
 const PESO_MINIMO_TONELADA = 1000;
 
-// ⭐ NO DECLARAR EMAILJS_CONFIG AQUÍ - ya está en auth.js ⭐
-
 let clienteData = null;
 let productosGlobales = [];
 let preciosEspecialesGlobales = [];
@@ -178,7 +176,6 @@ async function eliminarDireccionEnSheets(fila) {
     }
 }
 
-// ⭐ FUNCIÓN MODIFICADA - AHORA RECIBE SOLO sheetName y datos ⭐
 async function guardarFilaGoogleSheets(sheetName, datos) {
     try {
         console.log('📝 guardarFilaGoogleSheets - SheetName:', sheetName);
@@ -1199,14 +1196,27 @@ async function continuarConPago() {
     }
     
     const guardarDireccion = document.getElementById('dirGuardarCheck').checked;
-    const nombreDireccion = document.getElementById('dirGuardarNombre').value.trim();
+    let nombreDireccion = document.getElementById('dirGuardarNombre').value.trim();
     
+    // ⭐ Si el usuario seleccionó una dirección guardada, usar ese nombre
+    const select = document.getElementById('direccionSelector');
+    const index = parseInt(select.value);
+    if (!isNaN(index) && index >= 0 && index < direccionesCliente.length) {
+        nombreDireccion = direccionesCliente[index].nombre;
+    }
+    
+    // ⭐ Si no hay nombre y está guardando, pedir nombre
     if (guardarDireccion && !nombreDireccion) {
         mostrarMensajeModalDireccion('error', '⚠️ Por favor, asigna un nombre a la dirección para guardarla.');
         return;
     }
     
-    if (guardarDireccion && nombreDireccion) {
+    // ⭐ Si no hay nombre y no está guardando, usar "Sin nombre"
+    if (!nombreDireccion) {
+        nombreDireccion = 'Sin nombre';
+    }
+    
+    if (guardarDireccion && nombreDireccion && nombreDireccion !== 'Sin nombre') {
         const guardado = await guardarNuevaDireccion({
             nombre: nombreDireccion,
             calle: calle,
@@ -1234,7 +1244,7 @@ async function continuarConPago() {
         mapsUrl: mapsUrl,
         telefono: telefono,
         nombreRecibe: nombreRecibe,
-        nombreDireccion: guardarDireccion ? nombreDireccion : 'Sin nombre'
+        nombreDireccion: nombreDireccion
     };
     
     cerrarModalDireccion();
@@ -1503,6 +1513,17 @@ async function guardarVentaEnEstadisticas(datos) {
     try {
         console.log('📊 Guardando venta en estadísticas...');
         
+        // ⭐ Formato de fecha: 16/7/2026 10:54:20
+        const fechaFormateada = datos.fecha.toLocaleString('es-MX', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+        
         // 1. Guardar en HOJA_EST_PRODUCTOS
         for (const producto of datos.productos) {
             let precioCompra = 0;
@@ -1524,7 +1545,7 @@ async function guardarVentaEnEstadisticas(datos) {
             }
             
             const filaProducto = [
-                datos.fecha.toISOString().split('T')[0],
+                fechaFormateada,  // A: Fecha con formato correcto
                 datos.folio,
                 producto.nombre,
                 producto.cantidad,
@@ -1543,26 +1564,28 @@ async function guardarVentaEnEstadisticas(datos) {
         
         // 2. Guardar en HOJA_EST_CLIENTES
         const facturaTexto = 'NO';
-        const formaPago = datos.tipoPago.toUpperCase();
+        // ⭐ J: Forma Pago - "Transferencia bancaria" en lugar de "TRANSFERENCIA"
+        const formaPago = datos.tipoPago === 'Transferencia' ? 'Transferencia bancaria' : datos.tipoPago.toUpperCase();
         const tipoPago = datos.tipoPago === 'Crédito' ? 'Pago diferido en parcialidades' : 'Pago en una sola exhibición';
         const estadoPago = datos.tipoPago === 'Transferencia' ? 'Validando' : 'Pendiente';
+        // ⭐ N: Nombre de la dirección
         const nombreDireccion = datos.nombreDireccion || 'Sin nombre';
         
         const filaCliente = [
-            datos.fecha.toISOString().split('T')[0],  // A: Fecha
-            datos.folio,                               // B: Folio
-            datos.cliente.codigo,                      // C: Código Cliente
-            datos.cliente.nombre,                      // D: Nombre Cliente
-            datos.total.toFixed(2),                    // E: Monto
-            datos.tipoPago === 'Crédito' ? datos.saldoPendiente.toFixed(2) : '0.00', // F: Crédito Pendiente
-            '0.00',                                    // G: Crédito Liquidado
-            facturaTexto,                              // H: Factura
-            datos.sucursal,                            // I: Sucursal
-            formaPago,                                 // J: Forma Pago
-            tipoPago,                                  // K: Tipo Pago
-            '',                                        // L: (vacío)
-            estadoPago,                                // M: Estado Pago (Validando para transferencia)
-            nombreDireccion                            // N: Nombre de la dirección
+            fechaFormateada,  // A: Fecha con formato correcto
+            datos.folio,
+            datos.cliente.codigo,
+            datos.cliente.nombre,
+            datos.total.toFixed(2),
+            datos.tipoPago === 'Crédito' ? datos.saldoPendiente.toFixed(2) : '0.00',
+            '0.00',
+            facturaTexto,
+            datos.sucursal,
+            formaPago,  // J: "Transferencia bancaria"
+            tipoPago,
+            '',
+            estadoPago,
+            nombreDireccion  // N: Nombre de la dirección
         ];
         
         await guardarFilaGoogleSheets(HOJA_EST_CLIENTES, filaCliente);
@@ -1579,19 +1602,19 @@ async function enviarCorreoVentaWeb(datos) {
     try {
         console.log('📧 Enviando correo a ventas@proconstruccionmx.com...');
         
-        const emailDestino = EMAIL_VENTAS;
+        const emailDestino = 'ventas@proconstruccionmx.com';
         const asunto = `🛒 NUEVA COMPRA WEB - ${datos.folio} - ${datos.cliente.nombre}`;
         
         let htmlProductos = '';
         datos.productos.forEach(p => {
             htmlProductos += `
                 <tr>
-                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${p.clave}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${p.nombre}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align:center;">${p.cantidad}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align:right;">${formatoMexicano(p.precio)}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align:center;">${p.descuento}%</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align:right;">${formatoMexicano(p.importe)}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;">${p.clave}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;">${p.nombre}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:center;">${p.cantidad}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:right;">${formatoMexicano(p.precio)}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:center;">${p.descuento}%</td>
+                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:right;">${formatoMexicano(p.importe)}</td>
                 </tr>
             `;
         });
@@ -1599,25 +1622,25 @@ async function enviarCorreoVentaWeb(datos) {
         let htmlDireccion = '';
         if (datos.direccion) {
             htmlDireccion = `
-                <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-                <h3 style="color: #0A2540;">📦 Dirección de Envío</h3>
-                <p><strong>Nombre de la dirección:</strong> ${datos.nombreDireccion || 'Sin nombre'}</p>
-                <p><strong>Calle y número:</strong> ${datos.direccion.calle}</p>
+                <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
+                <h3 style="color:#0A2540;">📦 Dirección de Envío</h3>
+                <p><strong>Nombre:</strong> ${datos.nombreDireccion || 'Sin nombre'}</p>
+                <p><strong>Calle:</strong> ${datos.direccion.calle}</p>
                 <p><strong>Colonia:</strong> ${datos.direccion.colonia}</p>
-                <p><strong>Alcaldía/Municipio:</strong> ${datos.direccion.alcaldia}</p>
+                <p><strong>Alcaldía:</strong> ${datos.direccion.alcaldia}</p>
                 <p><strong>Estado:</strong> ${datos.direccion.estado}</p>
-                <p><strong>Código Postal:</strong> ${datos.direccion.cp}</p>
-                <p><strong>Teléfono de contacto:</strong> ${datos.direccion.telefono}</p>
-                <p><strong>Nombre de quien recibe:</strong> ${datos.direccion.nombreRecibe}</p>
-                ${datos.direccion.mapsUrl && datos.direccion.mapsUrl !== 'No proporcionado' ? `<p><strong>Google Maps:</strong> <a href="${datos.direccion.mapsUrl}" target="_blank">Ver mapa</a></p>` : ''}
+                <p><strong>CP:</strong> ${datos.direccion.cp}</p>
+                <p><strong>Teléfono:</strong> ${datos.direccion.telefono}</p>
+                <p><strong>Recibe:</strong> ${datos.direccion.nombreRecibe}</p>
+                ${datos.direccion.mapsUrl ? `<p><strong>Google Maps:</strong> <a href="${datos.direccion.mapsUrl}" target="_blank">Ver mapa</a></p>` : ''}
             `;
         }
         
         let infoPago = '';
         if (datos.tipoPago === 'Transferencia') {
             infoPago = `
-                <p><strong>Número de referencia/folio:</strong> ${datos.referencia}</p>
-                <p><strong>Comprobante:</strong> ${datos.comprobanteNombre} (Adjunto en este correo)</p>
+                <p><strong>Referencia:</strong> ${datos.referencia}</p>
+                <p><strong>Comprobante:</strong> ${datos.comprobanteNombre}</p>
             `;
         } else if (datos.tipoPago === 'Crédito') {
             infoPago = `
@@ -1632,70 +1655,64 @@ async function enviarCorreoVentaWeb(datos) {
             <!DOCTYPE html>
             <html>
             <head><meta charset="UTF-8"></head>
-            <body style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
-                <div style="background: #0A2540; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
-                    <h1 style="color: white; margin: 0;">ProConstrucción <span style="color: #F5A623;">MX</span></h1>
-                    <p style="color: #94a3b8; margin: 5px 0 0 0;">🛒 Nueva compra desde el portal web</p>
+            <body style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;">
+                <div style="background:#0A2540;padding:20px;text-align:center;border-radius:10px 10px 0 0;">
+                    <h1 style="color:white;margin:0;">ProConstrucción <span style="color:#F5A623;">MX</span></h1>
+                    <p style="color:#94a3b8;margin:5px 0 0 0;">🛒 Nueva compra desde el portal web</p>
                 </div>
-                <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
-                    <h2 style="color: #0A2540;">🧾 ${datos.folio}</h2>
-                    <p style="color: #4a5568;"><strong>Fecha:</strong> ${datos.fecha.toLocaleString('es-MX')}</p>
-                    <p style="color: #4a5568;"><strong>Método de pago:</strong> ${datos.tipoPago}</p>
+                <div style="background:white;padding:30px;border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+                    <h2 style="color:#0A2540;">🧾 ${datos.folio}</h2>
+                    <p><strong>Fecha:</strong> ${datos.fecha.toLocaleString('es-MX')}</p>
+                    <p><strong>Método de pago:</strong> ${datos.tipoPago}</p>
                     
-                    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                    <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
                     
-                    <h3 style="color: #0A2540;">👤 Datos del Cliente</h3>
+                    <h3 style="color:#0A2540;">👤 Datos del Cliente</h3>
                     <p><strong>Nombre:</strong> ${datos.cliente.nombre}</p>
                     <p><strong>Código:</strong> ${datos.cliente.codigo}</p>
                     <p><strong>Correo:</strong> ${datos.cliente.correo}</p>
                     <p><strong>Teléfono:</strong> ${datos.cliente.telefono || 'No especificado'}</p>
                     <p><strong>Giro:</strong> ${datos.cliente.giro || 'No especificado'}</p>
-                    <p><strong>Sucursal:</strong> ${datos.sucursal}</p>
                     <p><strong>Descuento Base:</strong> ${datos.cliente.descuento}%</p>
                     
                     ${htmlDireccion}
                     
-                    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                    <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
                     
-                    <h3 style="color: #0A2540;">📦 Productos</h3>
-                    <table style="width: 100%; border-collapse: collapse;">
+                    <h3 style="color:#0A2540;">📦 Productos</h3>
+                    <table style="width:100%;border-collapse:collapse;">
                         <thead>
-                            <tr style="background: #f8f9fa;">
-                                <th style="padding: 10px; text-align:left;">Clave</th>
-                                <th style="padding: 10px; text-align:left;">Producto</th>
-                                <th style="padding: 10px; text-align:center;">Cant.</th>
-                                <th style="padding: 10px; text-align:right;">Precio</th>
-                                <th style="padding: 10px; text-align:center;">Dto.%</th>
-                                <th style="padding: 10px; text-align:right;">Importe</th>
+                            <tr style="background:#f8f9fa;">
+                                <th style="padding:10px;text-align:left;">Clave</th>
+                                <th style="padding:10px;text-align:left;">Producto</th>
+                                <th style="padding:10px;text-align:center;">Cant.</th>
+                                <th style="padding:10px;text-align:right;">Precio</th>
+                                <th style="padding:10px;text-align:center;">Dto.%</th>
+                                <th style="padding:10px;text-align:right;">Importe</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            ${htmlProductos}
-                        </tbody>
+                        <tbody>${htmlProductos}</tbody>
                     </table>
                     
-                    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                    <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
                     
-                    <div style="text-align: right;">
+                    <div style="text-align:right;">
                         <p><strong>Subtotal sin descuento:</strong> ${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16))}</p>
                         <p><strong>Descuento total:</strong> -${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16) - datos.total)}</p>
                         <p><strong>Subtotal:</strong> ${formatoMexicano(datos.subtotal)}</p>
                         <p><strong>IVA (16%):</strong> ${formatoMexicano(datos.iva)}</p>
-                        <p style="font-size: 1.4rem; font-weight: 700; color: #0A2540;">
-                            <strong>TOTAL:</strong> ${formatoMexicano(datos.total)}
-                        </p>
+                        <p style="font-size:1.4rem;font-weight:700;color:#0A2540;"><strong>TOTAL:</strong> ${formatoMexicano(datos.total)}</p>
                     </div>
                     
-                    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                    <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
                     
-                    <h3 style="color: #0A2540;">💳 Información de Pago</h3>
-                    <p><strong>Método:</strong> ${datos.tipoPago}</p>
+                    <h3 style="color:#0A2540;">💳 Información de Pago</h3>
                     ${infoPago}
                     
-                    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                    <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
                     
-                    <p style="text-align: center; color: #718096; font-size: 0.8rem;">
-                        Este es un correo automático generado por el sistema de cotización de ProConstrucción MX.<br>
+                    <p style="text-align:center;color:#718096;font-size:0.8rem;">
+                        Este es un correo automático generado por el sistema de ProConstrucción MX.<br>
                         © ${new Date().getFullYear()} ProConstrucción MX - Todos los derechos reservados
                     </p>
                 </div>
@@ -1703,13 +1720,6 @@ async function enviarCorreoVentaWeb(datos) {
             </html>
         `;
         
-        // Si hay comprobante, prepararlo para adjuntar
-        let attachmentBase64 = null;
-        if (datos.comprobante) {
-            attachmentBase64 = datos.comprobante;
-        }
-        
-        // Enviar correo con EmailJS
         const templateParams = {
             to_email: emailDestino,
             from_name: datos.cliente.nombre,
@@ -1723,7 +1733,12 @@ async function enviarCorreoVentaWeb(datos) {
             tipo_pago: datos.tipoPago
         };
         
-        // ⭐ Usamos EmailJS directamente con las credenciales de auth.js ⭐
+        // ⭐ Verificar que emailjs esté disponible
+        if (typeof emailjs === 'undefined') {
+            console.error('❌ emailjs no está definido. Asegúrate de que el script de EmailJS esté cargado.');
+            return { success: false, error: 'emailjs no disponible' };
+        }
+        
         const response = await emailjs.send(
             'service_o2zvkzo',
             'template_usum2d8',
