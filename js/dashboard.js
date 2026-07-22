@@ -8,8 +8,8 @@ const ID_BASE_CLIENTES = '1yCQ-cJJ7PALDYSwIcpsj1ZfACtNLJwfOR7HY-mPzgx4';
 const HOJA_BASE_CLIENTES = 'Hoja 1';
 const HOJA_DIRECCIONES = 'Direcciones';
 
-const ID_FACTURACION = '1yCQ-cJJ7PALDYSwIcpsj1ZfACtNLJwfOR7HY-mPzgx4';
-const HOJA_FACTURACION = 'Clientes facturacion';
+const ID_FACTURACION = '1S2cXNfBFHnVJrz0y0FmFIVEXva1aHVJp8h4NYgitz2c';
+const HOJA_FACTURACION = 'Hoja 1';
 
 const ID_ESTADISTICAS = '1jCvEvZ2aBF2nRhE_Jsw_S_8yDFYZgaWwIUNu9pNNKGc';
 const HOJA_EST_PRODUCTOS = 'Productos';
@@ -24,7 +24,11 @@ const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
 const ID_COTIZACIONES = '1S4qoHh3lTDoSUwDNeilmN6QKk8uhmvxjwvRQpEHQbS0';
 const HOJA_COTIZACIONES = 'Hoja 1';
 
+// ⭐ URL DE APPS SCRIPT - ESTADÍSTICAS ⭐
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyRT70rT0pgG6IX4vjjvX44DuPnQqF1evnkQ7Vdz4XVyaZj0j3v4Em36U5FwLBlaRRxtQ/exec';
+
+// ⭐ NUEVA URL DEL SCRIPT DE FACTURACIÓN ⭐
+const APPS_SCRIPT_FACTURACION_URL = 'https://script.google.com/macros/s/AKfycbxAo0S2mkNZ_rq-5bxRINLOeXWTOxIJMitCTXX5ol_fxwlYK0rmmhr2b1_V4WA65wnA-w/exec';
 
 const EMAIL_VENTAS = 'ventas@proconstruccionmx.com';
 const DIAS_CREDITO_FIJO = 20;
@@ -205,6 +209,72 @@ async function guardarFilaGoogleSheets(sheetName, datos) {
         return { success: true };
     } catch (error) {
         console.error('Error al guardar fila:', error);
+        return { success: false, error: error.toString() };
+    }
+}
+
+async function actualizarFacturacionEnSheets(fila, datos) {
+    try {
+        const filaEnviar = fila;
+        console.log('📝 actualizarFacturacionEnSheets - Fila original:', fila, '→ Enviando:', filaEnviar);
+        
+        const body = {
+            action: 'actualizarFacturacion',
+            fila: filaEnviar,
+            codigo: datos.codigo || sessionStorage.getItem('codigoCliente'),
+            nombre: datos.nombre,
+            razonSocial: datos.razonSocial,
+            rfc: datos.rfc,
+            usoCFDI: datos.usoCFDI,
+            cp: datos.cp,
+            regimen: datos.regimen,
+            correo: datos.correo
+        };
+        
+        console.log('📝 Body enviado:', JSON.stringify(body));
+        
+        await fetch(APPS_SCRIPT_FACTURACION_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body)
+        });
+        
+        console.log('📝 Petición ACTUALIZAR FACTURACIÓN enviada (no-cors) para fila:', filaEnviar);
+        return { success: true };
+    } catch (error) {
+        console.error('Error al actualizar facturación:', error);
+        return { success: false, error: error.toString() };
+    }
+}
+
+async function eliminarFacturacionEnSheets(fila) {
+    try {
+        const filaEnviar = fila;
+        console.log('🗑️ eliminarFacturacionEnSheets - Fila original:', fila, '→ Enviando:', filaEnviar);
+        
+        const body = {
+            action: 'eliminarFacturacion',
+            fila: filaEnviar
+        };
+        
+        console.log('🗑️ Body enviado:', JSON.stringify(body));
+        
+        await fetch(APPS_SCRIPT_FACTURACION_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body)
+        });
+        
+        console.log('🗑️ Petición ELIMINAR FACTURACIÓN enviada (no-cors) para fila:', filaEnviar);
+        return { success: true };
+    } catch (error) {
+        console.error('Error al eliminar facturación:', error);
         return { success: false, error: error.toString() };
     }
 }
@@ -533,19 +603,12 @@ async function cargarFacturacionCliente() {
         
         console.log(`📊 Filas en la hoja Facturación: ${rows.length}`);
         
-        for (let i = 0; i < rows.length; i++) {
-            const values = rows[i].c.map(cell => cell ? cell.v : '');
-            console.log(`📊 Fila ${i} (Google Sheets ${i+1}):`, values);
-        }
-        
         facturacionCliente = [];
         
         for (let i = 0; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[0] || '').trim();
             const filaReal = i + 1;
-            
-            console.log(`📊 Procesando Fila ${i} (Google Sheets ${filaReal}): Código="${codigo}"`);
             
             if (codigo === codigoCliente) {
                 const nombre = String(values[1] || '').trim();
@@ -755,44 +818,6 @@ async function guardarEdicionFacturacion() {
     }
 }
 
-async function actualizarFacturacionEnSheets(fila, datos) {
-    try {
-        const filaEnviar = fila + 1;
-        console.log('📝 Enviando a Apps Script - ACTUALIZAR FACTURACIÓN - Fila original:', fila, '→ Enviando:', filaEnviar);
-        console.log('📝 Datos:', datos);
-        
-        const body = {
-            action: 'actualizarFacturacion',
-            fila: filaEnviar,
-            codigo: datos.codigo || sessionStorage.getItem('codigoCliente'),
-            nombre: datos.nombre,
-            razonSocial: datos.razonSocial,
-            rfc: datos.rfc,
-            usoCFDI: datos.usoCFDI,
-            cp: datos.cp,
-            regimen: datos.regimen,
-            correo: datos.correo
-        };
-        
-        console.log('📝 Body enviado:', JSON.stringify(body));
-        
-        await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(body)
-        });
-        
-        console.log('📝 Petición ACTUALIZAR FACTURACIÓN enviada (no-cors) para fila:', filaEnviar);
-        return { success: true };
-    } catch (error) {
-        console.error('Error al actualizar facturación:', error);
-        return { success: false, error: error.toString() };
-    }
-}
-
 async function eliminarFacturacion(index) {
     const fact = facturacionCliente[index];
     if (!fact) {
@@ -803,23 +828,11 @@ async function eliminarFacturacion(index) {
     console.log('🗑️ ELIMINANDO FACTURACIÓN - Nombre:', fact.nombre);
     console.log('🗑️ ELIMINANDO FACTURACIÓN - Fila REAL:', fact.fila);
     
-    if (!confirm(`¿Seguro que quieres eliminar los datos de facturación "${fact.nombre}" (Fila ${fact.fila})?`)) return;
+    if (!confirm(`¿Seguro que quieres eliminar los datos de facturación de "${fact.nombre}"?`)) return;
     
     try {
-        const filaEnviar = fact.fila + 1;
-        const body = {
-            action: 'eliminarFacturacion',
-            fila: filaEnviar
-        };
-        
-        await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(body)
-        });
+        const resultado = await eliminarFacturacionEnSheets(fact.fila);
+        console.log('🗑️ Resultado de Apps Script (simulado):', resultado);
         
         facturacionCliente.splice(index, 1);
         renderizarFacturacion();
@@ -1605,7 +1618,6 @@ function abrirModalPago() {
     document.getElementById('montoTransferencia').textContent = formatoMexicano(total);
     document.getElementById('totalCredito').textContent = formatoMexicano(total);
     
-    // Resetear selección de factura
     requiereFactura = false;
     document.getElementById('facturaNo').classList.add('selected');
     document.getElementById('facturaSi').classList.remove('selected');
@@ -1676,7 +1688,6 @@ function generarPDFComprobante(datos) {
     try {
         console.log('📄 Generando PDF del comprobante...');
         
-        // Crear contenido HTML para el PDF
         let htmlProductos = '';
         datos.productos.forEach(p => {
             htmlProductos += `
@@ -1708,16 +1719,16 @@ function generarPDFComprobante(datos) {
         }
         
         let htmlFactura = '';
-        if (requiereFactura && datosFacturaSeleccionados) {
+        if (datos.requiereFactura && datos.datosFactura) {
             htmlFactura = `
                 <div style="margin-bottom: 20px; background: #f0f7ff; padding: 15px; border-radius: 8px; border-left: 4px solid #1a4d8c;">
                     <h3 style="color: #0A2540; margin-bottom: 10px;">📄 Datos de Facturación</h3>
-                    <p><strong>Razón Social:</strong> ${datosFacturaSeleccionados.razonSocial}</p>
-                    <p><strong>RFC:</strong> ${datosFacturaSeleccionados.rfc}</p>
-                    <p><strong>Uso de CFDI:</strong> ${datosFacturaSeleccionados.usoCFDI}</p>
-                    <p><strong>C.P.:</strong> ${datosFacturaSeleccionados.cp}</p>
-                    <p><strong>Régimen Fiscal:</strong> ${datosFacturaSeleccionados.regimen}</p>
-                    <p><strong>Correo:</strong> ${datosFacturaSeleccionados.correo}</p>
+                    <p><strong>Razón Social:</strong> ${datos.datosFactura.razonSocial}</p>
+                    <p><strong>RFC:</strong> ${datos.datosFactura.rfc}</p>
+                    <p><strong>Uso de CFDI:</strong> ${datos.datosFactura.usoCFDI}</p>
+                    <p><strong>C.P.:</strong> ${datos.datosFactura.cp}</p>
+                    <p><strong>Régimen Fiscal:</strong> ${datos.datosFactura.regimen}</p>
+                    <p><strong>Correo:</strong> ${datos.datosFactura.correo}</p>
                 </div>
             `;
         }
@@ -1819,20 +1830,16 @@ function generarPDFComprobante(datos) {
             </html>
         `;
         
-        // Crear un blob con el HTML
         const blob = new Blob([html], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
         
-        // Abrir en una nueva ventana para imprimir/descargar como PDF
         const ventana = window.open(url, '_blank');
         if (ventana) {
             ventana.focus();
-            // Después de un momento, imprimir para guardar como PDF
             setTimeout(() => {
                 ventana.print();
             }, 1000);
         } else {
-            // Si el popup fue bloqueado, descargar como HTML
             const link = document.createElement('a');
             link.href = url;
             link.download = `Comprobante_${datos.folio}.html`;
@@ -1872,7 +1879,6 @@ async function procesarPagoTransferencia() {
         return;
     }
     
-    // ⭐ Validar que si requiere factura, haya seleccionado una razón social
     if (requiereFactura && !datosFacturaSeleccionados) {
         mostrarMensajeModal('error', '⚠️ Por favor, selecciona una razón social para facturar.');
         return;
@@ -1915,13 +1921,9 @@ async function procesarPagoTransferencia() {
             datosFactura: datosFacturaSeleccionados
         };
         
-        // ⭐ Guardar en estadísticas
         await guardarVentaEnEstadisticas(datosVenta);
-        
-        // ⭐ Enviar correo a ventas
         await enviarCorreoVentaWeb(datosVenta);
         
-        // ⭐ Generar PDF del comprobante
         generarPDFComprobante(datosVenta);
         
         mostrarMensajeModal('exito', `
@@ -2004,7 +2006,6 @@ async function procesarPagoCredito() {
         await guardarVentaEnEstadisticas(datosVenta);
         await enviarCorreoVentaWeb(datosVenta);
         
-        // ⭐ Generar PDF del comprobante
         generarPDFComprobante(datosVenta);
         
         mostrarMensajeModal('exito', `
@@ -2038,7 +2039,7 @@ async function procesarPagoCredito() {
 }
 
 // ============================================
-// ⭐ NUEVAS FUNCIONES PARA VENTAS WEB ⭐
+// FUNCIONES PARA GUARDAR EN ESTADÍSTICAS
 // ============================================
 
 async function guardarVentaEnEstadisticas(datos) {
@@ -2124,6 +2125,10 @@ async function guardarVentaEnEstadisticas(datos) {
         throw error;
     }
 }
+
+// ============================================
+// FUNCIÓN PARA ENVIAR CORREO A VENTAS
+// ============================================
 
 async function enviarCorreoVentaWeb(datos) {
     try {
@@ -2274,6 +2279,8 @@ async function enviarCorreoVentaWeb(datos) {
             tipo_pago: datos.tipoPago,
             factura: datos.requiereFactura ? 'SÍ' : 'NO'
         };
+        
+        console.log('📧 TemplateParams enviados:', templateParams);
         
         if (typeof emailjs === 'undefined') {
             console.error('❌ emailjs no está definido.');
