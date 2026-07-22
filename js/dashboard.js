@@ -24,19 +24,12 @@ const HOJA_COTIZACIONES = 'Hoja 1';
 // ⭐ NUEVA URL DEL SCRIPT EN EL ARCHIVO DE ESTADÍSTICAS ⭐
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyRT70rT0pgG6IX4vjjvX44DuPnQqF1evnkQ7Vdz4XVyaZj0j3v4Em36U5FwLBlaRRxtQ/exec';
 
-// ⭐ CONFIGURACIÓN DE VENTAS WEB ⭐
+// ⭐ NUEVAS CONSTANTES PARA VENTAS WEB ⭐
 const EMAIL_VENTAS = 'ventas@proconstruccionmx.com';
 const DIAS_CREDITO_FIJO = 20;
 const SUCURSAL_WEB = 'Web';
 
 const PESO_MINIMO_TONELADA = 1000;
-
-// ⭐ Configuración de EmailJS ⭐
-const EMAILJS_CONFIG = {
-    serviceID: 'service_o2zvkzo',
-    templateID: 'template_usum2d8',
-    userID: '_gOxtGSQmrhTdoRuX'
-};
 
 let clienteData = null;
 let productosGlobales = [];
@@ -183,6 +176,7 @@ async function eliminarDireccionEnSheets(fila) {
     }
 }
 
+// ⭐ FUNCIÓN MODIFICADA - AHORA RECIBE SOLO sheetName y datos ⭐
 async function guardarFilaGoogleSheets(sheetName, datos) {
     try {
         console.log('📝 guardarFilaGoogleSheets - SheetName:', sheetName);
@@ -1325,7 +1319,7 @@ function calcularTotal() {
 }
 
 // ============================================
-// PROCESAMIENTO DE PAGOS
+// PROCESAMIENTO DE PAGOS - MODIFICADOS
 // ============================================
 
 async function procesarPagoTransferencia() {
@@ -1500,7 +1494,7 @@ async function procesarPagoCredito() {
 }
 
 // ============================================
-// FUNCIONES PARA GUARDAR EN ESTADÍSTICAS
+// ⭐ NUEVAS FUNCIONES PARA VENTAS WEB ⭐
 // ============================================
 
 async function guardarVentaEnEstadisticas(datos) {
@@ -1578,10 +1572,6 @@ async function guardarVentaEnEstadisticas(datos) {
         throw error;
     }
 }
-
-// ============================================
-// FUNCIÓN PARA ENVIAR CORREO A VENTAS
-// ============================================
 
 async function enviarCorreoVentaWeb(datos) {
     try {
@@ -1711,13 +1701,6 @@ async function enviarCorreoVentaWeb(datos) {
             </html>
         `;
         
-        // Si hay comprobante, prepararlo para adjuntar
-        let attachmentBase64 = null;
-        if (datos.comprobante) {
-            attachmentBase64 = datos.comprobante;
-        }
-        
-        // Enviar correo con EmailJS
         const templateParams = {
             to_email: emailDestino,
             from_name: datos.cliente.nombre,
@@ -1731,11 +1714,12 @@ async function enviarCorreoVentaWeb(datos) {
             tipo_pago: datos.tipoPago
         };
         
+        // ⭐ Usamos las credenciales de EmailJS desde auth.js
         const response = await emailjs.send(
-            EMAILJS_CONFIG.serviceID,
-            EMAILJS_CONFIG.templateID,
+            'service_o2zvkzo',
+            'template_usum2d8',
             templateParams,
-            EMAILJS_CONFIG.userID
+            '_gOxtGSQmrhTdoRuX'
         );
         
         console.log('✅ Correo enviado a ventas:', response);
