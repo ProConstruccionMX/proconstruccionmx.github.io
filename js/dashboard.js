@@ -31,6 +31,8 @@ const SUCURSAL_WEB = 'Web';
 
 const PESO_MINIMO_TONELADA = 1000;
 
+// ⭐ NO DECLARAR EMAILJS_CONFIG AQUÍ - ya está en auth.js ⭐
+
 let clienteData = null;
 let productosGlobales = [];
 let preciosEspecialesGlobales = [];
@@ -1319,7 +1321,7 @@ function calcularTotal() {
 }
 
 // ============================================
-// PROCESAMIENTO DE PAGOS - MODIFICADOS
+// PROCESAMIENTO DE PAGOS
 // ============================================
 
 async function procesarPagoTransferencia() {
@@ -1701,6 +1703,13 @@ async function enviarCorreoVentaWeb(datos) {
             </html>
         `;
         
+        // Si hay comprobante, prepararlo para adjuntar
+        let attachmentBase64 = null;
+        if (datos.comprobante) {
+            attachmentBase64 = datos.comprobante;
+        }
+        
+        // Enviar correo con EmailJS
         const templateParams = {
             to_email: emailDestino,
             from_name: datos.cliente.nombre,
@@ -1714,7 +1723,7 @@ async function enviarCorreoVentaWeb(datos) {
             tipo_pago: datos.tipoPago
         };
         
-        // ⭐ Usamos las credenciales de EmailJS desde auth.js
+        // ⭐ Usamos EmailJS directamente con las credenciales de auth.js ⭐
         const response = await emailjs.send(
             'service_o2zvkzo',
             'template_usum2d8',
