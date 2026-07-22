@@ -8,6 +8,9 @@ const ID_BASE_CLIENTES = '1yCQ-cJJ7PALDYSwIcpsj1ZfACtNLJwfOR7HY-mPzgx4';
 const HOJA_BASE_CLIENTES = 'Hoja 1';
 const HOJA_DIRECCIONES = 'Direcciones';
 
+const ID_FACTURACION = '1yCQ-cJJ7PALDYSwIcpsj1ZfACtNLJwfOR7HY-mPzgx4';
+const HOJA_FACTURACION = 'Clientes facturacion';
+
 const ID_ESTADISTICAS = '1jCvEvZ2aBF2nRhE_Jsw_S_8yDFYZgaWwIUNu9pNNKGc';
 const HOJA_EST_PRODUCTOS = 'Productos';
 const HOJA_EST_CLIENTES = 'Clientes';
@@ -21,10 +24,8 @@ const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
 const ID_COTIZACIONES = '1S4qoHh3lTDoSUwDNeilmN6QKk8uhmvxjwvRQpEHQbS0';
 const HOJA_COTIZACIONES = 'Hoja 1';
 
-// ⭐ NUEVA URL DEL SCRIPT EN EL ARCHIVO DE ESTADÍSTICAS ⭐
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyRT70rT0pgG6IX4vjjvX44DuPnQqF1evnkQ7Vdz4XVyaZj0j3v4Em36U5FwLBlaRRxtQ/exec';
 
-// ⭐ NUEVAS CONSTANTES PARA VENTAS WEB ⭐
 const EMAIL_VENTAS = 'ventas@proconstruccionmx.com';
 const DIAS_CREDITO_FIJO = 20;
 const SUCURSAL_WEB = 'Web';
@@ -40,7 +41,10 @@ let comprobanteBase64 = null;
 let comprobanteNombre = null;
 let comprobanteTipo = null;
 let direccionesCliente = [];
+let facturacionCliente = [];
 let direccionSeleccionadaId = null;
+let requiereFactura = false;
+let datosFacturaSeleccionados = null;
 
 // ============================================
 // INICIALIZACIÓN
@@ -60,6 +64,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     await cargarProductos();
     await cargarPreciosEspeciales();
     await cargarDireccionesCliente();
+    await cargarFacturacionCliente();
     
     configurarTabs();
     
@@ -498,6 +503,335 @@ function actualizarSelectorDirecciones() {
         select.appendChild(option);
     });
     select.value = '';
+}
+
+// ============================================
+// ⭐ FUNCIONES DE FACTURACIÓN ⭐
+// ============================================
+
+async function cargarFacturacionCliente() {
+    try {
+        const codigoCliente = sessionStorage.getItem('codigoCliente');
+        if (!codigoCliente) {
+            console.warn('⚠️ No hay código de cliente disponible');
+            return;
+        }
+        
+        console.log('📥 Cargando datos de facturación para cliente:', codigoCliente);
+        
+        const url = `https://docs.google.com/spreadsheets/d/${ID_FACTURACION}/gviz/tq?tqx=out:json&sheet=${HOJA_FACTURACION}`;
+        console.log('📥 URL:', url);
+        
+        const response = await fetch(url);
+        const text = await response.text();
+        
+        console.log('📥 Respuesta recibida, longitud:', text.length);
+        
+        const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
+        const data = JSON.parse(jsonStr);
+        const rows = data.table.rows;
+        
+        console.log(`📊 Filas en la hoja Facturación: ${rows.length}`);
+        
+        for (let i = 0; i < rows.length; i++) {
+            const values = rows[i].c.map(cell => cell ? cell.v : '');
+            console.log(`📊 Fila ${i} (Google Sheets ${i+1}):`, values);
+        }
+        
+        facturacionCliente = [];
+        
+        for (let i = 0; i < rows.length; i++) {
+            const values = rows[i].c.map(cell => cell ? cell.v : '');
+            const codigo = String(values[0] || '').trim();
+            const filaReal = i + 1;
+            
+            console.log(`📊 Procesando Fila ${i} (Google Sheets ${filaReal}): Código="${codigo}"`);
+            
+            if (codigo === codigoCliente) {
+                const nombre = String(values[1] || '').trim();
+                console.log(`✅ Facturación encontrada: "${nombre}" en fila REAL ${filaReal}`);
+                
+                facturacionCliente.push({
+                    fila: filaReal,
+                    codigo: codigo,
+                    nombre: nombre || 'Sin nombre',
+                    razonSocial: String(values[2] || '').trim(),
+                    rfc: String(values[3] || '').trim(),
+                    usoCFDI: String(values[4] || '').trim(),
+                    cp: String(values[5] || '').trim(),
+                    regimen: String(values[6] || '').trim(),
+                    correo: String(values[7] || '').trim()
+                });
+            }
+        }
+        
+        console.log(`📦 Datos de facturación cargados: ${facturacionCliente.length}`);
+        facturacionCliente.forEach(d => console.log(`   - ${d.nombre} (Fila ${d.fila})`));
+        
+        renderizarFacturacion();
+        actualizarSelectorFacturacion();
+        
+    } catch (error) {
+        console.error('❌ Error al cargar facturación:', error);
+        facturacionCliente = [];
+        renderizarFacturacion();
+        actualizarSelectorFacturacion();
+    }
+}
+
+function renderizarFacturacion() {
+    const container = document.getElementById('facturacionContent');
+    if (!container) return;
+    
+    if (facturacionCliente.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-file-invoice"></i>
+                <h4>Sin datos de facturación registrados</h4>
+                <p>Agrega tus datos de facturación desde el formulario de compra.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `<div class="facturacion-grid">`;
+    facturacionCliente.forEach((fact, index) => {
+        html += `
+            <div class="facturacion-card" id="fact-card-${index}">
+                <div class="facturacion-header">
+                    <h4><i class="fas fa-file-invoice"></i> ${fact.nombre || 'Sin nombre'} <span style="font-size:0.7rem;color:var(--text-gray);">(Fila ${fact.fila})</span></h4>
+                    <div class="facturacion-actions">
+                        <button class="btn-editar" onclick="editarFacturacion(${index})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-eliminar" onclick="eliminarFacturacion(${index})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="facturacion-body">
+                    <p><strong>Razón Social:</strong> ${fact.razonSocial || '---'}</p>
+                    <p><strong>RFC:</strong> ${fact.rfc || '---'}</p>
+                    <p><strong>Uso de CFDI:</strong> ${fact.usoCFDI || '---'}</p>
+                    <p><strong>Código Postal:</strong> ${fact.cp || '---'}</p>
+                    <p><strong>Régimen Fiscal:</strong> ${fact.regimen || '---'}</p>
+                    <p><strong>Correo:</strong> ${fact.correo || '---'}</p>
+                </div>
+            </div>
+        `;
+    });
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+function actualizarSelectorFacturacion() {
+    const select = document.getElementById('facturaRazonSocialSelect');
+    if (!select) return;
+    
+    select.innerHTML = '<option value="">-- Selecciona una razón social --</option>';
+    facturacionCliente.forEach((fact, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = fact.razonSocial || fact.nombre || `Facturación ${index + 1}`;
+        select.appendChild(option);
+    });
+    select.value = '';
+}
+
+function cargarDatosFacturaSeleccionados() {
+    const select = document.getElementById('facturaRazonSocialSelect');
+    const index = parseInt(select.value);
+    
+    if (isNaN(index) || index < 0 || index >= facturacionCliente.length) {
+        document.getElementById('facturaDatosPreview').style.display = 'none';
+        datosFacturaSeleccionados = null;
+        return;
+    }
+    
+    const fact = facturacionCliente[index];
+    datosFacturaSeleccionados = fact;
+    
+    document.getElementById('facturaPreviewRFC').textContent = fact.rfc || '---';
+    document.getElementById('facturaPreviewUso').textContent = fact.usoCFDI || '---';
+    document.getElementById('facturaPreviewCP').textContent = fact.cp || '---';
+    document.getElementById('facturaPreviewRegimen').textContent = fact.regimen || '---';
+    document.getElementById('facturaPreviewCorreo').textContent = fact.correo || '---';
+    
+    document.getElementById('facturaDatosPreview').style.display = 'block';
+}
+
+function seleccionarFactura(opcion) {
+    requiereFactura = (opcion === 'si');
+    
+    document.getElementById('facturaNo').classList.remove('selected');
+    document.getElementById('facturaSi').classList.remove('selected');
+    
+    if (opcion === 'no') {
+        document.getElementById('facturaNo').classList.add('selected');
+        document.getElementById('facturaRazonSocialContainer').style.display = 'none';
+        document.getElementById('facturaDatosPreview').style.display = 'none';
+        datosFacturaSeleccionados = null;
+    } else {
+        document.getElementById('facturaSi').classList.add('selected');
+        document.getElementById('facturaRazonSocialContainer').style.display = 'block';
+        actualizarSelectorFacturacion();
+    }
+}
+
+// ============================================
+// EDITAR FACTURACIÓN
+// ============================================
+
+function editarFacturacion(index) {
+    const fact = facturacionCliente[index];
+    if (!fact) {
+        console.error('❌ Datos de facturación no encontrados en índice:', index);
+        return;
+    }
+    
+    console.log('✏️ EDITANDO FACTURACIÓN - Nombre:', fact.nombre);
+    console.log('✏️ EDITANDO FACTURACIÓN - Fila REAL:', fact.fila);
+    
+    document.getElementById('editFactIndex').value = index;
+    document.getElementById('editFactFila').value = fact.fila;
+    document.getElementById('editFactRazonSocial').value = fact.razonSocial || '';
+    document.getElementById('editFactRFC').value = fact.rfc || '';
+    document.getElementById('editFactUsoCFDI').value = fact.usoCFDI || '';
+    document.getElementById('editFactCP').value = fact.cp || '';
+    document.getElementById('editFactRegimen').value = fact.regimen || '';
+    document.getElementById('editFactCorreo').value = fact.correo || '';
+    
+    document.getElementById('modalEditarFacturacion').classList.add('active');
+}
+
+function cerrarModalEditarFacturacion() {
+    document.getElementById('modalEditarFacturacion').classList.remove('active');
+}
+
+async function guardarEdicionFacturacion() {
+    const index = parseInt(document.getElementById('editFactIndex').value);
+    const fact = facturacionCliente[index];
+    if (!fact) {
+        mostrarNotificacion('❌ Error: No se encontraron los datos de facturación a editar.');
+        return;
+    }
+    
+    const fila = parseInt(document.getElementById('editFactFila').value);
+    console.log('💾 GUARDANDO FACTURACIÓN - Nombre:', fact.nombre);
+    console.log('💾 GUARDANDO FACTURACIÓN - Fila REAL a actualizar:', fila);
+    
+    const datosActualizados = {
+        codigo: fact.codigo,
+        nombre: fact.nombre,
+        razonSocial: document.getElementById('editFactRazonSocial').value.trim(),
+        rfc: document.getElementById('editFactRFC').value.trim(),
+        usoCFDI: document.getElementById('editFactUsoCFDI').value.trim(),
+        cp: document.getElementById('editFactCP').value.trim(),
+        regimen: document.getElementById('editFactRegimen').value.trim(),
+        correo: document.getElementById('editFactCorreo').value.trim()
+    };
+    
+    if (!datosActualizados.razonSocial || !datosActualizados.rfc || !datosActualizados.usoCFDI || 
+        !datosActualizados.cp || !datosActualizados.regimen || !datosActualizados.correo) {
+        mostrarNotificacion('⚠️ Todos los campos son obligatorios.');
+        return;
+    }
+    
+    try {
+        const resultado = await actualizarFacturacionEnSheets(fila, datosActualizados);
+        console.log('📝 Resultado de Apps Script (simulado):', resultado);
+        
+        facturacionCliente[index] = { ...fact, ...datosActualizados, fila: fila };
+        renderizarFacturacion();
+        actualizarSelectorFacturacion();
+        cerrarModalEditarFacturacion();
+        mostrarNotificacion('✅ Datos de facturación actualizados correctamente');
+        
+        setTimeout(() => cargarFacturacionCliente(), 1500);
+        
+    } catch (error) {
+        console.error('❌ Error al actualizar facturación:', error);
+        mostrarNotificacion('❌ Error al guardar los cambios. Intenta de nuevo.');
+    }
+}
+
+async function actualizarFacturacionEnSheets(fila, datos) {
+    try {
+        const filaEnviar = fila + 1;
+        console.log('📝 Enviando a Apps Script - ACTUALIZAR FACTURACIÓN - Fila original:', fila, '→ Enviando:', filaEnviar);
+        console.log('📝 Datos:', datos);
+        
+        const body = {
+            action: 'actualizarFacturacion',
+            fila: filaEnviar,
+            codigo: datos.codigo || sessionStorage.getItem('codigoCliente'),
+            nombre: datos.nombre,
+            razonSocial: datos.razonSocial,
+            rfc: datos.rfc,
+            usoCFDI: datos.usoCFDI,
+            cp: datos.cp,
+            regimen: datos.regimen,
+            correo: datos.correo
+        };
+        
+        console.log('📝 Body enviado:', JSON.stringify(body));
+        
+        await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body)
+        });
+        
+        console.log('📝 Petición ACTUALIZAR FACTURACIÓN enviada (no-cors) para fila:', filaEnviar);
+        return { success: true };
+    } catch (error) {
+        console.error('Error al actualizar facturación:', error);
+        return { success: false, error: error.toString() };
+    }
+}
+
+async function eliminarFacturacion(index) {
+    const fact = facturacionCliente[index];
+    if (!fact) {
+        console.error('❌ Datos de facturación no encontrados en índice:', index);
+        return;
+    }
+    
+    console.log('🗑️ ELIMINANDO FACTURACIÓN - Nombre:', fact.nombre);
+    console.log('🗑️ ELIMINANDO FACTURACIÓN - Fila REAL:', fact.fila);
+    
+    if (!confirm(`¿Seguro que quieres eliminar los datos de facturación "${fact.nombre}" (Fila ${fact.fila})?`)) return;
+    
+    try {
+        const filaEnviar = fact.fila + 1;
+        const body = {
+            action: 'eliminarFacturacion',
+            fila: filaEnviar
+        };
+        
+        await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body)
+        });
+        
+        facturacionCliente.splice(index, 1);
+        renderizarFacturacion();
+        actualizarSelectorFacturacion();
+        mostrarNotificacion('🗑️ Datos de facturación eliminados correctamente');
+        
+        setTimeout(() => cargarFacturacionCliente(), 1500);
+        
+    } catch (error) {
+        console.error('❌ Error al eliminar facturación:', error);
+        mostrarNotificacion('❌ Error al eliminar los datos de facturación.');
+    }
 }
 
 // ============================================
@@ -1184,7 +1518,6 @@ async function continuarConPago() {
     const nombreRecibe = document.getElementById('dirNombreRecibe').value.trim();
     const mapsUrl = document.getElementById('dirMaps').value.trim();
     
-    // ⭐ Validar que la URL de Google Maps sea obligatoria
     if (!mapsUrl) {
         mostrarMensajeModalDireccion('error', '⚠️ La URL de Google Maps es obligatoria. Por favor, proporciona la ubicación exacta.');
         return;
@@ -1198,20 +1531,17 @@ async function continuarConPago() {
     const guardarDireccion = document.getElementById('dirGuardarCheck').checked;
     let nombreDireccion = document.getElementById('dirGuardarNombre').value.trim();
     
-    // ⭐ Si el usuario seleccionó una dirección guardada, usar ese nombre
     const select = document.getElementById('direccionSelector');
     const index = parseInt(select.value);
     if (!isNaN(index) && index >= 0 && index < direccionesCliente.length) {
         nombreDireccion = direccionesCliente[index].nombre;
     }
     
-    // ⭐ Si no hay nombre y está guardando, pedir nombre
     if (guardarDireccion && !nombreDireccion) {
         mostrarMensajeModalDireccion('error', '⚠️ Por favor, asigna un nombre a la dirección para guardarla.');
         return;
     }
     
-    // ⭐ Si no hay nombre y no está guardando, usar "Sin nombre"
     if (!nombreDireccion) {
         nombreDireccion = 'Sin nombre';
     }
@@ -1275,6 +1605,14 @@ function abrirModalPago() {
     document.getElementById('montoTransferencia').textContent = formatoMexicano(total);
     document.getElementById('totalCredito').textContent = formatoMexicano(total);
     
+    // Resetear selección de factura
+    requiereFactura = false;
+    document.getElementById('facturaNo').classList.add('selected');
+    document.getElementById('facturaSi').classList.remove('selected');
+    document.getElementById('facturaRazonSocialContainer').style.display = 'none';
+    document.getElementById('facturaDatosPreview').style.display = 'none';
+    datosFacturaSeleccionados = null;
+    
     pagoSeleccionado = null;
     document.querySelectorAll('.opciones-pago button').forEach(b => b.classList.remove('selected'));
 }
@@ -1331,13 +1669,194 @@ function calcularTotal() {
 }
 
 // ============================================
+// FUNCIÓN PARA GENERAR PDF DEL COMPROBANTE
+// ============================================
+
+function generarPDFComprobante(datos) {
+    try {
+        console.log('📄 Generando PDF del comprobante...');
+        
+        // Crear contenido HTML para el PDF
+        let htmlProductos = '';
+        datos.productos.forEach(p => {
+            htmlProductos += `
+                <tr>
+                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align:center;">${p.cantidad}</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${p.nombre}</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align:right;">${formatoMexicano(p.precio)}</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align:center;">${p.descuento}%</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align:right;">${formatoMexicano(p.importe)}</td>
+                </tr>
+            `;
+        });
+        
+        let htmlDireccion = '';
+        if (datos.direccion) {
+            htmlDireccion = `
+                <div style="margin-bottom: 20px;">
+                    <h3 style="color: #0A2540; margin-bottom: 10px;">📦 Dirección de Envío</h3>
+                    <p><strong>Nombre:</strong> ${datos.nombreDireccion || 'Sin nombre'}</p>
+                    <p><strong>Calle:</strong> ${datos.direccion.calle}</p>
+                    <p><strong>Colonia:</strong> ${datos.direccion.colonia}</p>
+                    <p><strong>Alcaldía:</strong> ${datos.direccion.alcaldia}</p>
+                    <p><strong>Estado:</strong> ${datos.direccion.estado}</p>
+                    <p><strong>CP:</strong> ${datos.direccion.cp}</p>
+                    <p><strong>Teléfono:</strong> ${datos.direccion.telefono}</p>
+                    <p><strong>Recibe:</strong> ${datos.direccion.nombreRecibe}</p>
+                </div>
+            `;
+        }
+        
+        let htmlFactura = '';
+        if (requiereFactura && datosFacturaSeleccionados) {
+            htmlFactura = `
+                <div style="margin-bottom: 20px; background: #f0f7ff; padding: 15px; border-radius: 8px; border-left: 4px solid #1a4d8c;">
+                    <h3 style="color: #0A2540; margin-bottom: 10px;">📄 Datos de Facturación</h3>
+                    <p><strong>Razón Social:</strong> ${datosFacturaSeleccionados.razonSocial}</p>
+                    <p><strong>RFC:</strong> ${datosFacturaSeleccionados.rfc}</p>
+                    <p><strong>Uso de CFDI:</strong> ${datosFacturaSeleccionados.usoCFDI}</p>
+                    <p><strong>C.P.:</strong> ${datosFacturaSeleccionados.cp}</p>
+                    <p><strong>Régimen Fiscal:</strong> ${datosFacturaSeleccionados.regimen}</p>
+                    <p><strong>Correo:</strong> ${datosFacturaSeleccionados.correo}</p>
+                </div>
+            `;
+        }
+        
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Comprobante ${datos.folio}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; color: #1a1a2e; }
+                    .header { background: #0A2540; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }
+                    .header h1 { color: white; margin: 0; }
+                    .header h1 span { color: #F5A623; }
+                    .header p { color: #94a3b8; margin: 5px 0 0 0; }
+                    .content { background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+                    .folio { font-size: 24px; font-weight: 700; color: #0A2540; margin: 0 0 5px 0; }
+                    .fecha { color: #4a5568; margin: 0 0 20px 0; }
+                    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                    th { background: #f8f9fa; padding: 10px; text-align: left; font-weight: 600; color: #0A2540; border-bottom: 2px solid #e2e8f0; }
+                    td { padding: 10px; border-bottom: 1px solid #e2e8f0; }
+                    .totales { text-align: right; margin-top: 20px; padding-top: 20px; border-top: 2px solid #e2e8f0; }
+                    .total-final { font-size: 24px; font-weight: 800; color: #0A2540; }
+                    .footer { text-align: center; color: #718096; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; }
+                    .metodo-pago { background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0; }
+                    .cliente-info { margin-bottom: 20px; }
+                    .cliente-info h3 { color: #0A2540; margin-bottom: 10px; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>ProConstrucción <span>MX</span></h1>
+                    <p>Comprobante de Compra</p>
+                </div>
+                <div class="content">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <div>
+                            <p class="folio">🧾 ${datos.folio}</p>
+                            <p class="fecha"><strong>Fecha:</strong> ${datos.fecha.toLocaleString('es-MX')}</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <p><strong>Método de pago:</strong> ${datos.tipoPago}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="cliente-info">
+                        <h3>👤 Datos del Cliente</h3>
+                        <p><strong>Nombre:</strong> ${datos.cliente.nombre}</p>
+                        <p><strong>Código:</strong> ${datos.cliente.codigo}</p>
+                        <p><strong>Correo:</strong> ${datos.cliente.correo}</p>
+                        <p><strong>Teléfono:</strong> ${datos.cliente.telefono || 'No especificado'}</p>
+                    </div>
+                    
+                    ${htmlDireccion}
+                    
+                    ${htmlFactura}
+                    
+                    <h3 style="color: #0A2540; margin: 20px 0 10px 0;">📦 Productos</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="text-align:center;">Cant.</th>
+                                <th>Producto</th>
+                                <th style="text-align:right;">Precio</th>
+                                <th style="text-align:center;">Dto.%</th>
+                                <th style="text-align:right;">Importe</th>
+                            </tr>
+                        </thead>
+                        <tbody>${htmlProductos}</tbody>
+                    </table>
+                    
+                    <div class="totales">
+                        <p><strong>Subtotal sin descuento:</strong> ${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16))}</p>
+                        <p><strong>Descuento total:</strong> -${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16) - datos.total)}</p>
+                        <p><strong>Subtotal:</strong> ${formatoMexicano(datos.subtotal)}</p>
+                        <p><strong>IVA (16%):</strong> ${formatoMexicano(datos.iva)}</p>
+                        <p class="total-final"><strong>TOTAL:</strong> ${formatoMexicano(datos.total)}</p>
+                    </div>
+                    
+                    <div class="metodo-pago">
+                        <h3 style="color: #0A2540; margin: 0 0 10px 0;">💳 Información de Pago</h3>
+                        <p><strong>Método:</strong> ${datos.tipoPago}</p>
+                        ${datos.tipoPago === 'Transferencia' ? `
+                            <p><strong>Referencia:</strong> ${datos.referencia || 'No especificada'}</p>
+                        ` : `
+                            <p><strong>Días de crédito:</strong> ${datos.diasCredito} días</p>
+                            <p><strong>Fecha de pago:</strong> ${datos.fechaPago ? datos.fechaPago.toLocaleDateString('es-MX') : 'N/A'}</p>
+                            <p style="color:#92400e;font-weight:600;">⚠️ Si no se cumple con el pago, se podrá eliminar el crédito.</p>
+                        `}
+                    </div>
+                    
+                    <div class="footer">
+                        <p>Este comprobante es generado automáticamente por el sistema de ProConstrucción MX.</p>
+                        <p>© ${new Date().getFullYear()} ProConstrucción MX - Todos los derechos reservados</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+        
+        // Crear un blob con el HTML
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        
+        // Abrir en una nueva ventana para imprimir/descargar como PDF
+        const ventana = window.open(url, '_blank');
+        if (ventana) {
+            ventana.focus();
+            // Después de un momento, imprimir para guardar como PDF
+            setTimeout(() => {
+                ventana.print();
+            }, 1000);
+        } else {
+            // Si el popup fue bloqueado, descargar como HTML
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Comprobante_${datos.folio}.html`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+        
+        console.log('✅ PDF del comprobante generado');
+        return true;
+    } catch (error) {
+        console.error('❌ Error al generar PDF:', error);
+        return false;
+    }
+}
+
+// ============================================
 // PROCESAMIENTO DE PAGOS
 // ============================================
 
 async function procesarPagoTransferencia() {
     const referencia = document.getElementById('referenciaTransferencia').value.trim();
     
-    // ⭐ Validar que la referencia sea obligatoria
     if (!referencia) {
         mostrarMensajeModal('error', '⚠️ El número de referencia o folio de transferencia es obligatorio.');
         return;
@@ -1348,9 +1867,14 @@ async function procesarPagoTransferencia() {
         return;
     }
     
-    // ⭐ Validar que la URL de Google Maps sea obligatoria
     if (!window.datosEnvio || !window.datosEnvio.mapsUrl || window.datosEnvio.mapsUrl === 'No proporcionado') {
         mostrarMensajeModal('error', '⚠️ La URL de Google Maps es obligatoria. Por favor, proporciona la ubicación exacta.');
+        return;
+    }
+    
+    // ⭐ Validar que si requiere factura, haya seleccionado una razón social
+    if (requiereFactura && !datosFacturaSeleccionados) {
+        mostrarMensajeModal('error', '⚠️ Por favor, selecciona una razón social para facturar.');
         return;
     }
     
@@ -1386,7 +1910,9 @@ async function procesarPagoTransferencia() {
             comprobanteNombre: comprobanteNombre,
             comprobanteTipo: comprobanteTipo,
             sucursal: SUCURSAL_WEB,
-            nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre'
+            nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre',
+            requiereFactura: requiereFactura,
+            datosFactura: datosFacturaSeleccionados
         };
         
         // ⭐ Guardar en estadísticas
@@ -1395,12 +1921,17 @@ async function procesarPagoTransferencia() {
         // ⭐ Enviar correo a ventas
         await enviarCorreoVentaWeb(datosVenta);
         
+        // ⭐ Generar PDF del comprobante
+        generarPDFComprobante(datosVenta);
+        
         mostrarMensajeModal('exito', `
             ✅ ¡Compra realizada con éxito!<br>
             <strong>Folio:</strong> ${folio}<br>
             <strong>Total:</strong> ${formatoMexicano(total)}<br>
             <strong>Método:</strong> Transferencia<br>
-            <strong>Referencia:</strong> ${referencia}<br><br>
+            <strong>Referencia:</strong> ${referencia}<br>
+            ${requiereFactura ? `<strong>Factura:</strong> Sí - ${datosFacturaSeleccionados ? datosFacturaSeleccionados.razonSocial : 'N/A'}` : '<strong>Factura:</strong> No'}<br><br>
+            Se ha descargado el comprobante en formato PDF.<br>
             Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles y comprobante.
         `);
         
@@ -1413,7 +1944,7 @@ async function procesarPagoTransferencia() {
         
         setTimeout(() => {
             cerrarModalPago();
-        }, 5000);
+        }, 8000);
         
     } catch (error) {
         console.error('Error al procesar pago:', error);
@@ -1424,11 +1955,9 @@ async function procesarPagoTransferencia() {
 }
 
 async function procesarPagoCredito() {
-    // ⭐ Días de crédito fijos (20 días)
     const dias = DIAS_CREDITO_FIJO;
     const total = calcularTotal();
     
-    // ⭐ Validar que la URL de Google Maps sea obligatoria
     if (!window.datosEnvio || !window.datosEnvio.mapsUrl || window.datosEnvio.mapsUrl === 'No proporcionado') {
         mostrarMensajeModal('error', '⚠️ La URL de Google Maps es obligatoria. Por favor, proporciona la ubicación exacta.');
         return;
@@ -1467,14 +1996,16 @@ async function procesarPagoCredito() {
             saldoPendiente: total,
             fechaPago: fechaPago,
             sucursal: SUCURSAL_WEB,
-            nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre'
+            nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre',
+            requiereFactura: false,
+            datosFactura: null
         };
         
-        // ⭐ Guardar en estadísticas
         await guardarVentaEnEstadisticas(datosVenta);
-        
-        // ⭐ Enviar correo a ventas
         await enviarCorreoVentaWeb(datosVenta);
+        
+        // ⭐ Generar PDF del comprobante
+        generarPDFComprobante(datosVenta);
         
         mostrarMensajeModal('exito', `
             ✅ ¡Crédito aprobado!<br>
@@ -1482,6 +2013,7 @@ async function procesarPagoCredito() {
             <strong>Total:</strong> ${formatoMexicano(total)}<br>
             <strong>Días de crédito:</strong> ${dias} días fijos<br>
             <strong>Fecha de pago:</strong> ${fechaPago.toLocaleDateString('es-MX')}<br><br>
+            Se ha descargado el comprobante en formato PDF.<br>
             Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.<br>
             <span style="color:#92400e;font-size:0.9rem;">⚠️ Si no se cumple con el pago en la fecha establecida, se podrá eliminar el crédito.</span>
         `);
@@ -1495,7 +2027,7 @@ async function procesarPagoCredito() {
         
         setTimeout(() => {
             cerrarModalPago();
-        }, 5000);
+        }, 8000);
         
     } catch (error) {
         console.error('Error al procesar crédito:', error);
@@ -1513,7 +2045,6 @@ async function guardarVentaEnEstadisticas(datos) {
     try {
         console.log('📊 Guardando venta en estadísticas...');
         
-        // ⭐ Formato de fecha: 16/7/2026 10:54:20
         const fechaFormateada = datos.fecha.toLocaleString('es-MX', {
             day: '2-digit',
             month: '2-digit',
@@ -1524,7 +2055,6 @@ async function guardarVentaEnEstadisticas(datos) {
             hour12: false
         });
         
-        // 1. Guardar en HOJA_EST_PRODUCTOS
         for (const producto of datos.productos) {
             let precioCompra = 0;
             let ganancia = 0;
@@ -1545,13 +2075,13 @@ async function guardarVentaEnEstadisticas(datos) {
             }
             
             const filaProducto = [
-                fechaFormateada,  // A: Fecha con formato correcto
+                fechaFormateada,
                 datos.folio,
                 producto.nombre,
                 producto.cantidad,
                 producto.importe.toFixed(2),
                 ganancia.toFixed(2),
-                '', // Comisión (sin tarjeta en web)
+                '',
                 creditoPendiente.toFixed(2),
                 creditoLiquidado.toFixed(2),
                 datos.tipoPago === 'Crédito' ? datos.diasCredito : 0,
@@ -1562,17 +2092,14 @@ async function guardarVentaEnEstadisticas(datos) {
             await guardarFilaGoogleSheets(HOJA_EST_PRODUCTOS, filaProducto);
         }
         
-        // 2. Guardar en HOJA_EST_CLIENTES
-        const facturaTexto = 'NO';
-        // ⭐ J: Forma Pago - "Transferencia bancaria" en lugar de "TRANSFERENCIA"
+        const facturaTexto = datos.requiereFactura ? 'SÍ' : 'NO';
         const formaPago = datos.tipoPago === 'Transferencia' ? 'Transferencia bancaria' : datos.tipoPago.toUpperCase();
         const tipoPago = datos.tipoPago === 'Crédito' ? 'Pago diferido en parcialidades' : 'Pago en una sola exhibición';
         const estadoPago = datos.tipoPago === 'Transferencia' ? 'Validando' : 'Pendiente';
-        // ⭐ N: Nombre de la dirección
         const nombreDireccion = datos.nombreDireccion || 'Sin nombre';
         
         const filaCliente = [
-            fechaFormateada,  // A: Fecha con formato correcto
+            fechaFormateada,
             datos.folio,
             datos.cliente.codigo,
             datos.cliente.nombre,
@@ -1581,11 +2108,11 @@ async function guardarVentaEnEstadisticas(datos) {
             '0.00',
             facturaTexto,
             datos.sucursal,
-            formaPago,  // J: "Transferencia bancaria"
+            formaPago,
             tipoPago,
             '',
             estadoPago,
-            nombreDireccion  // N: Nombre de la dirección
+            nombreDireccion
         ];
         
         await guardarFilaGoogleSheets(HOJA_EST_CLIENTES, filaCliente);
@@ -1602,16 +2129,15 @@ async function enviarCorreoVentaWeb(datos) {
     try {
         console.log('📧 Enviando correo a ventas@proconstruccionmx.com...');
         
-        const emailDestino = 'ventas@proconstruccionmx.com';
+        const emailDestino = EMAIL_VENTAS;
         const asunto = `🛒 NUEVA COMPRA WEB - ${datos.folio} - ${datos.cliente.nombre}`;
         
         let htmlProductos = '';
         datos.productos.forEach(p => {
             htmlProductos += `
                 <tr>
-                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;">${p.clave}</td>
-                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;">${p.nombre}</td>
                     <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:center;">${p.cantidad}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;">${p.nombre}</td>
                     <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:right;">${formatoMexicano(p.precio)}</td>
                     <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:center;">${p.descuento}%</td>
                     <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:right;">${formatoMexicano(p.importe)}</td>
@@ -1633,6 +2159,20 @@ async function enviarCorreoVentaWeb(datos) {
                 <p><strong>Teléfono:</strong> ${datos.direccion.telefono}</p>
                 <p><strong>Recibe:</strong> ${datos.direccion.nombreRecibe}</p>
                 ${datos.direccion.mapsUrl ? `<p><strong>Google Maps:</strong> <a href="${datos.direccion.mapsUrl}" target="_blank">Ver mapa</a></p>` : ''}
+            `;
+        }
+        
+        let htmlFactura = '';
+        if (datos.requiereFactura && datos.datosFactura) {
+            htmlFactura = `
+                <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
+                <h3 style="color:#0A2540;">📄 Datos de Facturación</h3>
+                <p><strong>Razón Social:</strong> ${datos.datosFactura.razonSocial}</p>
+                <p><strong>RFC:</strong> ${datos.datosFactura.rfc}</p>
+                <p><strong>Uso de CFDI:</strong> ${datos.datosFactura.usoCFDI}</p>
+                <p><strong>C.P.:</strong> ${datos.datosFactura.cp}</p>
+                <p><strong>Régimen Fiscal:</strong> ${datos.datosFactura.regimen}</p>
+                <p><strong>Correo:</strong> ${datos.datosFactura.correo}</p>
             `;
         }
         
@@ -1664,6 +2204,7 @@ async function enviarCorreoVentaWeb(datos) {
                     <h2 style="color:#0A2540;">🧾 ${datos.folio}</h2>
                     <p><strong>Fecha:</strong> ${datos.fecha.toLocaleString('es-MX')}</p>
                     <p><strong>Método de pago:</strong> ${datos.tipoPago}</p>
+                    <p><strong>Factura:</strong> ${datos.requiereFactura ? 'SÍ' : 'NO'}</p>
                     
                     <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
                     
@@ -1676,6 +2217,7 @@ async function enviarCorreoVentaWeb(datos) {
                     <p><strong>Descuento Base:</strong> ${datos.cliente.descuento}%</p>
                     
                     ${htmlDireccion}
+                    ${htmlFactura}
                     
                     <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
                     
@@ -1683,9 +2225,8 @@ async function enviarCorreoVentaWeb(datos) {
                     <table style="width:100%;border-collapse:collapse;">
                         <thead>
                             <tr style="background:#f8f9fa;">
-                                <th style="padding:10px;text-align:left;">Clave</th>
-                                <th style="padding:10px;text-align:left;">Producto</th>
                                 <th style="padding:10px;text-align:center;">Cant.</th>
+                                <th style="padding:10px;text-align:left;">Producto</th>
                                 <th style="padding:10px;text-align:right;">Precio</th>
                                 <th style="padding:10px;text-align:center;">Dto.%</th>
                                 <th style="padding:10px;text-align:right;">Importe</th>
@@ -1730,12 +2271,12 @@ async function enviarCorreoVentaWeb(datos) {
             codigo: datos.cliente.codigo,
             total: formatoMexicano(datos.total),
             referencia: datos.referencia || 'N/A',
-            tipo_pago: datos.tipoPago
+            tipo_pago: datos.tipoPago,
+            factura: datos.requiereFactura ? 'SÍ' : 'NO'
         };
         
-        // ⭐ Verificar que emailjs esté disponible
         if (typeof emailjs === 'undefined') {
-            console.error('❌ emailjs no está definido. Asegúrate de que el script de EmailJS esté cargado.');
+            console.error('❌ emailjs no está definido.');
             return { success: false, error: 'emailjs no disponible' };
         }
         
