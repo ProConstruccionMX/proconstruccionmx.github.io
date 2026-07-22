@@ -97,26 +97,30 @@ async function actualizarDireccionEnSheets(fila, datos) {
         console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila:', fila);
         console.log('📝 Datos:', datos);
         
+        const body = {
+            action: 'actualizar',
+            fila: fila,
+            codigo: datos.codigo || sessionStorage.getItem('codigoCliente'),
+            nombre: datos.nombre,
+            calle: datos.calle,
+            colonia: datos.colonia,
+            alcaldia: datos.alcaldia,
+            estado: datos.estado,
+            cp: datos.cp,
+            mapsUrl: datos.mapsUrl || '',
+            telefono: datos.telefono,
+            nombreRecibe: datos.nombreRecibe
+        };
+        
+        console.log('📝 Body enviado:', JSON.stringify(body));
+        
         await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                action: 'actualizar',
-                fila: fila,
-                codigo: datos.codigo || sessionStorage.getItem('codigoCliente'),
-                nombre: datos.nombre,
-                calle: datos.calle,
-                colonia: datos.colonia,
-                alcaldia: datos.alcaldia,
-                estado: datos.estado,
-                cp: datos.cp,
-                mapsUrl: datos.mapsUrl || '',
-                telefono: datos.telefono,
-                nombreRecibe: datos.nombreRecibe
-            })
+            body: JSON.stringify(body)
         });
         
         console.log('📝 Petición ACTUALIZAR enviada (no-cors) para fila:', fila);
@@ -131,16 +135,20 @@ async function eliminarDireccionEnSheets(fila) {
     try {
         console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila:', fila);
         
+        const body = {
+            action: 'eliminar',
+            fila: fila
+        };
+        
+        console.log('🗑️ Body enviado:', JSON.stringify(body));
+        
         await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                action: 'eliminar',
-                fila: fila
-            })
+            body: JSON.stringify(body)
         });
         
         console.log('🗑️ Petición ELIMINAR enviada (no-cors) para fila:', fila);
