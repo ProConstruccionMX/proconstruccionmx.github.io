@@ -311,7 +311,7 @@ async function cargarPreciosEspeciales() {
 }
 
 // ============================================
-// ⭐ FUNCIONES DE DIRECCIONES - CORREGIDAS ⭐
+// ⭐ FUNCIONES DE DIRECCIONES ⭐
 // ============================================
 
 async function cargarDireccionesCliente() {
@@ -346,18 +346,16 @@ async function cargarDireccionesCliente() {
         
         direccionesCliente = [];
         
-        // ⭐ IMPORTANTE: Procesamos TODAS las filas desde i=0
-        // ⭐ Porque tu fila 1 tiene datos del cliente (NO es encabezado)
+        // Procesamos TODAS las filas desde i=0
         for (let i = 0; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[0] || '').trim();
             
-            // ⭐ La fila real es i + 1 (porque i=0 es la fila 1)
+            // La fila real es i + 1 (porque i=0 es la fila 1)
             const filaReal = i + 1;
             
             console.log(`📊 Procesando Fila ${i} (Google Sheets ${filaReal}): Código="${codigo}"`);
             
-            // ⭐ Si el código coincide con el cliente, agregamos la dirección
             if (codigo === codigoCliente) {
                 const nombre = String(values[1] || '').trim();
                 console.log(`✅ Dirección encontrada: "${nombre}" en fila REAL ${filaReal}`);
@@ -454,7 +452,7 @@ function actualizarSelectorDirecciones() {
 }
 
 // ============================================
-// EDITAR DIRECCIÓN - CORREGIDO
+// EDITAR DIRECCIÓN
 // ============================================
 
 function editarDireccion(index) {
@@ -494,7 +492,6 @@ async function guardarEdicionDireccion() {
         return;
     }
     
-    // ⭐ USAMOS LA FILA REAL QUE TENEMOS GUARDADA ⭐
     const fila = parseInt(document.getElementById('editDirFila').value);
     console.log('💾 GUARDANDO - Dirección:', dir.nombre);
     console.log('💾 GUARDANDO - Fila REAL a actualizar:', fila);
@@ -523,14 +520,12 @@ async function guardarEdicionDireccion() {
         const resultado = await actualizarDireccionEnSheets(fila, datosActualizados);
         console.log('📝 Resultado de Apps Script (simulado):', resultado);
         
-        // Actualizar localmente
         direccionesCliente[index] = { ...dir, ...datosActualizados, fila: fila };
         renderizarDirecciones();
         actualizarSelectorDirecciones();
         cerrarModalEditarDireccion();
         mostrarNotificacion('✅ Dirección actualizada correctamente');
         
-        // Recargar desde el servidor para confirmar
         setTimeout(() => cargarDireccionesCliente(), 1500);
         
     } catch (error) {
@@ -540,7 +535,7 @@ async function guardarEdicionDireccion() {
 }
 
 // ============================================
-// ELIMINAR DIRECCIÓN - CORREGIDO
+// ELIMINAR DIRECCIÓN
 // ============================================
 
 async function eliminarDireccion(index) {
@@ -556,17 +551,14 @@ async function eliminarDireccion(index) {
     if (!confirm(`¿Seguro que quieres eliminar "${dir.nombre}" (Fila ${dir.fila})?`)) return;
     
     try {
-        // ⭐ ENVIAMOS LA FILA REAL ⭐
         const resultado = await eliminarDireccionEnSheets(dir.fila);
         console.log('🗑️ Resultado de Apps Script (simulado):', resultado);
         
-        // Eliminar localmente
         direccionesCliente.splice(index, 1);
         renderizarDirecciones();
         actualizarSelectorDirecciones();
         mostrarNotificacion('🗑️ Dirección eliminada correctamente');
         
-        // Recargar desde el servidor para confirmar
         setTimeout(() => cargarDireccionesCliente(), 1500);
         
     } catch (error) {
