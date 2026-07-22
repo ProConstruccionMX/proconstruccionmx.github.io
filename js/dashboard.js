@@ -12,7 +12,8 @@ const HOJA_VENTAS_CLIENTES = 'Hoja 2';
 const ID_ARCHIVO_PRECIOS_ESPECIALES = '10t2A9M5f1Bj7lyTTa_PhVGRv0wAK_4ePpk_1eURZQ5I';
 const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
 
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyuNPKS-k5S0wRR3idKBy9h1sKf-yP-D8I8zjkewdVEmtgAdBXFlDNpXWIA_IRzJ4Rp/exec';
+// ⭐ URL CORRECTA DE APPS SCRIPT ⭐
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx70lC_04Z0sTIktd7eyBS65TE6vMkZ8kH6LQun-_X1jJRCsO9K9Bgm-7nQ0pEiAUY/exec';
 
 const PESO_MINIMO_TONELADA = 1000;
 
@@ -94,8 +95,7 @@ async function agregarDireccionEnSheets(direccion) {
 
 async function actualizarDireccionEnSheets(fila, datos) {
     try {
-        // ⭐ IMPORTANTE: Apps Script está restando 1 automáticamente
-        // ⭐ Para compensar, enviamos fila + 1
+        // ⭐ SOLUCIÓN DEFINITIVA: Apps Script resta 1 automáticamente, enviamos fila + 1
         const filaEnviar = fila + 1;
         console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         console.log('📝 Datos:', datos);
@@ -136,8 +136,7 @@ async function actualizarDireccionEnSheets(fila, datos) {
 
 async function eliminarDireccionEnSheets(fila) {
     try {
-        // ⭐ IMPORTANTE: Apps Script está restando 1 automáticamente
-        // ⭐ Para compensar, enviamos fila + 1
+        // ⭐ SOLUCIÓN DEFINITIVA: Apps Script resta 1 automáticamente, enviamos fila + 1
         const filaEnviar = fila + 1;
         console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         
