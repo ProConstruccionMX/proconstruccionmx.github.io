@@ -8,6 +8,7 @@ const ID_BASE_CLIENTES = '1yCQ-cJJ7PALDYSwIcpsj1ZfACtNLJwfOR7HY-mPzgx4';
 const HOJA_BASE_CLIENTES = 'Hoja 1';
 const HOJA_DIRECCIONES = 'Direcciones';
 
+// ⭐ ID CORRECTO DEL ARCHIVO DE FACTURACIÓN ⭐
 const ID_FACTURACION = '1S2cXNfBFHnVJrz0y0FmFIVEXva1aHVJp8h4NYgitz2c';
 const HOJA_FACTURACION = 'Hoja 1';
 
@@ -24,16 +25,12 @@ const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
 const ID_COTIZACIONES = '1S4qoHh3lTDoSUwDNeilmN6QKk8uhmvxjwvRQpEHQbS0';
 const HOJA_COTIZACIONES = 'Hoja 1';
 
-// ⭐ URL DE APPS SCRIPT - ESTADÍSTICAS ⭐
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyRT70rT0pgG6IX4vjjvX44DuPnQqF1evnkQ7Vdz4XVyaZj0j3v4Em36U5FwLBlaRRxtQ/exec';
-
-// ⭐ NUEVA URL DEL SCRIPT DE FACTURACIÓN ⭐
 const APPS_SCRIPT_FACTURACION_URL = 'https://script.google.com/macros/s/AKfycbxAo0S2mkNZ_rq-5bxRINLOeXWTOxIJMitCTXX5ol_fxwlYK0rmmhr2b1_V4WA65wnA-w/exec';
 
 const EMAIL_VENTAS = 'ventas@proconstruccionmx.com';
 const DIAS_CREDITO_FIJO = 20;
 const SUCURSAL_WEB = 'Web';
-
 const PESO_MINIMO_TONELADA = 1000;
 
 let clienteData = null;
@@ -118,7 +115,8 @@ async function agregarDireccionEnSheets(direccion) {
 
 async function actualizarDireccionEnSheets(fila, datos) {
     try {
-        const filaEnviar = fila + 1;
+        // ⭐ Enviamos la fila sin sumar 1 (Apps Script usa 1-based)
+        const filaEnviar = fila;
         console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         console.log('📝 Datos:', datos);
         
@@ -158,7 +156,7 @@ async function actualizarDireccionEnSheets(fila, datos) {
 
 async function eliminarDireccionEnSheets(fila) {
     try {
-        const filaEnviar = fila + 1;
+        const filaEnviar = fila;
         console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         
         const body = {
@@ -589,6 +587,7 @@ async function cargarFacturacionCliente() {
         
         console.log('📥 Cargando datos de facturación para cliente:', codigoCliente);
         
+        // ⭐ USAR EL ID CORRECTO
         const url = `https://docs.google.com/spreadsheets/d/${ID_FACTURACION}/gviz/tq?tqx=out:json&sheet=${HOJA_FACTURACION}`;
         console.log('📥 URL:', url);
         
@@ -597,6 +596,16 @@ async function cargarFacturacionCliente() {
         
         console.log('📥 Respuesta recibida, longitud:', text.length);
         
+        // ⭐ Verificar si la respuesta es HTML (error de autenticación)
+        if (text.includes('<!DOCTYPE html>') || text.includes('Sign in')) {
+            console.error('❌ El archivo de facturación no es accesible. Verifica que esté compartido.');
+            facturacionCliente = [];
+            renderizarFacturacion();
+            actualizarSelectorFacturacion();
+            return;
+        }
+        
+        // ⭐ Extraer JSON correctamente
         const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
         const data = JSON.parse(jsonStr);
         const rows = data.table.rows;
