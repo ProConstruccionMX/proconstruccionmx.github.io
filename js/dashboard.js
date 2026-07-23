@@ -213,7 +213,7 @@ async function guardarFilaGoogleSheets(sheetName, datos) {
 
 // ============================================
 // ⭐ FUNCIONES DE FACTURACIÓN - CORREGIDAS ⭐
-// (USANDO EL MISMO MÉTODO QUE DIRECCIONES)
+// (USANDO export?format=csv PARA ARCHIVOS COMPARTIDOS)
 // ============================================
 
 async function cargarFacturacionCliente() {
@@ -226,8 +226,8 @@ async function cargarFacturacionCliente() {
         
         console.log('📥 Cargando datos de facturación para cliente:', codigoCliente);
         
-        // ⭐ USAR EXACTAMENTE EL MISMO MÉTODO QUE DIRECCIONES ⭐
-        const url = `https://docs.google.com/spreadsheets/d/${ID_FACTURACION}/gviz/tq?tqx=out:json&sheet=${HOJA_FACTURACION}`;
+        // ⭐ USAR export?format=csv (FUNCIONA CON ARCHIVOS COMPARTIDOS) ⭐
+        const url = `https://docs.google.com/spreadsheets/d/${ID_FACTURACION}/export?format=csv&gid=0`;
         console.log('📥 URL:', url);
         
         const response = await fetch(url);
@@ -236,52 +236,98 @@ async function cargarFacturacionCliente() {
         console.log('📥 Respuesta recibida, longitud:', text.length);
         console.log('📥 Primeros 200 caracteres:', text.substring(0, 200));
         
-        // Verificar si es HTML (error de autenticación) - IGUAL QUE DIRECCIONES
-        if (text.includes('<!DOCTYPE html>') || text.includes('Sign in') || text.includes('function()')) {
+        // Verificar si es HTML (error de autenticación)
+        if (text.includes('<!DOCTYPE html>') || text.includes('Sign in')) {
             console.error('❌ El archivo de facturación no es accesible. Verifica que esté compartido públicamente.');
             facturacionCliente = [];
             renderizarFacturacion();
             return;
         }
         
-        // Buscar el JSON - IGUAL QUE DIRECCIONES
-        const startIndex = text.indexOf('(');
-        const endIndex = text.lastIndexOf(')');
-        if (startIndex === -1 || endIndex === -1) {
-            console.error('❌ No se pudo encontrar JSON en la respuesta');
+        // ⭐ Parsear CSV manualmente ⭐
+        const lines = text.split('\n');
+        if (lines.length < 2) {
+            console.error('❌ El archivo CSV está vacío o tiene formato incorrecto');
             facturacionCliente = [];
             renderizarFacturacion();
             return;
         }
         
-        const jsonStr = text.substring(startIndex + 1, endIndex);
-        const data = JSON.parse(jsonStr);
-        const rows = data.table.rows;
+        // Obtener encabezados (primera línea) - limpiar comillas
+        const headerLine = lines[0];
+        const headers = headerLine.split(',').map(h => h.replace(/^"|"$/g, '').trim());
         
-        console.log(`📊 Filas en la hoja Facturación: ${rows.length}`);
+        console.log('📊 Encabezados encontrados:', headers);
+        
+        // Encontrar los índices de las columnas
+        const idIndex = headers.findIndex(h => h === 'ID' || h === 'id');
+        const nombreIndex = headers.findIndex(h => h === 'Nombre' || h === 'nombre');
+        const razonSocialIndex = headers.findIndex(h => h === 'Razón Social' || h === 'Razon Social' || h === 'RazónSocial' || h === 'RazonSocial');
+        const rfcIndex = headers.findIndex(h => h === 'RFC' || h === 'rfc');
+        const usoCFDIIndex = headers.findIndex(h => h === 'Uso de CFDI' || h === 'Uso CFDI' || h === 'UsoCFDI' || h === 'Uso de Cfdi');
+        const cpIndex = headers.findIndex(h => h === 'C.P.' || h === 'CP' || h === 'C.P' || h === 'Cp');
+        const regimenIndex = headers.findIndex(h => h === 'Régimen Fiscal' || h === 'Regimen Fiscal' || h === 'RegimenFiscal' || h === 'Regimen');
+        const correoIndex = headers.findIndex(h => h === 'Correo' || h === 'correo' || h === 'Email' || h === 'email');
+        
+        console.log('📊 Índices encontrados:', { idIndex, nombreIndex, razonSocialIndex, rfcIndex, usoCFDIIndex, cpIndex, regimenIndex, correoIndex });
+        
+        // Si no encuentra los índices, usar posición por defecto (asumiendo que están en orden)
+        const useDefaultIndex = idIndex === -1;
+        if (useDefaultIndex) {
+            console.log('⚠️ Usando índices por defecto (columna 0=ID, 1=Nombre, 2=Razón Social, 3=RFC, 4=Uso CFDI, 5=CP, 6=Régimen, 7=Correo)');
+        }
         
         facturacionCliente = [];
         
-        // ⭐ PROCESAR IGUAL QUE DIRECCIONES ⭐
-        for (let i = 0; i < rows.length; i++) {
-            const values = rows[i].c.map(cell => cell ? cell.v : '');
-            const codigo = String(values[0] || '').trim();
-            const filaReal = i + 1;
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            
+            // Parsear CSV (quitar comillas al inicio y final de cada valor)
+            const values = line.split(',').map(v => v.replace(/^"|"$/g, '').trim());
+            
+            let codigo;
+            if (useDefaultIndex) {
+                // Usar índices por defecto
+                codigo = values[0] || '';
+            } else {
+                codigo = values[idIndex] || '';
+            }
             
             if (codigo === codigoCliente) {
-                const nombre = String(values[1] || '').trim();
-                console.log(`✅ Facturación encontrada: "${nombre}" en fila REAL ${filaReal}`);
+                let nombre;
+                let razonSocial, rfc, usoCFDI, cp, regimen, correo;
+                
+                if (useDefaultIndex) {
+                    nombre = values[1] || 'Sin nombre';
+                    razonSocial = values[2] || '';
+                    rfc = values[3] || '';
+                    usoCFDI = values[4] || '';
+                    cp = values[5] || '';
+                    regimen = values[6] || '';
+                    correo = values[7] || '';
+                } else {
+                    nombre = values[nombreIndex] || 'Sin nombre';
+                    razonSocial = values[razonSocialIndex] || '';
+                    rfc = values[rfcIndex] || '';
+                    usoCFDI = values[usoCFDIIndex] || '';
+                    cp = values[cpIndex] || '';
+                    regimen = values[regimenIndex] || '';
+                    correo = values[correoIndex] || '';
+                }
+                
+                console.log(`✅ Facturación encontrada para "${nombre}" en fila ${i+1}`);
                 
                 facturacionCliente.push({
-                    fila: filaReal,
+                    fila: i + 1,
                     codigo: codigo,
-                    nombre: nombre || 'Sin nombre',
-                    razonSocial: String(values[2] || '').trim(),
-                    rfc: String(values[3] || '').trim(),
-                    usoCFDI: String(values[4] || '').trim(),
-                    cp: String(values[5] || '').trim(),
-                    regimen: String(values[6] || '').trim(),
-                    correo: String(values[7] || '').trim()
+                    nombre: nombre,
+                    razonSocial: razonSocial,
+                    rfc: rfc,
+                    usoCFDI: usoCFDI,
+                    cp: cp,
+                    regimen: regimen,
+                    correo: correo
                 });
             }
         }
