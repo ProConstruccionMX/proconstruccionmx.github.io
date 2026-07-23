@@ -26,7 +26,7 @@ const HOJA_COTIZACIONES = 'Hoja 1';
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyRT70rT0pgG6IX4vjjvX44DuPnQqF1evnkQ7Vdz4XVyaZj0j3v4Em36U5FwLBlaRRxtQ/exec';
 
-// ⭐ URL DEL SCRIPT DE FACTURACIÓN ⭐
+// ⭐ URL DEL SCRIPT DE FACTURACIÓN (ACTUALIZADA) ⭐
 const APPS_SCRIPT_FACTURACION_URL = 'https://script.google.com/macros/s/AKfycbz8DPOrcbwOFIh2wXWv505_TWmNQc9apM6GsjCEGQ7vamRJmU-AOidb5fL2mqRVTr3_sQ/exec';
 
 const EMAIL_VENTAS = 'ventas@proconstruccionmx.com';
