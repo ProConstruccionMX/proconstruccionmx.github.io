@@ -225,8 +225,9 @@ async function cargarFacturacionCliente() {
         
         console.log('📥 Cargando datos de facturación para cliente:', codigoCliente);
         
-        // ⭐ CORREGIDO: El nombre de la hoja va entre comillas simples ⭐
-        const url = `https://docs.google.com/spreadsheets/d/${ID_FACTURACION}/gviz/tq?tqx=out:json&sheet='${HOJA_FACTURACION}'`;
+        // ⭐ CORREGIDO: Usar encodeURIComponent para el nombre de la hoja ⭐
+        const sheetNameEncoded = encodeURIComponent(HOJA_FACTURACION);
+        const url = `https://docs.google.com/spreadsheets/d/${ID_FACTURACION}/gviz/tq?tqx=out:json&sheet=${sheetNameEncoded}`;
         console.log('📥 URL:', url);
         
         const response = await fetch(url);
@@ -235,14 +236,15 @@ async function cargarFacturacionCliente() {
         console.log('📥 Respuesta recibida, longitud:', text.length);
         console.log('📥 Primeros 200 caracteres:', text.substring(0, 200));
         
-        if (text.includes('<!DOCTYPE html>') || text.includes('Sign in')) {
+        // Verificar si es HTML (error de autenticación)
+        if (text.includes('<!DOCTYPE html>') || text.includes('Sign in') || text.includes('function()')) {
             console.error('❌ El archivo de facturación no es accesible. Verifica que esté compartido públicamente.');
             facturacionCliente = [];
             renderizarFacturacion();
             return;
         }
         
-        // Buscar el JSON correctamente
+        // Buscar el JSON
         const startIndex = text.indexOf('(');
         const endIndex = text.lastIndexOf(')');
         if (startIndex === -1 || endIndex === -1) {
@@ -265,7 +267,6 @@ async function cargarFacturacionCliente() {
             const codigo = String(values[0] || '').trim();
             const filaReal = i + 1;
             
-            // Buscar SOLO el cliente que inició sesión
             if (codigo === codigoCliente) {
                 const nombre = String(values[1] || '').trim();
                 console.log(`✅ Facturación encontrada para "${nombre}" en fila REAL ${filaReal}`);
