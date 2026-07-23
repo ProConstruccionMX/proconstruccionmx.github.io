@@ -495,6 +495,8 @@
             margin-bottom: 0.8rem;
             padding-bottom: 0.8rem;
             border-bottom: 1px solid #e2e8f0;
+            flex-wrap: wrap;
+            gap: 0.5rem;
         }
         .direccion-card .direccion-header h4,
         .facturacion-card .facturacion-header h4 {
@@ -506,6 +508,7 @@
         .facturacion-card .facturacion-header .facturacion-actions {
             display: flex;
             gap: 0.5rem;
+            flex-wrap: wrap;
         }
         .direccion-card .direccion-header button,
         .facturacion-card .facturacion-header button {
@@ -515,6 +518,7 @@
             cursor: pointer;
             transition: all 0.3s;
             font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
         }
         .direccion-card .direccion-header .btn-editar,
         .facturacion-card .facturacion-header .btn-editar {
@@ -609,6 +613,10 @@
             outline: none;
             border-color: var(--accent-orange);
             box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.1);
+        }
+        .modal .form-group input[readonly] {
+            background: #f0f0f0;
+            cursor: not-allowed;
         }
         .modal .datos-bancarios {
             background: var(--gray-light);
@@ -920,7 +928,7 @@
                 <div class="empty-state">
                     <i class="fas fa-file-invoice"></i>
                     <h4>Sin datos de facturación registrados</h4>
-                    <p>Agrega tus datos de facturación desde el formulario de compra.</p>
+                    <p>Agrega tus datos de facturación para poder facturar tus compras.</p>
                 </div>
             </div>
         </div>
@@ -1112,6 +1120,50 @@
         </div>
     </div>
 
+    <!-- ===== MODAL DE AGREGAR FACTURACIÓN ===== -->
+    <div class="modal-overlay" id="modalAgregarFacturacion">
+        <div class="modal">
+            <h2>📄 Agregar Datos de Facturación</h2>
+            <p class="subtitle">Ingresa tus datos para poder facturar tus compras</p>
+
+            <div class="form-group">
+                <label>Nombre del cliente</label>
+                <input type="text" id="agregarFactNombre" readonly style="background:#f0f0f0;">
+            </div>
+            <div class="form-group">
+                <label>Razón Social <span style="color:red;">*</span></label>
+                <input type="text" id="agregarFactRazonSocial" placeholder="Ej: ProConstrucción MX SAS DE CV">
+            </div>
+            <div class="form-group">
+                <label>RFC <span style="color:red;">*</span></label>
+                <input type="text" id="agregarFactRFC" placeholder="Ej: PRO2605135X4">
+            </div>
+            <div class="form-group">
+                <label>Uso de CFDI <span style="color:red;">*</span></label>
+                <input type="text" id="agregarFactUsoCFDI" placeholder="Ej: G03 - Gastos en general">
+            </div>
+            <div class="form-group">
+                <label>Código Postal <span style="color:red;">*</span></label>
+                <input type="text" id="agregarFactCP" placeholder="Ej: 03100">
+            </div>
+            <div class="form-group">
+                <label>Régimen Fiscal <span style="color:red;">*</span></label>
+                <input type="text" id="agregarFactRegimen" placeholder="Ej: 601 - General de Ley Personas Morales">
+            </div>
+            <div class="form-group">
+                <label>Correo <span style="color:red;">*</span></label>
+                <input type="email" id="agregarFactCorreo" placeholder="Ej: facturacion@empresa.com">
+            </div>
+
+            <button class="btn-enviar" onclick="guardarNuevaFacturacion()">
+                <i class="fas fa-save"></i> Guardar
+            </button>
+            <button class="btn-cerrar-modal" onclick="cerrarModalAgregarFacturacion()">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+        </div>
+    </div>
+
     <!-- ===== MODAL DE PAGO ===== -->
     <div class="modal-overlay" id="modalPago">
         <div class="modal">
@@ -1137,7 +1189,7 @@
                     <p><strong>CUENTA CLABE:</strong> 012180001277440643</p>
                 </div>
                 
-                <!-- ⭐ SELECCIÓN DE FACTURA ⭐ -->
+                <!-- SELECCIÓN DE FACTURA -->
                 <div class="form-group">
                     <label>¿Deseas factura? <span style="color:red;">*</span></label>
                     <div class="factura-toggle" id="facturaToggle">
@@ -1146,7 +1198,7 @@
                     </div>
                 </div>
 
-                <!-- ⭐ SELECCIÓN DE RAZÓN SOCIAL (solo si factura = Sí) ⭐ -->
+                <!-- SELECCIÓN DE RAZÓN SOCIAL (solo si factura = Sí) -->
                 <div id="facturaRazonSocialContainer" style="display:none;">
                     <div class="form-group">
                         <label>Selecciona la razón social para facturar <span style="color:red;">*</span></label>
