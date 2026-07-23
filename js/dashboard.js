@@ -211,74 +211,426 @@ async function guardarFilaGoogleSheets(sheetName, datos) {
     }
 }
 
-async function actualizarFacturacionEnSheets(fila, datos) {
+// ============================================
+// ⭐ FUNCIONES DE FACTURACIÓN - CORREGIDAS ⭐
+// ============================================
+
+async function cargarFacturacionCliente() {
     try {
-        const filaEnviar = fila;
-        console.log('📝 actualizarFacturacionEnSheets - Fila original:', fila, '→ Enviando:', filaEnviar);
+        const codigoCliente = sessionStorage.getItem('codigoCliente');
+        if (!codigoCliente) {
+            console.warn('⚠️ No hay código de cliente disponible');
+            return;
+        }
         
-        const body = {
-            action: 'actualizarFacturacion',
-            fila: filaEnviar,
-            codigo: datos.codigo || sessionStorage.getItem('codigoCliente'),
-            nombre: datos.nombre,
-            razonSocial: datos.razonSocial,
-            rfc: datos.rfc,
-            usoCFDI: datos.usoCFDI,
-            cp: datos.cp,
-            regimen: datos.regimen,
-            correo: datos.correo
-        };
+        console.log('📥 Cargando datos de facturación para cliente:', codigoCliente);
         
-        console.log('📝 Body enviado:', JSON.stringify(body));
+        const url = `https://docs.google.com/spreadsheets/d/${ID_FACTURACION}/gviz/tq?tqx=out:json&sheet=${HOJA_FACTURACION}`;
+        console.log('📥 URL:', url);
         
-        await fetch(APPS_SCRIPT_FACTURACION_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(body)
-        });
+        const response = await fetch(url);
+        const text = await response.text();
         
-        console.log('📝 Petición ACTUALIZAR FACTURACIÓN enviada (no-cors) para fila:', filaEnviar);
-        return { success: true };
+        if (text.includes('<!DOCTYPE html>') || text.includes('Sign in')) {
+            console.error('❌ El archivo de facturación no es accesible. Verifica que esté compartido públicamente.');
+            facturacionCliente = [];
+            renderizarFacturacion();
+            return;
+        }
+        
+        const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
+        const data = JSON.parse(jsonStr);
+        const rows = data.table.rows;
+        
+        console.log(`📊 Filas en la hoja Facturación: ${rows.length}`);
+        
+        facturacionCliente = [];
+        
+        for (let i = 0; i < rows.length; i++) {
+            const values = rows[i].c.map(cell => cell ? cell.v : '');
+            const codigo = String(values[0] || '').trim();
+            const filaReal = i + 1;
+            
+            // Buscar SOLO el cliente que inició sesión
+            if (codigo === codigoCliente) {
+                const nombre = String(values[1] || '').trim();
+                console.log(`✅ Facturación encontrada para "${nombre}" en fila REAL ${filaReal}`);
+                
+                facturacionCliente.push({
+                    fila: filaReal,
+                    codigo: codigo,
+                    nombre: nombre || 'Sin nombre',
+                    razonSocial: String(values[2] || '').trim(),
+                    rfc: String(values[3] || '').trim(),
+                    usoCFDI: String(values[4] || '').trim(),
+                    cp: String(values[5] || '').trim(),
+                    regimen: String(values[6] || '').trim(),
+                    correo: String(values[7] || '').trim()
+                });
+            }
+        }
+        
+        console.log(`📦 Datos de facturación cargados: ${facturacionCliente.length}`);
+        renderizarFacturacion();
+        actualizarSelectorFacturacion();
+        
     } catch (error) {
-        console.error('Error al actualizar facturación:', error);
-        return { success: false, error: error.toString() };
+        console.error('❌ Error al cargar facturación:', error);
+        facturacionCliente = [];
+        renderizarFacturacion();
     }
 }
 
-async function eliminarFacturacionEnSheets(fila) {
-    try {
-        const filaEnviar = fila;
-        console.log('🗑️ eliminarFacturacionEnSheets - Fila original:', fila, '→ Enviando:', filaEnviar);
-        
-        const body = {
-            action: 'eliminarFacturacion',
-            fila: filaEnviar
-        };
-        
-        console.log('🗑️ Body enviado:', JSON.stringify(body));
-        
-        await fetch(APPS_SCRIPT_FACTURACION_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(body)
-        });
-        
-        console.log('🗑️ Petición ELIMINAR FACTURACIÓN enviada (no-cors) para fila:', filaEnviar);
-        return { success: true };
-    } catch (error) {
-        console.error('Error al eliminar facturación:', error);
-        return { success: false, error: error.toString() };
+function renderizarFacturacion() {
+    const container = document.getElementById('facturacionContent');
+    if (!container) return;
+    
+    if (facturacionCliente.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-file-invoice"></i>
+                <h4>Sin datos de facturación registrados</h4>
+                <p>Agrega tus datos de facturación para poder facturar tus compras.</p>
+                <button class="btn-primary" style="margin-top:1rem;padding:0.8rem 2rem;" onclick="abrirModalAgregarFacturacion()">
+                    <i class="fas fa-plus"></i> Agregar datos de facturación
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    // Mostrar SOLO los datos de facturación del cliente actual (de la C a la H)
+    let html = `<div class="facturacion-grid">`;
+    facturacionCliente.forEach((fact, index) => {
+        html += `
+            <div class="facturacion-card" id="fact-card-${index}">
+                <div class="facturacion-header">
+                    <h4><i class="fas fa-file-invoice"></i> ${fact.nombre || 'Sin nombre'}</h4>
+                    <div class="facturacion-actions">
+                        <button class="btn-editar" onclick="editarFacturacion(${index})">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                        <button class="btn-eliminar" onclick="eliminarFacturacion(${index})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="facturacion-body">
+                    <p><strong>Razón Social:</strong> ${fact.razonSocial || '---'}</p>
+                    <p><strong>RFC:</strong> ${fact.rfc || '---'}</p>
+                    <p><strong>Uso de CFDI:</strong> ${fact.usoCFDI || '---'}</p>
+                    <p><strong>Código Postal:</strong> ${fact.cp || '---'}</p>
+                    <p><strong>Régimen Fiscal:</strong> ${fact.regimen || '---'}</p>
+                    <p><strong>Correo:</strong> ${fact.correo || '---'}</p>
+                </div>
+            </div>
+        `;
+    });
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+function actualizarSelectorFacturacion() {
+    const select = document.getElementById('facturaRazonSocialSelect');
+    if (!select) return;
+    
+    select.innerHTML = '<option value="">-- Selecciona una razón social --</option>';
+    facturacionCliente.forEach((fact, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = fact.razonSocial || fact.nombre || `Facturación ${index + 1}`;
+        select.appendChild(option);
+    });
+    select.value = '';
+}
+
+function cargarDatosFacturaSeleccionados() {
+    const select = document.getElementById('facturaRazonSocialSelect');
+    const index = parseInt(select.value);
+    
+    if (isNaN(index) || index < 0 || index >= facturacionCliente.length) {
+        document.getElementById('facturaDatosPreview').style.display = 'none';
+        datosFacturaSeleccionados = null;
+        return;
+    }
+    
+    const fact = facturacionCliente[index];
+    datosFacturaSeleccionados = fact;
+    
+    document.getElementById('facturaPreviewRFC').textContent = fact.rfc || '---';
+    document.getElementById('facturaPreviewUso').textContent = fact.usoCFDI || '---';
+    document.getElementById('facturaPreviewCP').textContent = fact.cp || '---';
+    document.getElementById('facturaPreviewRegimen').textContent = fact.regimen || '---';
+    document.getElementById('facturaPreviewCorreo').textContent = fact.correo || '---';
+    
+    document.getElementById('facturaDatosPreview').style.display = 'block';
+}
+
+function seleccionarFactura(opcion) {
+    requiereFactura = (opcion === 'si');
+    
+    document.getElementById('facturaNo').classList.remove('selected');
+    document.getElementById('facturaSi').classList.remove('selected');
+    
+    if (opcion === 'no') {
+        document.getElementById('facturaNo').classList.add('selected');
+        document.getElementById('facturaRazonSocialContainer').style.display = 'none';
+        document.getElementById('facturaDatosPreview').style.display = 'none';
+        datosFacturaSeleccionados = null;
+    } else {
+        document.getElementById('facturaSi').classList.add('selected');
+        document.getElementById('facturaRazonSocialContainer').style.display = 'block';
+        actualizarSelectorFacturacion();
     }
 }
 
 // ============================================
-// CARGA DE DATOS
+// EDITAR FACTURACIÓN - CORREGIDO
+// ============================================
+
+function editarFacturacion(index) {
+    const fact = facturacionCliente[index];
+    if (!fact) {
+        console.error('❌ Datos de facturación no encontrados en índice:', index);
+        mostrarNotificacion('❌ Error: No se encontraron los datos de facturación.');
+        return;
+    }
+    
+    console.log('✏️ EDITANDO FACTURACIÓN - Nombre:', fact.nombre);
+    console.log('✏️ EDITANDO FACTURACIÓN - Fila REAL:', fact.fila);
+    
+    document.getElementById('editFactIndex').value = index;
+    document.getElementById('editFactFila').value = fact.fila;
+    document.getElementById('editFactRazonSocial').value = fact.razonSocial || '';
+    document.getElementById('editFactRFC').value = fact.rfc || '';
+    document.getElementById('editFactUsoCFDI').value = fact.usoCFDI || '';
+    document.getElementById('editFactCP').value = fact.cp || '';
+    document.getElementById('editFactRegimen').value = fact.regimen || '';
+    document.getElementById('editFactCorreo').value = fact.correo || '';
+    
+    document.getElementById('modalEditarFacturacion').classList.add('active');
+}
+
+function cerrarModalEditarFacturacion() {
+    document.getElementById('modalEditarFacturacion').classList.remove('active');
+}
+
+async function guardarEdicionFacturacion() {
+    const index = parseInt(document.getElementById('editFactIndex').value);
+    const fact = facturacionCliente[index];
+    if (!fact) {
+        mostrarNotificacion('❌ Error: No se encontraron los datos de facturación a editar.');
+        return;
+    }
+    
+    const fila = parseInt(document.getElementById('editFactFila').value);
+    console.log('💾 GUARDANDO FACTURACIÓN - Nombre:', fact.nombre);
+    console.log('💾 GUARDANDO FACTURACIÓN - Fila REAL a actualizar:', fila);
+    
+    const datosActualizados = {
+        codigo: fact.codigo,
+        nombre: fact.nombre,
+        razonSocial: document.getElementById('editFactRazonSocial').value.trim(),
+        rfc: document.getElementById('editFactRFC').value.trim(),
+        usoCFDI: document.getElementById('editFactUsoCFDI').value.trim(),
+        cp: document.getElementById('editFactCP').value.trim(),
+        regimen: document.getElementById('editFactRegimen').value.trim(),
+        correo: document.getElementById('editFactCorreo').value.trim()
+    };
+    
+    if (!datosActualizados.razonSocial || !datosActualizados.rfc || !datosActualizados.usoCFDI || 
+        !datosActualizados.cp || !datosActualizados.regimen || !datosActualizados.correo) {
+        mostrarNotificacion('⚠️ Todos los campos son obligatorios.');
+        return;
+    }
+    
+    // Mostrar loading
+    const btn = document.querySelector('#modalEditarFacturacion .btn-enviar');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading-spinner"></span> Guardando...';
+    
+    try {
+        console.log('📝 Enviando a Apps Script - ACTUALIZAR FACTURACIÓN');
+        console.log('📝 Datos:', datosActualizados);
+        console.log('📝 Fila:', fila);
+        
+        await fetch(APPS_SCRIPT_FACTURACION_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'actualizarFacturacion',
+                fila: fila,
+                codigo: fact.codigo,
+                nombre: fact.nombre,
+                razonSocial: datosActualizados.razonSocial,
+                rfc: datosActualizados.rfc,
+                usoCFDI: datosActualizados.usoCFDI,
+                cp: datosActualizados.cp,
+                regimen: datosActualizados.regimen,
+                correo: datosActualizados.correo
+            })
+        });
+        
+        console.log('✅ Petición enviada (no-cors)');
+        
+        // Actualizar localmente
+        facturacionCliente[index] = { ...fact, ...datosActualizados, fila: fila };
+        renderizarFacturacion();
+        actualizarSelectorFacturacion();
+        cerrarModalEditarFacturacion();
+        mostrarNotificacion('✅ Datos de facturación actualizados correctamente');
+        
+        // Recargar datos del servidor después de un momento
+        setTimeout(() => cargarFacturacionCliente(), 1500);
+        
+    } catch (error) {
+        console.error('❌ Error al actualizar facturación:', error);
+        mostrarNotificacion('❌ Error al guardar los cambios. Intenta de nuevo.');
+    }
+    
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save"></i> Guardar Cambios';
+}
+
+// ============================================
+// ELIMINAR FACTURACIÓN - CORREGIDO
+// ============================================
+
+async function eliminarFacturacion(index) {
+    const fact = facturacionCliente[index];
+    if (!fact) {
+        console.error('❌ Datos de facturación no encontrados en índice:', index);
+        return;
+    }
+    
+    console.log('🗑️ ELIMINANDO FACTURACIÓN - Nombre:', fact.nombre);
+    console.log('🗑️ ELIMINANDO FACTURACIÓN - Fila REAL:', fact.fila);
+    
+    if (!confirm(`¿Seguro que quieres eliminar los datos de facturación de "${fact.nombre}"?`)) return;
+    
+    try {
+        console.log('🗑️ Enviando a Apps Script - ELIMINAR FACTURACIÓN');
+        console.log('🗑️ Fila:', fact.fila);
+        
+        await fetch(APPS_SCRIPT_FACTURACION_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'eliminarFacturacion',
+                fila: fact.fila
+            })
+        });
+        
+        console.log('✅ Petición ELIMINAR enviada (no-cors)');
+        
+        facturacionCliente.splice(index, 1);
+        renderizarFacturacion();
+        actualizarSelectorFacturacion();
+        mostrarNotificacion('🗑️ Datos de facturación eliminados correctamente');
+        
+        setTimeout(() => cargarFacturacionCliente(), 1500);
+        
+    } catch (error) {
+        console.error('❌ Error al eliminar facturación:', error);
+        mostrarNotificacion('❌ Error al eliminar los datos de facturación.');
+    }
+}
+
+// ============================================
+// AGREGAR FACTURACIÓN - NUEVA FUNCIÓN
+// ============================================
+
+function abrirModalAgregarFacturacion() {
+    document.getElementById('modalAgregarFacturacion').classList.add('active');
+    
+    // Limpiar campos
+    document.getElementById('agregarFactNombre').value = clienteData ? clienteData.nombre : '';
+    document.getElementById('agregarFactRazonSocial').value = '';
+    document.getElementById('agregarFactRFC').value = '';
+    document.getElementById('agregarFactUsoCFDI').value = '';
+    document.getElementById('agregarFactCP').value = '';
+    document.getElementById('agregarFactRegimen').value = '';
+    document.getElementById('agregarFactCorreo').value = clienteData ? clienteData.correo : '';
+}
+
+function cerrarModalAgregarFacturacion() {
+    document.getElementById('modalAgregarFacturacion').classList.remove('active');
+}
+
+async function guardarNuevaFacturacion() {
+    const codigoCliente = sessionStorage.getItem('codigoCliente');
+    if (!codigoCliente) {
+        mostrarNotificacion('⚠️ Error: No se pudo identificar al cliente.');
+        return;
+    }
+    
+    const datos = {
+        codigo: codigoCliente,
+        nombre: document.getElementById('agregarFactNombre').value.trim(),
+        razonSocial: document.getElementById('agregarFactRazonSocial').value.trim(),
+        rfc: document.getElementById('agregarFactRFC').value.trim(),
+        usoCFDI: document.getElementById('agregarFactUsoCFDI').value.trim(),
+        cp: document.getElementById('agregarFactCP').value.trim(),
+        regimen: document.getElementById('agregarFactRegimen').value.trim(),
+        correo: document.getElementById('agregarFactCorreo').value.trim()
+    };
+    
+    if (!datos.razonSocial || !datos.rfc || !datos.usoCFDI || !datos.cp || !datos.regimen || !datos.correo) {
+        mostrarNotificacion('⚠️ Todos los campos son obligatorios.');
+        return;
+    }
+    
+    const btn = document.querySelector('#modalAgregarFacturacion .btn-enviar');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading-spinner"></span> Guardando...';
+    
+    try {
+        console.log('📝 Enviando a Apps Script - AGREGAR FACTURACIÓN');
+        console.log('📝 Datos:', datos);
+        
+        await fetch(APPS_SCRIPT_FACTURACION_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'agregarFacturacion',
+                codigo: datos.codigo,
+                nombre: datos.nombre,
+                razonSocial: datos.razonSocial,
+                rfc: datos.rfc,
+                usoCFDI: datos.usoCFDI,
+                cp: datos.cp,
+                regimen: datos.regimen,
+                correo: datos.correo
+            })
+        });
+        
+        console.log('✅ Petición AGREGAR enviada (no-cors)');
+        
+        cerrarModalAgregarFacturacion();
+        mostrarNotificacion('✅ Datos de facturación agregados correctamente');
+        
+        setTimeout(() => cargarFacturacionCliente(), 1500);
+        
+    } catch (error) {
+        console.error('❌ Error al agregar facturación:', error);
+        mostrarNotificacion('❌ Error al guardar los datos. Intenta de nuevo.');
+    }
+    
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save"></i> Guardar';
+}
+
+// ============================================
+// CARGA DE DATOS (CLIENTES, PRODUCTOS, ETC)
 // ============================================
 
 async function cargarDatosCliente(email) {
@@ -437,7 +789,7 @@ async function cargarPreciosEspeciales() {
 }
 
 // ============================================
-// ⭐ FUNCIONES DE DIRECCIONES ⭐
+// FUNCIONES DE DIRECCIONES
 // ============================================
 
 async function cargarDireccionesCliente() {
@@ -571,300 +923,6 @@ function actualizarSelectorDirecciones() {
         select.appendChild(option);
     });
     select.value = '';
-}
-
-// ============================================
-// ⭐ FUNCIONES DE FACTURACIÓN ⭐
-// ============================================
-
-async function cargarFacturacionCliente() {
-    try {
-        const codigoCliente = sessionStorage.getItem('codigoCliente');
-        if (!codigoCliente) {
-            console.warn('⚠️ No hay código de cliente disponible');
-            return;
-        }
-        
-        console.log('📥 Cargando datos de facturación para cliente:', codigoCliente);
-        
-        // ⭐ CODIFICAR EL NOMBRE DE LA HOJA CORRECTAMENTE ⭐
-        const sheetNameEncoded = encodeURIComponent(HOJA_FACTURACION);
-        const url = `https://docs.google.com/spreadsheets/d/${ID_FACTURACION}/gviz/tq?tqx=out:json&sheet=${sheetNameEncoded}`;
-        console.log('📥 URL:', url);
-        
-        const response = await fetch(url);
-        const text = await response.text();
-        
-        console.log('📥 Respuesta recibida, longitud:', text.length);
-        
-        // ⭐ Verificar si la respuesta es HTML (error de autenticación) o contiene function()
-        if (text.includes('<!DOCTYPE html>') || text.includes('Sign in') || text.includes('function()')) {
-            console.error('❌ El archivo de facturación no es accesible. Verifica que esté compartido públicamente.');
-            facturacionCliente = [];
-            renderizarFacturacion();
-            actualizarSelectorFacturacion();
-            return;
-        }
-        
-        // ⭐ Buscar el JSON correctamente
-        const startIndex = text.indexOf('(');
-        const endIndex = text.lastIndexOf(')');
-        if (startIndex === -1 || endIndex === -1) {
-            console.error('❌ No se pudo encontrar JSON en la respuesta');
-            facturacionCliente = [];
-            renderizarFacturacion();
-            actualizarSelectorFacturacion();
-            return;
-        }
-        
-        const jsonStr = text.substring(startIndex + 1, endIndex);
-        const data = JSON.parse(jsonStr);
-        const rows = data.table.rows;
-        
-        console.log(`📊 Filas en la hoja Facturación: ${rows.length}`);
-        
-        facturacionCliente = [];
-        
-        for (let i = 0; i < rows.length; i++) {
-            const values = rows[i].c.map(cell => cell ? cell.v : '');
-            const codigo = String(values[0] || '').trim();
-            const filaReal = i + 1;
-            
-            if (codigo === codigoCliente) {
-                const nombre = String(values[1] || '').trim();
-                console.log(`✅ Facturación encontrada: "${nombre}" en fila REAL ${filaReal}`);
-                
-                facturacionCliente.push({
-                    fila: filaReal,
-                    codigo: codigo,
-                    nombre: nombre || 'Sin nombre',
-                    razonSocial: String(values[2] || '').trim(),
-                    rfc: String(values[3] || '').trim(),
-                    usoCFDI: String(values[4] || '').trim(),
-                    cp: String(values[5] || '').trim(),
-                    regimen: String(values[6] || '').trim(),
-                    correo: String(values[7] || '').trim()
-                });
-            }
-        }
-        
-        console.log(`📦 Datos de facturación cargados: ${facturacionCliente.length}`);
-        facturacionCliente.forEach(d => console.log(`   - ${d.nombre} (Fila ${d.fila})`));
-        
-        renderizarFacturacion();
-        actualizarSelectorFacturacion();
-        
-    } catch (error) {
-        console.error('❌ Error al cargar facturación:', error);
-        facturacionCliente = [];
-        renderizarFacturacion();
-        actualizarSelectorFacturacion();
-    }
-}
-
-function renderizarFacturacion() {
-    const container = document.getElementById('facturacionContent');
-    if (!container) return;
-    
-    if (facturacionCliente.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-file-invoice"></i>
-                <h4>Sin datos de facturación registrados</h4>
-                <p>Agrega tus datos de facturación desde el formulario de compra.</p>
-            </div>
-        `;
-        return;
-    }
-    
-    let html = `<div class="facturacion-grid">`;
-    facturacionCliente.forEach((fact, index) => {
-        html += `
-            <div class="facturacion-card" id="fact-card-${index}">
-                <div class="facturacion-header">
-                    <h4><i class="fas fa-file-invoice"></i> ${fact.nombre || 'Sin nombre'} <span style="font-size:0.7rem;color:var(--text-gray);">(Fila ${fact.fila})</span></h4>
-                    <div class="facturacion-actions">
-                        <button class="btn-editar" onclick="editarFacturacion(${index})">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn-eliminar" onclick="eliminarFacturacion(${index})">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="facturacion-body">
-                    <p><strong>Razón Social:</strong> ${fact.razonSocial || '---'}</p>
-                    <p><strong>RFC:</strong> ${fact.rfc || '---'}</p>
-                    <p><strong>Uso de CFDI:</strong> ${fact.usoCFDI || '---'}</p>
-                    <p><strong>Código Postal:</strong> ${fact.cp || '---'}</p>
-                    <p><strong>Régimen Fiscal:</strong> ${fact.regimen || '---'}</p>
-                    <p><strong>Correo:</strong> ${fact.correo || '---'}</p>
-                </div>
-            </div>
-        `;
-    });
-    html += `</div>`;
-    container.innerHTML = html;
-}
-
-function actualizarSelectorFacturacion() {
-    const select = document.getElementById('facturaRazonSocialSelect');
-    if (!select) return;
-    
-    select.innerHTML = '<option value="">-- Selecciona una razón social --</option>';
-    facturacionCliente.forEach((fact, index) => {
-        const option = document.createElement('option');
-        option.value = index;
-        option.textContent = fact.razonSocial || fact.nombre || `Facturación ${index + 1}`;
-        select.appendChild(option);
-    });
-    select.value = '';
-}
-
-function cargarDatosFacturaSeleccionados() {
-    const select = document.getElementById('facturaRazonSocialSelect');
-    const index = parseInt(select.value);
-    
-    if (isNaN(index) || index < 0 || index >= facturacionCliente.length) {
-        document.getElementById('facturaDatosPreview').style.display = 'none';
-        datosFacturaSeleccionados = null;
-        return;
-    }
-    
-    const fact = facturacionCliente[index];
-    datosFacturaSeleccionados = fact;
-    
-    document.getElementById('facturaPreviewRFC').textContent = fact.rfc || '---';
-    document.getElementById('facturaPreviewUso').textContent = fact.usoCFDI || '---';
-    document.getElementById('facturaPreviewCP').textContent = fact.cp || '---';
-    document.getElementById('facturaPreviewRegimen').textContent = fact.regimen || '---';
-    document.getElementById('facturaPreviewCorreo').textContent = fact.correo || '---';
-    
-    document.getElementById('facturaDatosPreview').style.display = 'block';
-}
-
-function seleccionarFactura(opcion) {
-    requiereFactura = (opcion === 'si');
-    
-    document.getElementById('facturaNo').classList.remove('selected');
-    document.getElementById('facturaSi').classList.remove('selected');
-    
-    if (opcion === 'no') {
-        document.getElementById('facturaNo').classList.add('selected');
-        document.getElementById('facturaRazonSocialContainer').style.display = 'none';
-        document.getElementById('facturaDatosPreview').style.display = 'none';
-        datosFacturaSeleccionados = null;
-    } else {
-        document.getElementById('facturaSi').classList.add('selected');
-        document.getElementById('facturaRazonSocialContainer').style.display = 'block';
-        actualizarSelectorFacturacion();
-    }
-}
-
-// ============================================
-// EDITAR FACTURACIÓN
-// ============================================
-
-function editarFacturacion(index) {
-    const fact = facturacionCliente[index];
-    if (!fact) {
-        console.error('❌ Datos de facturación no encontrados en índice:', index);
-        return;
-    }
-    
-    console.log('✏️ EDITANDO FACTURACIÓN - Nombre:', fact.nombre);
-    console.log('✏️ EDITANDO FACTURACIÓN - Fila REAL:', fact.fila);
-    
-    document.getElementById('editFactIndex').value = index;
-    document.getElementById('editFactFila').value = fact.fila;
-    document.getElementById('editFactRazonSocial').value = fact.razonSocial || '';
-    document.getElementById('editFactRFC').value = fact.rfc || '';
-    document.getElementById('editFactUsoCFDI').value = fact.usoCFDI || '';
-    document.getElementById('editFactCP').value = fact.cp || '';
-    document.getElementById('editFactRegimen').value = fact.regimen || '';
-    document.getElementById('editFactCorreo').value = fact.correo || '';
-    
-    document.getElementById('modalEditarFacturacion').classList.add('active');
-}
-
-function cerrarModalEditarFacturacion() {
-    document.getElementById('modalEditarFacturacion').classList.remove('active');
-}
-
-async function guardarEdicionFacturacion() {
-    const index = parseInt(document.getElementById('editFactIndex').value);
-    const fact = facturacionCliente[index];
-    if (!fact) {
-        mostrarNotificacion('❌ Error: No se encontraron los datos de facturación a editar.');
-        return;
-    }
-    
-    const fila = parseInt(document.getElementById('editFactFila').value);
-    console.log('💾 GUARDANDO FACTURACIÓN - Nombre:', fact.nombre);
-    console.log('💾 GUARDANDO FACTURACIÓN - Fila REAL a actualizar:', fila);
-    
-    const datosActualizados = {
-        codigo: fact.codigo,
-        nombre: fact.nombre,
-        razonSocial: document.getElementById('editFactRazonSocial').value.trim(),
-        rfc: document.getElementById('editFactRFC').value.trim(),
-        usoCFDI: document.getElementById('editFactUsoCFDI').value.trim(),
-        cp: document.getElementById('editFactCP').value.trim(),
-        regimen: document.getElementById('editFactRegimen').value.trim(),
-        correo: document.getElementById('editFactCorreo').value.trim()
-    };
-    
-    if (!datosActualizados.razonSocial || !datosActualizados.rfc || !datosActualizados.usoCFDI || 
-        !datosActualizados.cp || !datosActualizados.regimen || !datosActualizados.correo) {
-        mostrarNotificacion('⚠️ Todos los campos son obligatorios.');
-        return;
-    }
-    
-    try {
-        const resultado = await actualizarFacturacionEnSheets(fila, datosActualizados);
-        console.log('📝 Resultado de Apps Script (simulado):', resultado);
-        
-        facturacionCliente[index] = { ...fact, ...datosActualizados, fila: fila };
-        renderizarFacturacion();
-        actualizarSelectorFacturacion();
-        cerrarModalEditarFacturacion();
-        mostrarNotificacion('✅ Datos de facturación actualizados correctamente');
-        
-        setTimeout(() => cargarFacturacionCliente(), 1500);
-        
-    } catch (error) {
-        console.error('❌ Error al actualizar facturación:', error);
-        mostrarNotificacion('❌ Error al guardar los cambios. Intenta de nuevo.');
-    }
-}
-
-async function eliminarFacturacion(index) {
-    const fact = facturacionCliente[index];
-    if (!fact) {
-        console.error('❌ Datos de facturación no encontrados en índice:', index);
-        return;
-    }
-    
-    console.log('🗑️ ELIMINANDO FACTURACIÓN - Nombre:', fact.nombre);
-    console.log('🗑️ ELIMINANDO FACTURACIÓN - Fila REAL:', fact.fila);
-    
-    if (!confirm(`¿Seguro que quieres eliminar los datos de facturación de "${fact.nombre}"?`)) return;
-    
-    try {
-        const resultado = await eliminarFacturacionEnSheets(fact.fila);
-        console.log('🗑️ Resultado de Apps Script (simulado):', resultado);
-        
-        facturacionCliente.splice(index, 1);
-        renderizarFacturacion();
-        actualizarSelectorFacturacion();
-        mostrarNotificacion('🗑️ Datos de facturación eliminados correctamente');
-        
-        setTimeout(() => cargarFacturacionCliente(), 1500);
-        
-    } catch (error) {
-        console.error('❌ Error al eliminar facturación:', error);
-        mostrarNotificacion('❌ Error al eliminar los datos de facturación.');
-    }
 }
 
 // ============================================
