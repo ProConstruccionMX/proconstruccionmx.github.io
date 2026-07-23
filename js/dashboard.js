@@ -26,7 +26,7 @@ const HOJA_COTIZACIONES = 'Hoja 1';
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyRT70rT0pgG6IX4vjjvX44DuPnQqF1evnkQ7Vdz4XVyaZj0j3v4Em36U5FwLBlaRRxtQ/exec';
 
-// ⭐ URL DEL SCRIPT DE FACTURACIÓN (ACTUALIZADA) ⭐
+// ⭐ URL DEL SCRIPT DE FACTURACIÓN ⭐
 const APPS_SCRIPT_FACTURACION_URL = 'https://script.google.com/macros/s/AKfycbz8DPOrcbwOFIh2wXWv505_TWmNQc9apM6GsjCEGQ7vamRJmU-AOidb5fL2mqRVTr3_sQ/exec';
 
 const EMAIL_VENTAS = 'ventas@proconstruccionmx.com';
@@ -213,6 +213,7 @@ async function guardarFilaGoogleSheets(sheetName, datos) {
 
 // ============================================
 // ⭐ FUNCIONES DE FACTURACIÓN - CORREGIDAS ⭐
+// (USANDO EL MISMO MÉTODO QUE DIRECCIONES)
 // ============================================
 
 async function cargarFacturacionCliente() {
@@ -225,9 +226,8 @@ async function cargarFacturacionCliente() {
         
         console.log('📥 Cargando datos de facturación para cliente:', codigoCliente);
         
-        // ⭐ CORREGIDO: Usar encodeURIComponent para el nombre de la hoja ⭐
-        const sheetNameEncoded = encodeURIComponent(HOJA_FACTURACION);
-        const url = `https://docs.google.com/spreadsheets/d/${ID_FACTURACION}/gviz/tq?tqx=out:json&sheet=${sheetNameEncoded}`;
+        // ⭐ USAR EXACTAMENTE EL MISMO MÉTODO QUE DIRECCIONES ⭐
+        const url = `https://docs.google.com/spreadsheets/d/${ID_FACTURACION}/gviz/tq?tqx=out:json&sheet=${HOJA_FACTURACION}`;
         console.log('📥 URL:', url);
         
         const response = await fetch(url);
@@ -236,7 +236,7 @@ async function cargarFacturacionCliente() {
         console.log('📥 Respuesta recibida, longitud:', text.length);
         console.log('📥 Primeros 200 caracteres:', text.substring(0, 200));
         
-        // Verificar si es HTML (error de autenticación)
+        // Verificar si es HTML (error de autenticación) - IGUAL QUE DIRECCIONES
         if (text.includes('<!DOCTYPE html>') || text.includes('Sign in') || text.includes('function()')) {
             console.error('❌ El archivo de facturación no es accesible. Verifica que esté compartido públicamente.');
             facturacionCliente = [];
@@ -244,7 +244,7 @@ async function cargarFacturacionCliente() {
             return;
         }
         
-        // Buscar el JSON
+        // Buscar el JSON - IGUAL QUE DIRECCIONES
         const startIndex = text.indexOf('(');
         const endIndex = text.lastIndexOf(')');
         if (startIndex === -1 || endIndex === -1) {
@@ -262,6 +262,7 @@ async function cargarFacturacionCliente() {
         
         facturacionCliente = [];
         
+        // ⭐ PROCESAR IGUAL QUE DIRECCIONES ⭐
         for (let i = 0; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[0] || '').trim();
@@ -269,7 +270,7 @@ async function cargarFacturacionCliente() {
             
             if (codigo === codigoCliente) {
                 const nombre = String(values[1] || '').trim();
-                console.log(`✅ Facturación encontrada para "${nombre}" en fila REAL ${filaReal}`);
+                console.log(`✅ Facturación encontrada: "${nombre}" en fila REAL ${filaReal}`);
                 
                 facturacionCliente.push({
                     fila: filaReal,
