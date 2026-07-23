@@ -225,11 +225,15 @@ async function cargarFacturacionCliente() {
         
         console.log('📥 Cargando datos de facturación para cliente:', codigoCliente);
         
-        const url = `https://docs.google.com/spreadsheets/d/${ID_FACTURACION}/gviz/tq?tqx=out:json&sheet=${HOJA_FACTURACION}`;
+        // ⭐ CORREGIDO: El nombre de la hoja va entre comillas simples ⭐
+        const url = `https://docs.google.com/spreadsheets/d/${ID_FACTURACION}/gviz/tq?tqx=out:json&sheet='${HOJA_FACTURACION}'`;
         console.log('📥 URL:', url);
         
         const response = await fetch(url);
         const text = await response.text();
+        
+        console.log('📥 Respuesta recibida, longitud:', text.length);
+        console.log('📥 Primeros 200 caracteres:', text.substring(0, 200));
         
         if (text.includes('<!DOCTYPE html>') || text.includes('Sign in')) {
             console.error('❌ El archivo de facturación no es accesible. Verifica que esté compartido públicamente.');
@@ -238,7 +242,17 @@ async function cargarFacturacionCliente() {
             return;
         }
         
-        const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
+        // Buscar el JSON correctamente
+        const startIndex = text.indexOf('(');
+        const endIndex = text.lastIndexOf(')');
+        if (startIndex === -1 || endIndex === -1) {
+            console.error('❌ No se pudo encontrar JSON en la respuesta');
+            facturacionCliente = [];
+            renderizarFacturacion();
+            return;
+        }
+        
+        const jsonStr = text.substring(startIndex + 1, endIndex);
         const data = JSON.parse(jsonStr);
         const rows = data.table.rows;
         
@@ -385,7 +399,7 @@ function seleccionarFactura(opcion) {
 }
 
 // ============================================
-// EDITAR FACTURACIÓN - CORREGIDO
+// EDITAR FACTURACIÓN
 // ============================================
 
 function editarFacturacion(index) {
@@ -496,7 +510,7 @@ async function guardarEdicionFacturacion() {
 }
 
 // ============================================
-// ELIMINAR FACTURACIÓN - CORREGIDO
+// ELIMINAR FACTURACIÓN
 // ============================================
 
 async function eliminarFacturacion(index) {
@@ -543,7 +557,7 @@ async function eliminarFacturacion(index) {
 }
 
 // ============================================
-// AGREGAR FACTURACIÓN - NUEVA FUNCIÓN
+// AGREGAR FACTURACIÓN
 // ============================================
 
 function abrirModalAgregarFacturacion() {
@@ -816,19 +830,12 @@ async function cargarDireccionesCliente() {
         
         console.log(`📊 Filas en la hoja Direcciones: ${rows.length}`);
         
-        for (let i = 0; i < rows.length; i++) {
-            const values = rows[i].c.map(cell => cell ? cell.v : '');
-            console.log(`📊 Fila ${i} (Google Sheets ${i+1}):`, values);
-        }
-        
         direccionesCliente = [];
         
         for (let i = 0; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[0] || '').trim();
             const filaReal = i + 1;
-            
-            console.log(`📊 Procesando Fila ${i} (Google Sheets ${filaReal}): Código="${codigo}"`);
             
             if (codigo === codigoCliente) {
                 const nombre = String(values[1] || '').trim();
@@ -851,8 +858,6 @@ async function cargarDireccionesCliente() {
         }
         
         console.log(`📦 Direcciones cargadas: ${direccionesCliente.length}`);
-        direccionesCliente.forEach(d => console.log(`   - ${d.nombre} (Fila ${d.fila})`));
-        
         renderizarDirecciones();
         actualizarSelectorDirecciones();
         
