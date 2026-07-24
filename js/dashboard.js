@@ -1870,155 +1870,386 @@ function calcularTotal() {
 }
 
 // ============================================
-// FUNCIÓN PARA GENERAR PDF DEL COMPROBANTE
+// ⭐ FUNCIÓN PARA GENERAR PDF DEL COMPROBANTE (NUEVO FORMATO) ⭐
 // ============================================
 
 function generarPDFComprobante(datos) {
     try {
         console.log('📄 Generando PDF del comprobante...');
-        
-        let htmlProductos = '';
-        datos.productos.forEach(p => {
-            htmlProductos += `
+
+        // 1. Formatear fecha
+        const hoy = new Date();
+        const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 
+                       'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+        const fechaFormateada = `${hoy.getDate()} de ${meses[hoy.getMonth()]} de ${hoy.getFullYear()}`;
+
+        // 2. Formatear nombre del asesor
+        let nombreAsesor = "Gabriel";
+        if (clienteData && clienteData.asesor) {
+            nombreAsesor = clienteData.asesor;
+        }
+
+        // 3. Determinar título del documento
+        const tituloDocumento = 'Comprobante de Compra';
+        const mensajeFooter = '¡Gracias por su preferencia!';
+        const facturaFooter = datos.requiereFactura ? '<p><strong>✅ Factura solicitada</strong></p>' : '';
+
+        // 4. Generar filas de la tabla de productos
+        let tablaProductos = '';
+        datos.productos.forEach(producto => {
+            let precioInfo = formatoMexicano(producto.precio);
+            if (producto.personalizado) {
+                precioInfo = `${formatoMexicano(producto.precio)} <span class="precio-personalizado">PERSONALIZADO</span>`;
+            }
+            
+            tablaProductos += `
                 <tr>
-                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align:center;">${p.cantidad}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${p.nombre}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align:right;">${formatoMexicano(p.precio)}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align:center;">${p.descuento}%</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align:right;">${formatoMexicano(p.importe)}</td>
+                    <td>${producto.nombre}</td>
+                    <td>${precioInfo}</td>
+                    <td>${producto.cantidad}</td>
+                    <td>${producto.descuento}%</td>
+                    <td>${formatoMexicano(producto.importe)}</td>
                 </tr>
             `;
         });
-        
-        let htmlDireccion = '';
-        if (datos.direccion) {
-            htmlDireccion = `
-                <div style="margin-bottom: 20px;">
-                    <h3 style="color: #0A2540; margin-bottom: 10px;">📦 Dirección de Envío</h3>
-                    <p><strong>Nombre:</strong> ${datos.nombreDireccion || 'Sin nombre'}</p>
-                    <p><strong>Calle:</strong> ${datos.direccion.calle}</p>
-                    <p><strong>Colonia:</strong> ${datos.direccion.colonia}</p>
-                    <p><strong>Alcaldía:</strong> ${datos.direccion.alcaldia}</p>
-                    <p><strong>Estado:</strong> ${datos.direccion.estado}</p>
-                    <p><strong>CP:</strong> ${datos.direccion.cp}</p>
-                    <p><strong>Teléfono:</strong> ${datos.direccion.telefono}</p>
-                    <p><strong>Recibe:</strong> ${datos.direccion.nombreRecibe}</p>
+
+        // 5. Información de crédito (si aplica)
+        let infoCreditoHTML = '';
+        if (datos.tipoPago === 'Crédito') {
+            const diasCredito = datos.diasCredito || 20;
+            const anticipo = datos.anticipo || 0;
+            const saldoPendiente = datos.saldoPendiente || datos.total;
+            let fechaPago = '';
+            if (datos.fechaPago) {
+                const fechaPagoDate = new Date(datos.fechaPago);
+                fechaPago = fechaPagoDate.toLocaleDateString('es-MX');
+            }
+            
+            infoCreditoHTML = `
+                <div class="info-credito">
+                    <h3>Condiciones de Crédito</h3>
+                    <p><strong>Anticipo recibido:</strong> ${formatoMexicano(anticipo)}</p>
+                    <p><strong>Saldo pendiente:</strong> ${formatoMexicano(saldoPendiente)}</p>
+                    <p><strong>Días de crédito:</strong> ${diasCredito} días</p>
+                    ${fechaPago ? `<p><strong>Fecha de pago:</strong> ${fechaPago}</p>` : ''}
+                    <p style="font-size: 12px; color: #856404; margin-top: 10px;">
+                        ⚠️ El saldo pendiente deberá ser liquidado en la fecha establecida.
+                    </p>
                 </div>
             `;
         }
-        
-        let htmlFactura = '';
+
+        // 6. Información de factura (si aplica)
+        let infoFacturaHTML = '';
         if (datos.requiereFactura && datos.datosFactura) {
-            htmlFactura = `
-                <div style="margin-bottom: 20px; background: #f0f7ff; padding: 15px; border-radius: 8px; border-left: 4px solid #1a4d8c;">
-                    <h3 style="color: #0A2540; margin-bottom: 10px;">📄 Datos de Facturación</h3>
-                    <p><strong>Razón Social:</strong> ${datos.datosFactura.razonSocial}</p>
-                    <p><strong>RFC:</strong> ${datos.datosFactura.rfc}</p>
-                    <p><strong>Uso de CFDI:</strong> ${datos.datosFactura.usoCFDI}</p>
-                    <p><strong>C.P.:</strong> ${datos.datosFactura.cp}</p>
-                    <p><strong>Régimen Fiscal:</strong> ${datos.datosFactura.regimen}</p>
-                    <p><strong>Correo:</strong> ${datos.datosFactura.correo}</p>
+            infoFacturaHTML = `
+                <div class="info-factura">
+                    <h3>Información de Facturación</h3>
+                    <p><strong>Solicitud de factura:</strong> ✅ SÍ</p>
+                    <p><strong>Folio para factura:</strong> ${datos.folio}</p>
+                    <p><strong>Razón Social:</strong> ${datos.datosFactura.razonSocial || '---'}</p>
+                    <p><strong>RFC:</strong> ${datos.datosFactura.rfc || '---'}</p>
+                    <p style="font-size: 12px; color: #155724; margin-top: 10px;">
+                        La factura será procesada según los datos fiscales proporcionados.
+                    </p>
                 </div>
             `;
         }
-        
+
+        // 7. Método de pago
+        let metodoPagoHTML = `<p><strong>Método de pago:</strong> ${datos.tipoPago.toUpperCase()}</p>`;
+
+        // 8. Generar HTML completo con el nuevo formato
         const html = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <title>Comprobante ${datos.folio}</title>
-                <style>
-                    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; color: #1a1a2e; }
-                    .header { background: #0A2540; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }
-                    .header h1 { color: white; margin: 0; }
-                    .header h1 span { color: #F5A623; }
-                    .header p { color: #94a3b8; margin: 5px 0 0 0; }
-                    .content { background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-                    .folio { font-size: 24px; font-weight: 700; color: #0A2540; margin: 0 0 5px 0; }
-                    .fecha { color: #4a5568; margin: 0 0 20px 0; }
-                    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-                    th { background: #f8f9fa; padding: 10px; text-align: left; font-weight: 600; color: #0A2540; border-bottom: 2px solid #e2e8f0; }
-                    td { padding: 10px; border-bottom: 1px solid #e2e8f0; }
-                    .totales { text-align: right; margin-top: 20px; padding-top: 20px; border-top: 2px solid #e2e8f0; }
-                    .total-final { font-size: 24px; font-weight: 800; color: #0A2540; }
-                    .footer { text-align: center; color: #718096; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; }
-                    .metodo-pago { background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0; }
-                    .cliente-info { margin-bottom: 20px; }
-                    .cliente-info h3 { color: #0A2540; margin-bottom: 10px; }
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <h1>ProConstrucción <span>MX</span></h1>
-                    <p>Comprobante de Compra</p>
-                </div>
-                <div class="content">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <div>
-                            <p class="folio">🧾 ${datos.folio}</p>
-                            <p class="fecha"><strong>Fecha:</strong> ${datos.fecha.toLocaleString('es-MX')}</p>
-                        </div>
-                        <div style="text-align: right;">
-                            <p><strong>Método de pago:</strong> ${datos.tipoPago}</p>
-                        </div>
-                    </div>
-                    
-                    <div class="cliente-info">
-                        <h3>👤 Datos del Cliente</h3>
-                        <p><strong>Nombre:</strong> ${datos.cliente.nombre}</p>
-                        <p><strong>Código:</strong> ${datos.cliente.codigo}</p>
-                        <p><strong>Correo:</strong> ${datos.cliente.correo}</p>
-                        <p><strong>Teléfono:</strong> ${datos.cliente.telefono || 'No especificado'}</p>
-                    </div>
-                    
-                    ${htmlDireccion}
-                    
-                    ${htmlFactura}
-                    
-                    <h3 style="color: #0A2540; margin: 20px 0 10px 0;">📦 Productos</h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="text-align:center;">Cant.</th>
-                                <th>Producto</th>
-                                <th style="text-align:right;">Precio</th>
-                                <th style="text-align:center;">Dto.%</th>
-                                <th style="text-align:right;">Importe</th>
-                            </tr>
-                        </thead>
-                        <tbody>${htmlProductos}</tbody>
-                    </table>
-                    
-                    <div class="totales">
-                        <p><strong>Subtotal sin descuento:</strong> ${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16))}</p>
-                        <p><strong>Descuento total:</strong> -${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16) - datos.total)}</p>
-                        <p><strong>Subtotal:</strong> ${formatoMexicano(datos.subtotal)}</p>
-                        <p><strong>IVA (16%):</strong> ${formatoMexicano(datos.iva)}</p>
-                        <p class="total-final"><strong>TOTAL:</strong> ${formatoMexicano(datos.total)}</p>
-                    </div>
-                    
-                    <div class="metodo-pago">
-                        <h3 style="color: #0A2540; margin: 0 0 10px 0;">💳 Información de Pago</h3>
-                        <p><strong>Método:</strong> ${datos.tipoPago}</p>
-                        ${datos.tipoPago === 'Transferencia' ? `
-                            <p><strong>Referencia:</strong> ${datos.referencia || 'No especificada'}</p>
-                        ` : `
-                            <p><strong>Días de crédito:</strong> ${datos.diasCredito} días</p>
-                            <p><strong>Fecha de pago:</strong> ${datos.fechaPago ? datos.fechaPago.toLocaleDateString('es-MX') : 'N/A'}</p>
-                            <p style="color:#92400e;font-weight:600;">⚠️ Si no se cumple con el pago, se podrá eliminar el crédito.</p>
-                        `}
-                    </div>
-                    
-                    <div class="footer">
-                        <p>Este comprobante es generado automáticamente por el sistema de ProConstrucción MX.</p>
-                        <p>© ${new Date().getFullYear()} ProConstrucción MX - Todos los derechos reservados</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-        `;
-        
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+    * { 
+        margin: 0; 
+        padding: 0; 
+        box-sizing: border-box; 
+    }
+    
+    body { 
+        margin: 0; 
+        padding: 0; 
+        background: white; 
+        font-family: Arial, sans-serif; 
+    }
+    
+    .container { 
+        width: 100%; 
+        padding: 30px 40px; 
+        background: white; 
+    }
+    
+    .titulo-empresa { 
+        text-align: center; 
+        font-size: 20px; 
+        font-weight: bold; 
+        color: #000000; 
+        margin-bottom: 2px; 
+    }
+    
+    .rfc { 
+        text-align: center; 
+        font-size: 14px; 
+        color: #000000; 
+        margin-bottom: 15px; 
+    }
+    
+    .header { 
+        display: flex; 
+        justify-content: space-between; 
+        margin-bottom: 30px; 
+        padding-bottom: 20px; 
+        border-bottom: 2px solid #2a3990; 
+    }
+    
+    .logo { 
+        max-width: 150px; 
+    }
+    
+    .folio { 
+        font-size: 18px; 
+        font-weight: bold; 
+        color: #2a3990; 
+    }
+    
+    .datos-cliente { 
+        margin-bottom: 20px; 
+    }
+    
+    .datos-cliente h3 { 
+        margin-bottom: 10px; 
+        color: #2a3990; 
+    }
+    
+    .datos-cliente p { 
+        margin: 3px 0; 
+    }
+    
+    .info-credito { 
+        background: #fff3cd; 
+        padding: 15px; 
+        border-radius: 8px; 
+        margin: 20px 0; 
+        border: 1px solid #ffeaa7; 
+    }
+    
+    .info-credito h3 { 
+        color: #856404; 
+        margin-top: 0; 
+    }
+    
+    .info-factura { 
+        background: #d4edda; 
+        padding: 15px; 
+        border-radius: 8px; 
+        margin: 20px 0; 
+        border: 1px solid #c3e6cb; 
+    }
+    
+    .info-factura h3 { 
+        color: #155724; 
+        margin-top: 0; 
+    }
+    
+    table { 
+        width: 100%; 
+        border-collapse: collapse; 
+        margin: 25px 0; 
+        font-size: 12px; 
+    }
+    
+    th { 
+        background: #2a3990; 
+        color: white; 
+        padding: 15px 8px; 
+        text-align: left; 
+    }
+    
+    td { 
+        padding: 12px 8px; 
+        border-bottom: 1px solid #e0e0e0; 
+    }
+    
+    .precio-personalizado { 
+        background-color: #e8f4fd; 
+        font-size: 10px; 
+        padding: 2px 5px; 
+        border-radius: 3px; 
+        margin-left: 5px; 
+    }
+    
+    .totales { 
+        margin-top: 30px; 
+        text-align: right; 
+    }
+    
+    .total-row { 
+        font-weight: bold; 
+        font-size: 16px; 
+        color: #2a3990; 
+    }
+    
+    .terminos { 
+        margin-top: 30px; 
+        padding: 15px; 
+        background: #f8f9fa; 
+        border-radius: 8px; 
+        font-size: 10px; 
+        color: #666; 
+    }
+    
+    .terminos h4 { 
+        margin: 0 0 8px 0; 
+        color: #2a3990; 
+        font-size: 11px; 
+    }
+    
+    .terminos p { 
+        margin: 3px 0; 
+    }
+    
+    .datos-bancarios { 
+        margin-top: 30px; 
+        padding: 15px; 
+        background: #f8f9fa; 
+        border-radius: 8px; 
+        font-size: 12px; 
+        color: #333; 
+    }
+    
+    .datos-bancarios h4 { 
+        margin: 0 0 8px 0; 
+        color: #2a3990; 
+        font-size: 13px; 
+    }
+    
+    .datos-bancarios p { 
+        margin: 3px 0; 
+    }
+    
+    .footer { 
+        margin-top: 40px; 
+        padding-top: 20px; 
+        font-size: 11px; 
+        color: #666; 
+        text-align: center; 
+        border-top: 1px solid #2a3990; 
+    }
+    
+    .footer .pro { 
+        color: #2a3990; 
+    }
+    
+    .footer .mx { 
+        color: #D4AF37; 
+    }
+    
+    @page { 
+        margin: 0; 
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    
+    <!-- ENCABEZADO DE LA EMPRESA -->
+    <div class="titulo-empresa">PROCONSTRUCCIONMX SAS DE CV</div>
+    <div class="rfc">RFC: PRO2605135X4</div>
+    
+    <!-- HEADER CON LOGO Y FOLIO -->
+    <div class="header">
+        <div>
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAACXBIWXMAAAsTAAALEwEAmpwYAAAG+ElEQVR4nO2dXWwUVRiGn3dmtrvQH6tABWkXBaEorVpWQSRR1khaU5AaIzYhNcaLrIqKgYSVYLixF4Z4sS7SX+hViWmD4h9KxYAYNGpC9MIYUAJIpECkUiVBS7G22+2P5zu72XbPObNnds7Oec+TnN125pn3nO/s2Zk5M98QYBAREREREU0wI6GekTkdFhYgAk6HtcfjvWcDz3A+ADnO1gcRcDqsrHfF5yLAzQCYK5OQgL50MptYdvzTo4XywrzBd+PP+Q3P/2cZIMcHAh4Jm4nv8s3fdg3eZ//bNRYePW8GkSMh9gyiAY4l7m3+ZmHnYLZQ9h/YT9jFeF8bRABmtb/8qL98N2nYt2/jI/r6+aY8lGdE8BUHvPvYEyliLYsO7hHx+Y8bG7TdK57r2gR6IsiVqSqrBdmNwMfLiyCsBHKmio0Ayzw7syE6AlmmeS8jUCC7EejdK65+HfAsMz2zIYghvZ59IugOflDuktmQ3QhU29PhtnsOzHokKgK9+wU7C8a+tcPZ6YdtAywL+gBdn0Dc80fAtkP79rQzmbPCvgGypgJkQzYQrNOmYe0EqNqgFzhBUiz+5GzpZKIrvbP/c7Z4Tqcdh7MT4D9Ll3du8+r0L7a/2q43iLX2nH+9Q7K5sKTpMEi2CbArXSg2TqVLvRn3H5BscQKhMQH+P/C7/vGrnH6TOf/wOwKMffs2Q2GfDMGWCTAs/rM2fflK19nzR7SF/bb5FcyuG//YHWTfAU7rJhNaIECpUi1NA9OBvSf+0Rb2G9bAN69Q/zzYtIeoCJAB2Tt+51dLmhYWEcfv3ygth0X+3HrqjLYIwc4Xc1tm3r+zY3CgMs+r/PrNlL7APO+8f2D7shOj7l3w1dLzlUu9mQ8eLPzLqcN0Oc+8/9v1+1JtPpLGVY9FkPm6U2fStw8f7xj8/sltF5M7xHJavw4Sx9YbGcVxla+6zxaKBa/9Kxt/7Rsd+v2mqAJQBfW6rMAG0AKjLuU9ul9M7T90Pbl74w9nC1Ounzb0nWn7d/cZvOOR9A2lnk1fX7/1ghd6bCz01N8z8Vid7/dk0+feKBGvXm+zQBDLl1FEBTwZRIDrP9R6B+7dvPr7u3OOQ1LqFhIx7NkAvO+x6Z96dHYiVn++5afR9nzKWLgI8CwzPZssWCTbF8Omd46+dH+ivkLcQmJbtVg5u1RwxJ1HxAXFzhfe5+3kYft4P9n+Yab1wX1iXQ4Lg1sprRIT3pmbHeWJcT2bLNhGwLDM9KyIF9P5xZ/ogCBNAlZIC4sZiL2r3i6OtcQ15BCR+wVs1wHCWit+jZAPhnjVvwqFZt+B2juXvdL+hGVto3UBrDn4tC32zGRskwDH2/ESd7mSf3tp++v7IMMIa33zs7s/so95cvR2abuyz/fcFpBp0BLXcD9BZIJM/dzPpK3Bpy/1yK1e+61TXsVnOvr6vsVztXQCi4YQNhAeq1nELc/+NNVtP6mT1W1C7ix6cdl7+SsJ3KcH7nl24PzM9CdzCnX/cP3Tl7cLhQGLBQjy3JgsR8AXHYgc8m/7X7tQ0bntXNsEArL1/J/7bQlkGSJw28MmkqOU/y9+U1VqfKp/G2NLbDgKpRrFc8RUCejoAsAurQciA9l9FPCg4x1bgBUgCgKYgLYdV4mJwJntwEJYIyLC3R+1MiLrSYFNIDc80a7B2fC14tqkSf0IgK01V3J9y2QtuBtzl1+"/> 
+        </div>
+        <div style="text-align: right;">
+            <p class="folio">${datos.folio}</p>
+            <p>${fechaFormateada}</p>
+            <p>${tituloDocumento}</p>
+        </div>
+    </div>
+    
+    <!-- DATOS DEL CLIENTE -->
+    <div class="datos-cliente">
+        <h3>Datos del Cliente</h3>
+        <p><strong>Nombre:</strong> ${datos.cliente.nombre}</p>
+        <p><strong>Código:</strong> ${datos.cliente.codigo}</p>
+        <p><strong>Asesor:</strong> ${nombreAsesor}</p>
+        ${metodoPagoHTML}
+    </div>
+    
+    <!-- INFORMACIÓN DE CRÉDITO -->
+    ${infoCreditoHTML}
+    
+    <!-- INFORMACIÓN DE FACTURA -->
+    ${infoFacturaHTML}
+    
+    <!-- TABLA DE PRODUCTOS -->
+    <table>
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Precio Unit.</th>
+                <th>Cantidad</th>
+                <th>Descuento</th>
+                <th>Importe</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${tablaProductos}
+        </tbody>
+    </table>
+    
+    <!-- TOTALES -->
+    <div class="totales">
+        <p><strong>Importe base:</strong> ${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16))}</p>
+        <p><strong>Descuento aplicado:</strong> -${formatoMexicano((datos.subtotal + (datos.subtotal * 0.16)) - datos.total)}</p>
+        <p><strong>Subtotal:</strong> ${formatoMexicano(datos.subtotal)}</p>
+        <p><strong>IVA (16%):</strong> ${formatoMexicano(datos.iva)}</p>
+        <p class="total-row"><strong>Total a pagar:</strong> ${formatoMexicano(datos.total)}</p>
+    </div>
+    
+    <!-- CONDICIONES COMERCIALES -->
+    <div class="terminos">
+        <h4>Condiciones comerciales</h4>
+        <p>Precios en moneda nacional.</p>
+        <p>Condiciones de pago: 100% al solicitar el material</p>
+        <p>Formas de pago: Transferencias Bancarias.</p>
+        <p>Los precios están sujetos a cambios sin previo aviso.</p>
+        <p>La entrega de productos se realiza a pie de camión, no incluye maniobras.</p>
+        <p><strong>Vigencia de la cotización:</strong> cambios sin previo aviso.</p>
+        <p>El cliente es responsable de verificar los productos al momento de la entrega, ya que una vez entregada y firmada la hoja de entrega, no se aceptarán cambios o devoluciones en productos dañados o incompletos.</p>
+        <p>Los cambios y devoluciones solo son válidos en productos con daño de fábrica.</p>
+        <p>Los productos que lleguen dañados deben reportarse de inmediato o no permitir la descarga, ya que después no serán válidos los cambios o devoluciones.</p>
+    </div>
+    
+    <!-- DATOS BANCARIOS -->
+    <div class="datos-bancarios">
+        <h4>Datos bancarios para depósitos</h4>
+        <p><strong>PROCONSTRUCCIONMX SAS DE CV</strong></p>
+        <p><strong>BANCO:</strong> BBVA</p>
+        <p><strong>NÚMERO DE CUENTA:</strong> 0127744064</p>
+        <p><strong>CUENTA CLABE:</strong> 012180001277440643</p>
+    </div>
+    
+    <!-- FOOTER -->
+    <div class="footer">
+        <p><strong><span class="pro">ProConstrucción</span><span class="mx">MX</span></strong></p>
+        <p>📧 ventas@proconstruccionmx.com</p>
+        <p>${mensajeFooter}</p>
+        ${facturaFooter}
+    </div>
+    
+</div>
+</body>
+</html>`;
+
+        // 9. Crear el PDF
         const blob = new Blob([html], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
         
@@ -2094,7 +2325,8 @@ async function procesarPagoTransferencia() {
                 precio: item.precio,
                 descuento: item.descuento,
                 importe: item.importe,
-                precioCompra: item.precioCompra
+                precioCompra: item.precioCompra,
+                personalizado: item.personalizado || false
             })),
             total: total,
             subtotal: total / 1.16,
@@ -2176,7 +2408,8 @@ async function procesarPagoCredito() {
                 precio: item.precio,
                 descuento: item.descuento,
                 importe: item.importe,
-                precioCompra: item.precioCompra
+                precioCompra: item.precioCompra,
+                personalizado: item.personalizado || false
             })),
             total: total,
             subtotal: total / 1.16,
