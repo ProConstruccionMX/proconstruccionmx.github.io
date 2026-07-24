@@ -1607,7 +1607,8 @@ function verificarCreditoDisponible() {
             montoPago: 0,
             productosCredito: [],
             productosPago: [],
-            excedeLimite: false
+            excedeLimite: false,
+            puedeUsarCredito: false
         };
     }
     
@@ -1621,7 +1622,8 @@ function verificarCreditoDisponible() {
             montoPago: totalGeneral,
             productosCredito: [],
             productosPago: carrito,
-            excedeLimite: true
+            excedeLimite: true,
+            puedeUsarCredito: false
         };
     }
     
@@ -1639,7 +1641,8 @@ function verificarCreditoDisponible() {
                 montoPago: 0,
                 productosCredito: carrito,
                 productosPago: [],
-                excedeLimite: false
+                excedeLimite: false,
+                puedeUsarCredito: true
             };
         } else {
             // Calcular crédito parcial
@@ -1729,7 +1732,8 @@ function verificarCreditoDisponible() {
                 montoPago: montoPago,
                 productosCredito: productosCredito,
                 productosPago: productosPago,
-                excedeLimite: true
+                excedeLimite: true,
+                puedeUsarCredito: montoPago > 0
             };
         }
     }
@@ -1748,7 +1752,8 @@ function verificarCreditoDisponible() {
                 montoPago: 0,
                 productosCredito: carrito,
                 productosPago: [],
-                excedeLimite: false
+                excedeLimite: false,
+                puedeUsarCredito: true
             };
         } else {
             const montoExcedente = montoSinPeso - clienteLimiteCreditoMonto;
@@ -1837,7 +1842,8 @@ function verificarCreditoDisponible() {
                 montoPago: montoPago,
                 productosCredito: productosCredito,
                 productosPago: productosPago,
-                excedeLimite: true
+                excedeLimite: true,
+                puedeUsarCredito: montoPago > 0
             };
         }
     }
@@ -1859,7 +1865,8 @@ function verificarCreditoDisponible() {
                 montoPago: 0,
                 productosCredito: carrito,
                 productosPago: [],
-                excedeLimite: false
+                excedeLimite: false,
+                puedeUsarCredito: true
             };
         } else {
             let productosPago = [];
@@ -2007,7 +2014,8 @@ function verificarCreditoDisponible() {
                 montoPago: montoPago,
                 productosCredito: productosCredito,
                 productosPago: productosPago,
-                excedeLimite: true
+                excedeLimite: true,
+                puedeUsarCredito: montoPago > 0
             };
         }
     }
@@ -2021,7 +2029,8 @@ function verificarCreditoDisponible() {
         montoPago: 0,
         productosCredito: [],
         productosPago: [],
-        excedeLimite: false
+        excedeLimite: false,
+        puedeUsarCredito: false
     };
 }
 
@@ -2192,6 +2201,7 @@ function renderizarCarrito() {
         </table>
     `;
     
+    // Solo mostrar información de peso mínimo (si aplica)
     if (verificarPeso.productosConPeso > 0) {
         let detalleProductos = '';
         verificarPeso.productosAfectados.forEach(p => {
@@ -2240,44 +2250,6 @@ function renderizarCarrito() {
                 `}
             </div>
         `;
-    }
-    
-    // ⭐ SOLO MOSTRAR INFO DE CRÉDITO SI HAY PRODUCTOS Y EL CLIENTE TIENE CRÉDITO HABILITADO ⭐
-    // PERO NO MOSTRAMOS EL MENSAJE DE "TODO VA A CRÉDITO" EN EL CARRITO
-    // Solo mostramos si hay exceso de crédito para informar al cliente
-    
-    if (clienteCreditoHabilitado && carrito.length > 0) {
-        const infoCredito = verificarCreditoDisponible();
-        
-        // Solo mostrar si hay exceso de crédito (crédito parcial)
-        if (infoCredito.tipo === 'credito_parcial' && infoCredito.excedeLimite) {
-            html += `
-                <div style="margin-top: 1.5rem; padding: 1.5rem; border-radius: 12px; background: #fef3c7; border: 2px solid #fde68a;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-                        <span style="font-size: 1.5rem;">⚠️</span>
-                        <span style="font-weight: 700; color: #92400e; font-size: 1.1rem;">
-                            Excedes el límite de crédito
-                        </span>
-                    </div>
-                    <div style="background: white; padding: 0.8rem 1rem; border-radius: 8px; margin: 0.5rem 0;">
-                        <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #f0f0f0;">
-                            <span>Monto a pagar (contado):</span>
-                            <span style="font-weight: 700; color: #dc2626;">${formatoMexicano(infoCredito.montoPago)}</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; padding: 4px 0;">
-                            <span>Monto a crédito:</span>
-                            <span style="font-weight: 700; color: #16a34a;">${formatoMexicano(infoCredito.montoCredito)}</span>
-                        </div>
-                    </div>
-                    <div style="background: #fef3c7; padding: 0.8rem 1rem; border-radius: 8px; margin-top: 0.5rem; border: 1px solid #fde68a;">
-                        <p style="margin: 0; font-weight: 600; color: #92400e; font-size: 0.95rem;">
-                            Para usar crédito, deberás pagar el excedente de contado. 
-                            Si prefieres, puedes quitar productos para ajustarte al límite.
-                        </p>
-                    </div>
-                </div>
-            `;
-        }
     }
     
     cartContent.innerHTML = html;
@@ -2534,66 +2506,47 @@ function abrirModalPago() {
     let montoCredito = 0;
     let esCreditoParcial = false;
     let infoCredito = null;
-    let puedeCredito = false;
+    let puedeUsarCredito = false;
     
     if (clienteCreditoHabilitado) {
         infoCredito = verificarCreditoDisponible();
         infoCreditoCalculado = infoCredito;
-        puedeCredito = infoCredito.puedeCredito;
+        puedeUsarCredito = infoCredito.puedeUsarCredito || false;
         
         if (infoCredito.tipo === 'credito_parcial' && infoCredito.excedeLimite) {
             esCreditoParcial = true;
             montoPago = infoCredito.montoPago;
             montoCredito = infoCredito.montoCredito;
-            // El crédito solo es válido si hay algo que pagar de contado
-            puedeCredito = montoPago > 0;
+            puedeUsarCredito = montoPago > 0;
         } else if (infoCredito.tipo === 'credito_total') {
             montoPago = 0;
             montoCredito = total;
-            puedeCredito = true;
+            puedeUsarCredito = true;
         } else if (infoCredito.tipo === 'no_habilitado') {
-            puedeCredito = false;
+            puedeUsarCredito = false;
             montoPago = total;
             montoCredito = 0;
         }
     }
     
-    // Guardar en variables globales para usar en el procesamiento
+    // Guardar en variables globales
     window._infoCredito = infoCredito;
     window._esCreditoParcial = esCreditoParcial;
     window._montoPago = montoPago;
     window._montoCredito = montoCredito;
-    window._puedeCredito = puedeCredito;
+    window._puedeUsarCredito = puedeUsarCredito;
     
     // Mostrar montos en el modal
     document.getElementById('montoTransferencia').textContent = formatoMexicano(montoPago || total);
     document.getElementById('totalCredito').textContent = formatoMexicano(total);
     
-    // Si hay crédito parcial, mostrar mensaje informativo en el modal
-    if (esCreditoParcial && infoCredito) {
-        const mensajeHTML = `
-            <div style="background: #fef3c7; padding: 1rem; border-radius: 12px; margin-bottom: 1rem; border: 1px solid #fde68a;">
-                <p style="margin: 0; font-weight: 600; color: #92400e;">
-                    ⚠️ Excedes el límite de crédito
-                </p>
-                <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; color: #92400e;">
-                    <strong>Monto a pagar (contado):</strong> ${formatoMexicano(montoPago)}
-                    <br>
-                    <strong>Monto a crédito:</strong> ${formatoMexicano(montoCredito)}
-                </p>
-                <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #92400e;">
-                    Para usar crédito, deberás pagar el excedente de contado.
-                </p>
-            </div>
-        `;
-        document.getElementById('modalMensaje').innerHTML = mensajeHTML;
-        document.getElementById('modalMensaje').style.display = 'block';
-    }
+    // Mostrar mensaje de crédito parcial SOLO si se excede el límite y se selecciona crédito
+    // Este mensaje se mostrará cuando el usuario haga clic en el botón de crédito
     
-    // Configurar opciones de pago según crédito habilitado
+    // Configurar opciones de pago
     const btnCredito = document.getElementById('btnCredito');
     if (btnCredito) {
-        if (clienteCreditoHabilitado && puedeCredito) {
+        if (clienteCreditoHabilitado && puedeUsarCredito) {
             btnCredito.style.display = 'block';
             btnCredito.disabled = false;
             btnCredito.title = '';
@@ -2604,7 +2557,7 @@ function abrirModalPago() {
             btnCredito.disabled = true;
             if (!clienteCreditoHabilitado) {
                 btnCredito.title = 'El crédito no está habilitado para este cliente';
-            } else if (!puedeCredito) {
+            } else if (!puedeUsarCredito) {
                 btnCredito.title = 'No puedes usar crédito. El pago de contado es obligatorio.';
             }
             btnCredito.style.opacity = '0.5';
@@ -2634,8 +2587,8 @@ function abrirModalPago() {
     pagoSeleccionado = null;
     document.querySelectorAll('.opciones-pago button').forEach(b => b.classList.remove('selected'));
     
-    // Si no hay crédito habilitado, seleccionar transferencia por defecto
-    if (!clienteCreditoHabilitado || !puedeCredito) {
+    // Seleccionar transferencia por defecto si no hay crédito disponible
+    if (!clienteCreditoHabilitado || !puedeUsarCredito) {
         seleccionarPago('transferencia');
     }
 }
@@ -2662,16 +2615,70 @@ function seleccionarPago(tipo) {
         document.getElementById('formTransferencia').style.display = 'block';
         document.getElementById('formCredito').style.display = 'none';
         
-        // Si hay crédito parcial, mostrar el monto a pagar
-        if (window._esCreditoParcial && window._infoCredito) {
-            document.getElementById('montoTransferencia').textContent = formatoMexicano(window._montoPago);
-        } else {
-            document.getElementById('montoTransferencia').textContent = formatoMexicano(calcularTotal());
-        }
+        // Mostrar el monto a pagar
+        const monto = window._montoPago || calcularTotal();
+        document.getElementById('montoTransferencia').textContent = formatoMexicano(monto);
+        
+        // Limpiar mensajes de crédito
+        document.getElementById('modalMensaje').innerHTML = '';
+        document.getElementById('modalMensaje').style.display = 'none';
+        
     } else if (tipo === 'credito') {
         document.getElementById('btnCredito').classList.add('selected');
         document.getElementById('formCredito').style.display = 'block';
         document.getElementById('formTransferencia').style.display = 'none';
+        
+        // Mostrar información de crédito
+        const infoCredito = window._infoCredito || infoCreditoCalculado;
+        const esCreditoParcial = window._esCreditoParcial || false;
+        
+        if (esCreditoParcial && infoCredito && infoCredito.excedeLimite) {
+            const mensajeHTML = `
+                <div style="background: #fef3c7; padding: 1rem; border-radius: 12px; margin-bottom: 1rem; border: 1px solid #fde68a;">
+                    <p style="margin: 0; font-weight: 600; color: #92400e;">
+                        ⚠️ Excedes el límite de crédito
+                    </p>
+                    <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; color: #92400e;">
+                        <strong>Monto a pagar (contado):</strong> ${formatoMexicano(infoCredito.montoPago)}
+                        <br>
+                        <strong>Monto a crédito:</strong> ${formatoMexicano(infoCredito.montoCredito)}
+                    </p>
+                    <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #92400e;">
+                        Para usar crédito, deberás pagar el excedente de contado.
+                        <br>
+                        <strong>Selecciona la opción de Transferencia para pagar el excedente.</strong>
+                    </p>
+                    <div style="margin-top: 0.5rem; padding: 0.5rem; background: #fff; border-radius: 8px; border: 1px solid #fde68a;">
+                        <button onclick="seleccionarPago('transferencia')" style="width:100%; padding:0.5rem; background:#F5A623; color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif;">
+                            <i class="fas fa-university"></i> Pagar excedente con transferencia
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modalMensaje').innerHTML = mensajeHTML;
+            document.getElementById('modalMensaje').style.display = 'block';
+            
+            // Deshabilitar el botón de confirmar crédito
+            const btnConfirmar = document.querySelector('#formCredito .btn-enviar');
+            if (btnConfirmar) {
+                btnConfirmar.disabled = true;
+                btnConfirmar.title = 'Debes pagar el excedente de contado primero.';
+                btnConfirmar.style.opacity = '0.5';
+                btnConfirmar.style.cursor = 'not-allowed';
+            }
+        } else {
+            // Crédito total o normal
+            document.getElementById('modalMensaje').innerHTML = '';
+            document.getElementById('modalMensaje').style.display = 'none';
+            
+            const btnConfirmar = document.querySelector('#formCredito .btn-enviar');
+            if (btnConfirmar) {
+                btnConfirmar.disabled = false;
+                btnConfirmar.title = '';
+                btnConfirmar.style.opacity = '1';
+                btnConfirmar.style.cursor = 'pointer';
+            }
+        }
     }
 }
 
@@ -3181,7 +3188,7 @@ async function procesarPagoTransferencia() {
         window._esCreditoParcial = false;
         window._montoPago = 0;
         window._montoCredito = 0;
-        window._puedeCredito = false;
+        window._puedeUsarCredito = false;
         infoCreditoCalculado = null;
         
         btn.disabled = false;
@@ -3189,7 +3196,6 @@ async function procesarPagoTransferencia() {
         
         setTimeout(() => {
             cerrarModalPago();
-            // Recargar historial de compras
             cargarHistorialCompras();
         }, 8000);
         
@@ -3205,6 +3211,12 @@ async function procesarPagoCredito() {
     const dias = DIAS_CREDITO_FIJO;
     const total = calcularTotal();
     
+    // Verificar si se puede usar crédito
+    if (!window._puedeUsarCredito) {
+        mostrarMensajeModal('error', '⚠️ No puedes usar crédito. Por favor, selecciona la opción de transferencia para pagar de contado.');
+        return;
+    }
+    
     if (!window.datosEnvio || !window.datosEnvio.mapsUrl || window.datosEnvio.mapsUrl === 'No proporcionado') {
         mostrarMensajeModal('error', '⚠️ La URL de Google Maps es obligatoria. Por favor, proporciona la ubicación exacta.');
         return;
@@ -3212,12 +3224,6 @@ async function procesarPagoCredito() {
     
     if (requiereFactura && !datosFacturaSeleccionados) {
         mostrarMensajeModal('error', '⚠️ Por favor, selecciona una razón social para facturar.');
-        return;
-    }
-    
-    // Verificar si se puede usar crédito
-    if (!window._puedeCredito) {
-        mostrarMensajeModal('error', '⚠️ No puedes usar crédito. Por favor, selecciona la opción de transferencia para pagar de contado.');
         return;
     }
     
@@ -3353,7 +3359,7 @@ async function procesarPagoCredito() {
         window._esCreditoParcial = false;
         window._montoPago = 0;
         window._montoCredito = 0;
-        window._puedeCredito = false;
+        window._puedeUsarCredito = false;
         infoCreditoCalculado = null;
         
         btn.disabled = false;
