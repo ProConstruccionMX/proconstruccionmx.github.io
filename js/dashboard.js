@@ -24,7 +24,7 @@ const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
 const ID_COTIZACIONES = '1S4qoHh3lTDoSUwDNeilmN6QKk8uhmvxjwvRQpEHQbS0';
 const HOJA_COTIZACIONES = 'Hoja 1';
 
-// ⭐ NUEVA URL DEL APPS SCRIPT (ACTUALIZADA) ⭐
+// ⭐ URL DEL APPS SCRIPT (ACTUALIZADA) ⭐
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby1yrHy1Ob7HijY1lR84L4ab9PSVQRVT2isLQka8meQ5RMSSoQ7xcyoFf6RFneE7CXt/exec';
 
 // ⭐ URL DEL SCRIPT DE FACTURACIÓN ⭐
@@ -49,6 +49,11 @@ let direccionSeleccionadaId = null;
 let requiereFactura = false;
 let datosFacturaSeleccionados = null;
 
+// ⭐ VARIABLES PARA "MIS COMPRAS" ⭐
+let historialVentas = [];
+let ventasDetalladas = [];
+let productosMasComprados = [];
+
 // ============================================
 // INICIALIZACIÓN
 // ============================================
@@ -68,6 +73,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     await cargarPreciosEspeciales();
     await cargarDireccionesCliente();
     await cargarFacturacionCliente();
+    await cargarHistorialCompras();
     
     configurarTabs();
     
@@ -115,7 +121,6 @@ async function agregarDireccionEnSheets(direccion) {
     }
 }
 
-// ⭐ FUNCIÓN RESTAURADA - VERSIÓN QUE FUNCIONABA ⭐
 async function actualizarDireccionEnSheets(fila, datos) {
     try {
         const filaEnviar = fila + 1;
@@ -156,7 +161,6 @@ async function actualizarDireccionEnSheets(fila, datos) {
     }
 }
 
-// ⭐ FUNCIÓN RESTAURADA - VERSIÓN QUE FUNCIONABA ⭐
 async function eliminarDireccionEnSheets(fila) {
     try {
         const filaEnviar = fila + 1;
@@ -912,7 +916,7 @@ async function cargarPreciosEspeciales() {
 }
 
 // ============================================
-// ⭐ FUNCIONES DE DIRECCIONES - RESTAURADAS ⭐
+// ⭐ FUNCIONES DE DIRECCIONES ⭐
 // ============================================
 
 async function cargarDireccionesCliente() {
@@ -1810,8 +1814,14 @@ function abrirModalPago() {
     document.getElementById('montoTransferencia').textContent = formatoMexicano(total);
     document.getElementById('totalCredito').textContent = formatoMexicano(total);
     
-    // ⭐ FACTURA EN CRÉDITO - INICIALIZAR ⭐
     requiereFactura = false;
+    document.getElementById('facturaNo').classList.add('selected');
+    document.getElementById('facturaSi').classList.remove('selected');
+    document.getElementById('facturaRazonSocialContainer').style.display = 'none';
+    document.getElementById('facturaDatosPreview').style.display = 'none';
+    datosFacturaSeleccionados = null;
+    
+    // ⭐ FACTURA EN CRÉDITO - INICIALIZAR ⭐
     if (document.getElementById('facturaNoCredito')) {
         document.getElementById('facturaNoCredito').classList.add('selected');
         document.getElementById('facturaSiCredito').classList.remove('selected');
@@ -2481,7 +2491,6 @@ async function procesarPagoCredito() {
         return;
     }
     
-    // ⭐ VALIDAR FACTURA EN CRÉDITO ⭐
     if (requiereFactura && !datosFacturaSeleccionados) {
         mostrarMensajeModal('error', '⚠️ Por favor, selecciona una razón social para facturar.');
         return;
@@ -2620,11 +2629,9 @@ async function guardarVentaEnEstadisticas(datos) {
         const facturaTexto = datos.requiereFactura ? 'SÍ' : 'NO';
         const formaPago = datos.tipoPago === 'Transferencia' ? 'Transferencia bancaria' : datos.tipoPago.toUpperCase();
         const tipoPago = datos.tipoPago === 'Crédito' ? 'Pago diferido en parcialidades' : 'Pago en una sola exhibición';
-        // ⭐ CORREGIDO: Para transferencia, estado "Validando pago" ⭐
         const estadoPago = datos.tipoPago === 'Crédito' ? 'En preparación' : 'Validando pago';
         const nombreDireccion = datos.nombreDireccion || 'Sin nombre';
         
-        // ⭐ OBTENER LA RAZÓN SOCIAL SELECCIONADA PARA FACTURA ⭐
         let razonSocialFactura = '';
         if (datos.requiereFactura && datos.datosFactura) {
             razonSocialFactura = datos.datosFactura.razonSocial || '';
@@ -2645,7 +2652,7 @@ async function guardarVentaEnEstadisticas(datos) {
             '',
             estadoPago,
             nombreDireccion,
-            razonSocialFactura  // ⭐ COLUMNA O - RAZÓN SOCIAL DE FACTURA ⭐
+            razonSocialFactura
         ];
         
         await guardarFilaGoogleSheets(HOJA_EST_CLIENTES, filaCliente);
@@ -2836,6 +2843,587 @@ async function enviarCorreoVentaWeb(datos) {
 }
 
 // ============================================
+// ⭐ NUEVAS FUNCIONES PARA "MIS COMPRAS" ⭐
+// ============================================
+
+async function cargarHistorialCompras() {
+    try {
+        const codigoCliente = sessionStorage.getItem('codigoCliente');
+        if (!codigoCliente) {
+            console.warn('⚠️ No hay código de cliente disponible');
+            return;
+        }
+        
+        console.log('📥 Cargando historial de compras para cliente:', codigoCliente);
+        
+        // 1. Obtener IDs de venta del cliente desde la hoja "Clientes"
+        const urlClientes = `https://docs.google.com/spreadsheets/d/${ID_ESTADISTICAS}/gviz/tq?tqx=out:json&sheet=${HOJA_EST_CLIENTES}`;
+        const responseClientes = await fetch(urlClientes);
+        const textClientes = await responseClientes.text();
+        const jsonStrClientes = textClientes.substring(textClientes.indexOf('(') + 1, textClientes.lastIndexOf(')'));
+        const dataClientes = JSON.parse(jsonStrClientes);
+        const rowsClientes = dataClientes.table.rows;
+        
+        const idsVenta = [];
+        const ventasMap = new Map();
+        
+        for (let i = 1; i < rowsClientes.length; i++) {
+            const values = rowsClientes[i].c.map(cell => cell ? cell.v : '');
+            const codigo = String(values[2] || '').trim();
+            const idVenta = String(values[1] || '').trim();
+            const fecha = String(values[0] || '').trim();
+            const total = parseFloat(values[4]) || 0;
+            const estado = String(values[12] || '').trim();
+            
+            if (codigo === codigoCliente && idVenta) {
+                idsVenta.push(idVenta);
+                ventasMap.set(idVenta, {
+                    idVenta: idVenta,
+                    fecha: fecha,
+                    total: total,
+                    estado: estado || 'Validando pago',
+                    codigoCliente: codigo
+                });
+            }
+        }
+        
+        console.log(`📦 IDs de venta encontrados: ${idsVenta.length}`);
+        
+        if (idsVenta.length === 0) {
+            renderizarHistorialVacio();
+            return;
+        }
+        
+        // 2. Obtener productos de las ventas desde la hoja "Productos"
+        const urlProductos = `https://docs.google.com/spreadsheets/d/${ID_ESTADISTICAS}/gviz/tq?tqx=out:json&sheet=${HOJA_EST_PRODUCTOS}`;
+        const responseProductos = await fetch(urlProductos);
+        const textProductos = await responseProductos.text();
+        const jsonStrProductos = textProductos.substring(textProductos.indexOf('(') + 1, textProductos.lastIndexOf(')'));
+        const dataProductos = JSON.parse(jsonStrProductos);
+        const rowsProductos = dataProductos.table.rows;
+        
+        const productosPorVenta = new Map();
+        const contadorProductos = new Map();
+        
+        for (let i = 1; i < rowsProductos.length; i++) {
+            const values = rowsProductos[i].c.map(cell => cell ? cell.v : '');
+            const idVenta = String(values[1] || '').trim();
+            const nombreProducto = String(values[2] || '').trim();
+            const cantidad = parseFloat(values[3]) || 0;
+            const importe = parseFloat(values[4]) || 0;
+            
+            if (idsVenta.includes(idVenta) && nombreProducto) {
+                if (!productosPorVenta.has(idVenta)) {
+                    productosPorVenta.set(idVenta, []);
+                }
+                productosPorVenta.get(idVenta).push({
+                    nombre: nombreProducto,
+                    cantidad: cantidad,
+                    importe: importe
+                });
+                
+                if (contadorProductos.has(nombreProducto)) {
+                    const data = contadorProductos.get(nombreProducto);
+                    data.cantidad += cantidad;
+                    data.veces++;
+                    data.totalImporte += importe;
+                } else {
+                    contadorProductos.set(nombreProducto, {
+                        nombre: nombreProducto,
+                        cantidad: cantidad,
+                        veces: 1,
+                        totalImporte: importe
+                    });
+                }
+            }
+        }
+        
+        // 3. Construir historial completo
+        historialVentas = [];
+        
+        for (const [idVenta, info] of ventasMap) {
+            const productos = productosPorVenta.get(idVenta) || [];
+            const subtotal = productos.reduce((sum, p) => sum + p.importe, 0);
+            historialVentas.push({
+                ...info,
+                productos: productos,
+                subtotal: subtotal,
+                iva: subtotal * 0.16,
+                totalConIva: subtotal * 1.16
+            });
+        }
+        
+        historialVentas.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+        
+        productosMasComprados = Array.from(contadorProductos.values());
+        productosMasComprados.sort((a, b) => b.totalImporte - a.totalImporte);
+        
+        console.log(`📦 Historial cargado: ${historialVentas.length} ventas`);
+        
+        // 4. Poblar filtros de años
+        const anos = [...new Set(historialVentas.map(v => new Date(v.fecha).getFullYear()))];
+        const anoSelect = document.getElementById('filtroAno');
+        if (anoSelect) {
+            anoSelect.innerHTML = '<option value="todos">Todos los años</option>';
+            anos.sort((a, b) => b - a);
+            anos.forEach(ano => {
+                const option = document.createElement('option');
+                option.value = ano;
+                option.textContent = ano;
+                anoSelect.appendChild(option);
+            });
+        }
+        
+        renderizarOrdenes();
+        renderizarHistorialCompras();
+        renderizarEstadisticasProductos();
+        
+    } catch (error) {
+        console.error('❌ Error al cargar historial de compras:', error);
+        renderizarHistorialVacio();
+    }
+}
+
+function renderizarOrdenes() {
+    const container = document.getElementById('ordenesContent');
+    if (!container) return;
+    
+    const hoy = new Date();
+    const hace15Dias = new Date(hoy);
+    hace15Dias.setDate(hace15Dias.getDate() - 15);
+    
+    const ordenesRecientes = historialVentas.filter(v => {
+        const fechaVenta = new Date(v.fecha);
+        return fechaVenta >= hace15Dias;
+    });
+    
+    if (ordenesRecientes.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-clock"></i>
+                <h4>Sin órdenes recientes</h4>
+                <p>No tienes compras en los últimos 15 días.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    ordenesRecientes.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    
+    const estadoColors = {
+        'Validando pago': '#f59e0b',
+        'En preparación': '#3b82f6',
+        'En camino': '#8b5cf6',
+        'Entregado': '#10b981'
+    };
+    
+    const estadoIcons = {
+        'Validando pago': 'fa-clock',
+        'En preparación': 'fa-box',
+        'En camino': 'fa-truck',
+        'Entregado': 'fa-check-circle'
+    };
+    
+    let html = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:0.5rem;">
+            <h3 style="margin:0; color:var(--primary-dark);">📦 Tus Órdenes Recientes</h3>
+            <span style="font-size:0.85rem; color:var(--text-gray);">Últimos 15 días</span>
+        </div>
+        <div style="position:relative; padding-left: 2rem;">
+    `;
+    
+    ordenesRecientes.forEach((venta, index) => {
+        const estado = venta.estado || 'Validando pago';
+        const color = estadoColors[estado] || '#6b7280';
+        const icon = estadoIcons[estado] || 'fa-circle';
+        const fechaObj = new Date(venta.fecha);
+        const fechaFormateada = fechaObj.toLocaleDateString('es-MX', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        });
+        
+        if (index < ordenesRecientes.length - 1) {
+            html += `<div style="position:absolute; left:10px; top:40px; bottom:0; width:2px; background:#e5e7eb;"></div>`;
+        }
+        
+        html += `
+            <div style="position:relative; margin-bottom: 2rem; padding-left: 1.5rem; cursor:pointer;" onclick="verDetalleVenta('${venta.idVenta}')">
+                <div style="position:absolute; left:-2px; top:5px; width:20px; height:20px; border-radius:50%; background:${color}; display:flex; align-items:center; justify-content:center; z-index:1; box-shadow: 0 0 0 4px rgba(255,255,255,0.8);">
+                    <i class="fas ${icon}" style="color:white; font-size:10px;"></i>
+                </div>
+                <div style="background:white; border-radius:12px; padding:1.2rem 1.5rem; box-shadow:0 2px 8px rgba(0,0,0,0.04); border:1px solid #f3f4f6; transition:all 0.3s;" 
+                     onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.08)';" 
+                     onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.04)';">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+                        <div>
+                            <span style="font-weight:700; color:var(--primary-dark); font-size:1.1rem;">${venta.idVenta}</span>
+                            <span style="font-size:0.85rem; color:var(--text-gray); margin-left:0.5rem;">${fechaFormateada}</span>
+                        </div>
+                        <div>
+                            <span style="display:inline-block; padding:0.2rem 1rem; border-radius:50px; font-size:0.75rem; font-weight:600; color:white; background:${color};">
+                                ${estado}
+                            </span>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem; flex-wrap:wrap; gap:0.5rem;">
+                        <span style="font-size:0.9rem; color:var(--text-gray);">
+                            <strong>${venta.productos.length}</strong> productos
+                        </span>
+                        <span style="font-weight:700; color:var(--primary-dark); font-size:1.1rem;">
+                            ${formatoMexicano(venta.totalConIva || venta.total)}
+                        </span>
+                    </div>
+                    <div style="margin-top:0.5rem; font-size:0.8rem; color:var(--text-gray);">
+                        <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i> Haz clic para ver detalles
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+function renderizarHistorialCompras(filtroAno, filtroMes) {
+    const container = document.getElementById('historialContent');
+    if (!container) return;
+    
+    let ventasFiltradas = [...historialVentas];
+    
+    if (filtroAno && filtroAno !== 'todos') {
+        ventasFiltradas = ventasFiltradas.filter(v => {
+            const fecha = new Date(v.fecha);
+            return fecha.getFullYear() === parseInt(filtroAno);
+        });
+    }
+    
+    if (filtroMes && filtroMes !== 'todos') {
+        ventasFiltradas = ventasFiltradas.filter(v => {
+            const fecha = new Date(v.fecha);
+            return (fecha.getMonth() + 1) === parseInt(filtroMes);
+        });
+    }
+    
+    const totalPeriodo = ventasFiltradas.reduce((sum, v) => sum + (v.totalConIva || v.total), 0);
+    
+    if (ventasFiltradas.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-receipt"></i>
+                <h4>Sin compras en este período</h4>
+                <p>No hay registros de compras para los filtros seleccionados.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:0.5rem;">
+            <h3 style="margin:0; color:var(--primary-dark);">📋 Historial de Compras</h3>
+            <span style="font-weight:700; color:var(--primary-dark); font-size:1.1rem;">
+                Total: ${formatoMexicano(totalPeriodo)}
+            </span>
+        </div>
+        <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+                <thead>
+                    <tr style="background:#f8f9fa;">
+                        <th style="padding:0.8rem; text-align:left; font-weight:600; color:var(--primary-dark); border-bottom:2px solid #e2e8f0;">Folio</th>
+                        <th style="padding:0.8rem; text-align:left; font-weight:600; color:var(--primary-dark); border-bottom:2px solid #e2e8f0;">Fecha</th>
+                        <th style="padding:0.8rem; text-align:center; font-weight:600; color:var(--primary-dark); border-bottom:2px solid #e2e8f0;">Productos</th>
+                        <th style="padding:0.8rem; text-align:right; font-weight:600; color:var(--primary-dark); border-bottom:2px solid #e2e8f0;">Total</th>
+                        <th style="padding:0.8rem; text-align:center; font-weight:600; color:var(--primary-dark); border-bottom:2px solid #e2e8f0;">Estatus</th>
+                        <th style="padding:0.8rem; text-align:center; font-weight:600; color:var(--primary-dark); border-bottom:2px solid #e2e8f0;">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    ventasFiltradas.forEach(venta => {
+        const estado = venta.estado || 'Validando pago';
+        const estadoColors = {
+            'Validando pago': '#f59e0b',
+            'En preparación': '#3b82f6',
+            'En camino': '#8b5cf6',
+            'Entregado': '#10b981'
+        };
+        const color = estadoColors[estado] || '#6b7280';
+        const fechaObj = new Date(venta.fecha);
+        const fechaFormateada = fechaObj.toLocaleDateString('es-MX', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        });
+        
+        html += `
+            <tr style="border-bottom:1px solid #f3f4f6;">
+                <td style="padding:0.8rem; font-weight:600; color:var(--primary-dark);">${venta.idVenta}</td>
+                <td style="padding:0.8rem; color:var(--text-gray);">${fechaFormateada}</td>
+                <td style="padding:0.8rem; text-align:center; color:var(--text-gray);">${venta.productos.length}</td>
+                <td style="padding:0.8rem; text-align:right; font-weight:600; color:var(--primary-dark);">${formatoMexicano(venta.totalConIva || venta.total)}</td>
+                <td style="padding:0.8rem; text-align:center;">
+                    <span style="display:inline-block; padding:0.2rem 1rem; border-radius:50px; font-size:0.75rem; font-weight:600; color:white; background:${color};">
+                        ${estado}
+                    </span>
+                </td>
+                <td style="padding:0.8rem; text-align:center;">
+                    <button onclick="verDetalleVenta('${venta.idVenta}')" style="padding:0.4rem 1rem; background:var(--primary-blue); color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.8rem; transition:all 0.3s; font-family: 'Inter', sans-serif;">
+                        <i class="fas fa-eye"></i> Ver
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+function renderizarEstadisticasProductos() {
+    const container = document.getElementById('estadisticasContent');
+    if (!container) return;
+    
+    if (productosMasComprados.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-chart-bar"></i>
+                <h4>Sin datos de productos</h4>
+                <p>No hay suficientes datos para mostrar estadísticas.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const topProductos = productosMasComprados.slice(0, 10);
+    const maxImporte = topProductos.length > 0 ? topProductos[0].totalImporte : 1;
+    
+    let html = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:0.5rem;">
+            <h3 style="margin:0; color:var(--primary-dark);">📊 Productos más comprados</h3>
+            <span style="font-size:0.85rem; color:var(--text-gray);">Top ${topProductos.length} productos</span>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+    `;
+    
+    topProductos.forEach((prod, index) => {
+        const porcentaje = (prod.totalImporte / maxImporte) * 100;
+        
+        html += `
+            <div style="background:white; border-radius:12px; padding:1rem; border:1px solid #f3f4f6; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.3rem;">
+                    <span style="font-weight:600; color:var(--primary-dark); font-size:0.95rem;">${prod.nombre}</span>
+                    <span style="font-weight:700; color:var(--primary-dark); font-size:0.9rem;">${formatoMexicano(prod.totalImporte)}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-gray); margin-bottom:0.3rem;">
+                    <span>${prod.cantidad} unidades</span>
+                    <span>${prod.veces} compras</span>
+                </div>
+                <div style="width:100%; height:6px; background:#f3f4f6; border-radius:3px; overflow:hidden;">
+                    <div style="height:100%; border-radius:3px; background:linear-gradient(90deg, #3b82f6, #8b5cf6); width:${porcentaje}%; transition:width 1s ease;"></div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `</div>`;
+    
+    // Frecuencia de compras
+    html += `
+        <div style="margin-top:2rem; display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:1rem;">
+    `;
+    
+    const comprasPorMes = new Map();
+    historialVentas.forEach(v => {
+        const fecha = new Date(v.fecha);
+        const key = `${fecha.getFullYear()}-${String(fecha.getMonth()+1).padStart(2,'0')}`;
+        const label = `${fecha.toLocaleString('es-MX', {month:'short'})} ${fecha.getFullYear()}`;
+        if (!comprasPorMes.has(key)) {
+            comprasPorMes.set(key, { label, total: 0, cantidad: 0 });
+        }
+        const data = comprasPorMes.get(key);
+        data.total += (v.totalConIva || v.total);
+        data.cantidad += 1;
+    });
+    
+    const mesesOrdenados = Array.from(comprasPorMes.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    const ultimosMeses = mesesOrdenados.slice(-6);
+    
+    ultimosMeses.forEach(([key, data]) => {
+        const promedio = data.cantidad > 0 ? data.total / data.cantidad : 0;
+        html += `
+            <div style="background:white; border-radius:12px; padding:1rem; border:1px solid #f3f4f6; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                <div style="font-weight:600; color:var(--primary-dark); font-size:1rem;">${data.label}</div>
+                <div style="font-size:1.5rem; font-weight:700; color:var(--primary-dark);">${data.cantidad}</div>
+                <div style="font-size:0.75rem; color:var(--text-gray);">compras</div>
+                <div style="font-size:0.85rem; color:var(--primary-dark); font-weight:600; margin-top:0.3rem;">${formatoMexicano(data.total)}</div>
+                <div style="font-size:0.7rem; color:var(--text-gray);">Promedio: ${formatoMexicano(promedio)}</div>
+            </div>
+        `;
+    });
+    
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+function verDetalleVenta(idVenta) {
+    const venta = historialVentas.find(v => v.idVenta === idVenta);
+    if (!venta) {
+        mostrarNotificacion('❌ No se encontró la venta');
+        return;
+    }
+    
+    const fechaObj = new Date(venta.fecha);
+    const fechaFormateada = fechaObj.toLocaleDateString('es-MX', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+    });
+    
+    const estadoColors = {
+        'Validando pago': '#f59e0b',
+        'En preparación': '#3b82f6',
+        'En camino': '#8b5cf6',
+        'Entregado': '#10b981'
+    };
+    const color = estadoColors[venta.estado] || '#6b7280';
+    
+    let htmlProductos = '';
+    venta.productos.forEach(p => {
+        htmlProductos += `
+            <tr style="border-bottom:1px solid #f3f4f6;">
+                <td style="padding:0.6rem; color:var(--text-gray);">${p.nombre}</td>
+                <td style="padding:0.6rem; text-align:center; color:var(--text-gray);">${p.cantidad}</td>
+                <td style="padding:0.6rem; text-align:right; color:var(--text-gray);">${formatoMexicano(p.importe)}</td>
+            </tr>
+        `;
+    });
+    
+    const total = venta.totalConIva || venta.total;
+    const subtotal = total / 1.16;
+    const iva = total - subtotal;
+    
+    const modalHtml = `
+        <div id="modalDetalleVenta" class="modal-overlay active" onclick="if(event.target===this) cerrarModalDetalleVenta()">
+            <div class="modal" style="max-width:700px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                    <h2 style="color:var(--primary-dark); margin:0;">🧾 ${venta.idVenta}</h2>
+                    <button onclick="cerrarModalDetalleVenta()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-gray); transition:all 0.3s;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.5rem; background:var(--gray-light); padding:1rem; border-radius:12px;">
+                    <div>
+                        <div style="font-size:0.75rem; color:var(--text-gray);">Fecha</div>
+                        <div style="font-weight:600; color:var(--primary-dark);">${fechaFormateada}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem; color:var(--text-gray);">Estatus</div>
+                        <div><span style="display:inline-block; padding:0.2rem 1rem; border-radius:50px; font-size:0.75rem; font-weight:600; color:white; background:${color};">${venta.estado}</span></div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem; color:var(--text-gray);">Productos</div>
+                        <div style="font-weight:600; color:var(--primary-dark);">${venta.productos.length}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem; color:var(--text-gray);">Total</div>
+                        <div style="font-weight:700; color:var(--primary-dark); font-size:1.1rem;">${formatoMexicano(total)}</div>
+                    </div>
+                </div>
+                
+                <h3 style="color:var(--primary-dark); margin-bottom:0.5rem;">📦 Productos</h3>
+                <div style="overflow-x:auto; margin-bottom:1.5rem;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+                        <thead>
+                            <tr style="background:#f8f9fa;">
+                                <th style="padding:0.6rem; text-align:left; font-weight:600; color:var(--primary-dark); border-bottom:2px solid #e2e8f0;">Producto</th>
+                                <th style="padding:0.6rem; text-align:center; font-weight:600; color:var(--primary-dark); border-bottom:2px solid #e2e8f0;">Cantidad</th>
+                                <th style="padding:0.6rem; text-align:right; font-weight:600; color:var(--primary-dark); border-bottom:2px solid #e2e8f0;">Importe</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${htmlProductos}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div style="text-align:right; padding-top:1rem; border-top:2px solid #e2e8f0;">
+                    <p style="margin:0.2rem 0;"><strong>Subtotal:</strong> ${formatoMexicano(subtotal)}</p>
+                    <p style="margin:0.2rem 0;"><strong>IVA (16%):</strong> ${formatoMexicano(iva)}</p>
+                    <p style="margin:0.2rem 0; font-size:1.2rem; font-weight:700; color:var(--primary-dark);"><strong>Total:</strong> ${formatoMexicano(total)}</p>
+                </div>
+                
+                <div style="display:flex; gap:0.5rem; margin-top:1rem; flex-wrap:wrap;">
+                    <button onclick="cerrarModalDetalleVenta()" class="btn-cerrar-modal" style="flex:1;">
+                        <i class="fas fa-times"></i> Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const existing = document.getElementById('modalDetalleVenta');
+    if (existing) existing.remove();
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function cerrarModalDetalleVenta() {
+    const modal = document.getElementById('modalDetalleVenta');
+    if (modal) modal.remove();
+}
+
+function renderizarHistorialVacio() {
+    const container = document.getElementById('historialContent');
+    if (container) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-receipt"></i>
+                <h4>Sin compras registradas</h4>
+                <p>Aún no tienes compras en tu historial.</p>
+            </div>
+        `;
+    }
+    
+    const ordenesContainer = document.getElementById('ordenesContent');
+    if (ordenesContainer) {
+        ordenesContainer.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-clock"></i>
+                <h4>Sin órdenes recientes</h4>
+                <p>No tienes compras en los últimos 15 días.</p>
+            </div>
+        `;
+    }
+    
+    const estadisticasContainer = document.getElementById('estadisticasContent');
+    if (estadisticasContainer) {
+        estadisticasContainer.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-chart-bar"></i>
+                <h4>Sin datos de productos</h4>
+                <p>No hay suficientes datos para mostrar estadísticas.</p>
+            </div>
+        `;
+    }
+}
+
+function filtrarHistorial() {
+    const anoSelect = document.getElementById('filtroAno');
+    const mesSelect = document.getElementById('filtroMes');
+    const ano = anoSelect ? anoSelect.value : 'todos';
+    const mes = mesSelect ? mesSelect.value : 'todos';
+    renderizarHistorialCompras(ano, mes);
+}
+
+// ============================================
 // FUNCIONES AUXILIARES
 // ============================================
 
@@ -2906,6 +3494,11 @@ function configurarTabs() {
             
             contents.forEach(c => c.classList.remove('active'));
             document.getElementById(target).classList.add('active');
+            
+            // Si es la pestaña de compras, cargar datos
+            if (target === 'tab-compras' && historialVentas.length === 0) {
+                cargarHistorialCompras();
+            }
         });
     });
 }
