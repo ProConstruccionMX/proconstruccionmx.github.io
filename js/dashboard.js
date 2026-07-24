@@ -59,6 +59,9 @@ let clienteCreditoHabilitado = false;
 let clienteLimiteCreditoPeso = 0;
 let clienteLimiteCreditoMonto = 0;
 
+// ⭐ VARIABLE PARA ALMACENAR INFO DE CRÉDITO ⭐
+let infoCreditoCalculado = null;
+
 // ============================================
 // ⭐ FUNCIÓN PARA PARSEAR FECHAS CORRECTAMENTE ⭐
 // ============================================
@@ -940,7 +943,6 @@ async function cargarDatosCliente(email) {
             const correo = String(values[3] || '').trim();
             
             if (correo.toLowerCase() === email.toLowerCase()) {
-                // ⭐ NUEVAS COLUMNAS: N, O, P
                 const creditoHabilitadoRaw = String(values[13] || '').trim().toUpperCase();
                 const creditoHabilitado = creditoHabilitadoRaw === 'SI' || creditoHabilitadoRaw === 'TRUE' || creditoHabilitadoRaw === 'VERDADERO';
                 
@@ -957,13 +959,11 @@ async function cargarDatosCliente(email) {
                     creditoLiquidado: parseFloat(values[9]) || 0,
                     sucursal: String(values[10] || '').trim(),
                     fechaRegistro: String(values[11] || '').trim(),
-                    // ⭐ NUEVAS PROPIEDADES
                     creditoHabilitado: creditoHabilitado,
-                    limiteCreditoPeso: parseFloat(values[14]) || 0, // Columna O
-                    limiteCreditoMonto: parseFloat(values[15]) || 0  // Columna P
+                    limiteCreditoPeso: parseFloat(values[14]) || 0,
+                    limiteCreditoMonto: parseFloat(values[15]) || 0
                 };
                 
-                // ⭐ GUARDAR EN VARIABLES GLOBALES
                 clienteCreditoHabilitado = clienteData.creditoHabilitado;
                 clienteLimiteCreditoPeso = clienteData.limiteCreditoPeso;
                 clienteLimiteCreditoMonto = clienteData.limiteCreditoMonto;
@@ -1534,7 +1534,7 @@ function calcularDescuentoProducto(producto, cantidad) {
 }
 
 // ============================================
-// ⭐ VERIFICACIÓN DE CRÉDITO Y PESO MÍNIMO ⭐
+// ⭐ VERIFICACIÓN DE CRÉDITO DISPONIBLE ⭐
 // ============================================
 
 function verificarCreditoDisponible() {
@@ -1543,7 +1543,6 @@ function verificarCreditoDisponible() {
     console.log('⚖️ Límite crédito peso:', clienteLimiteCreditoPeso);
     console.log('💰 Límite crédito monto:', clienteLimiteCreditoMonto);
     
-    // Separar productos con peso y sin peso
     const productosConPeso = carrito.filter(item => {
         const producto = productosGlobales.find(p => p.clave === item.clave);
         return producto && producto.pesoCondicion === 'SI' && producto.peso > 0;
@@ -1557,7 +1556,6 @@ function verificarCreditoDisponible() {
     console.log(`📊 Productos con peso: ${productosConPeso.length}`);
     console.log(`📊 Productos sin peso: ${productosSinPeso.length}`);
     
-    // Calcular peso total de productos con peso
     let pesoTotal = 0;
     productosConPeso.forEach(item => {
         const producto = productosGlobales.find(p => p.clave === item.clave);
@@ -1566,7 +1564,6 @@ function verificarCreditoDisponible() {
         }
     });
     
-    // Calcular monto total de productos sin peso
     let montoSinPeso = 0;
     productosSinPeso.forEach(item => {
         const producto = productosGlobales.find(p => p.clave === item.clave);
@@ -1578,7 +1575,6 @@ function verificarCreditoDisponible() {
         }
     });
     
-    // Calcular monto total de productos con peso (para el pago restante)
     let montoConPeso = 0;
     productosConPeso.forEach(item => {
         const producto = productosGlobales.find(p => p.clave === item.clave);
@@ -1597,16 +1593,43 @@ function verificarCreditoDisponible() {
     console.log(`💰 Monto productos sin peso: ${formatoMexicano(montoSinPeso)}`);
     console.log(`💰 Total general: ${formatoMexicano(totalGeneral)}`);
     
-    // Verificar si hay productos con peso
     const hayProductosConPeso = productosConPeso.length > 0;
     const hayProductosSinPeso = productosSinPeso.length > 0;
+    
+    // Si no hay productos o el cliente no tiene crédito habilitado
+    if (carrito.length === 0) {
+        return {
+            puedeCredito: false,
+            tipo: 'sin_productos',
+            mensaje: '⚠️ No hay productos en el carrito.',
+            pesoTotal: 0,
+            montoCredito: 0,
+            montoPago: 0,
+            productosCredito: [],
+            productosPago: [],
+            excedeLimite: false
+        };
+    }
+    
+    if (!clienteCreditoHabilitado) {
+        return {
+            puedeCredito: false,
+            tipo: 'no_habilitado',
+            mensaje: '⚠️ El crédito no está habilitado para este cliente.',
+            pesoTotal: 0,
+            montoCredito: 0,
+            montoPago: totalGeneral,
+            productosCredito: [],
+            productosPago: carrito,
+            excedeLimite: true
+        };
+    }
     
     // CASO 1: Solo productos con peso
     if (hayProductosConPeso && !hayProductosSinPeso) {
         console.log('📦 Caso: Solo productos con peso');
         
         if (pesoTotal <= clienteLimiteCreditoPeso) {
-            // Todo va a crédito
             return {
                 puedeCredito: true,
                 tipo: 'credito_total',
@@ -1615,22 +1638,18 @@ function verificarCreditoDisponible() {
                 montoCredito: totalGeneral,
                 montoPago: 0,
                 productosCredito: carrito,
-                productosPago: []
+                productosPago: [],
+                excedeLimite: false
             };
         } else {
-            // Calcular cuántos kg van a crédito y cuántos a pago
-            // Usar la proporción para determinar qué productos van a pago
+            // Calcular crédito parcial
             const pesoExcedente = pesoTotal - clienteLimiteCreditoPeso;
-            const proporcionPago = pesoExcedente / pesoTotal;
-            
-            // Seleccionar productos para pago (los que cubran el excedente)
             let pesoAcumulado = 0;
             let productosPago = [];
             let productosCredito = [];
             let montoPago = 0;
             let montoCredito = 0;
             
-            // Ordenar productos por peso (de mayor a menor) para optimizar
             const productosOrdenados = [...productosConPeso].sort((a, b) => {
                 const prodA = productosGlobales.find(p => p.clave === a.clave);
                 const prodB = productosGlobales.find(p => p.clave === b.clave);
@@ -1647,12 +1666,10 @@ function verificarCreditoDisponible() {
                 const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
                 
                 if (pesoAcumulado + pesoItem <= pesoExcedente) {
-                    // Este producto va a pago
                     productosPago.push(item);
                     montoPago += importe;
                     pesoAcumulado += pesoItem;
                 } else {
-                    // Dividir el producto
                     const pesoRestante = pesoExcedente - pesoAcumulado;
                     if (pesoRestante > 0 && pesoItem > 0) {
                         const cantidadPago = pesoRestante / producto.peso;
@@ -1682,7 +1699,6 @@ function verificarCreditoDisponible() {
                 }
             }
             
-            // Los productos restantes van a crédito
             for (const item of productosConPeso) {
                 if (!productosPago.some(p => p.clave === item.clave && p._parcial === true) && 
                     !productosPago.some(p => p.clave === item.clave && p._parcial !== true)) {
@@ -1693,7 +1709,6 @@ function verificarCreditoDisponible() {
                     const descuento = calcularDescuentoProducto(producto, item.cantidad);
                     const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
                     
-                    // Verificar si este producto ya fue procesado parcialmente
                     const yaProcesado = productosPago.some(p => p.clave === item.clave) || 
                                        productosCredito.some(p => p.clave === item.clave);
                     
@@ -1713,7 +1728,8 @@ function verificarCreditoDisponible() {
                 montoCredito: montoCredito,
                 montoPago: montoPago,
                 productosCredito: productosCredito,
-                productosPago: productosPago
+                productosPago: productosPago,
+                excedeLimite: true
             };
         }
     }
@@ -1731,20 +1747,17 @@ function verificarCreditoDisponible() {
                 montoCredito: montoSinPeso,
                 montoPago: 0,
                 productosCredito: carrito,
-                productosPago: []
+                productosPago: [],
+                excedeLimite: false
             };
         } else {
-            // Calcular cuánto va a crédito y cuánto a pago
             const montoExcedente = montoSinPeso - clienteLimiteCreditoMonto;
-            const proporcionPago = montoExcedente / montoSinPeso;
-            
             let montoAcumulado = 0;
             let productosPago = [];
             let productosCredito = [];
             let montoPago = 0;
             let montoCredito = 0;
             
-            // Ordenar productos por precio (de mayor a menor)
             const productosOrdenados = [...productosSinPeso].sort((a, b) => {
                 const prodA = productosGlobales.find(p => p.clave === a.clave);
                 const prodB = productosGlobales.find(p => p.clave === b.clave);
@@ -1795,7 +1808,6 @@ function verificarCreditoDisponible() {
                 }
             }
             
-            // Productos restantes a crédito
             for (const item of productosSinPeso) {
                 if (!productosPago.some(p => p.clave === item.clave && p._parcial === true) && 
                     !productosPago.some(p => p.clave === item.clave && p._parcial !== true)) {
@@ -1824,16 +1836,16 @@ function verificarCreditoDisponible() {
                 montoCredito: montoCredito,
                 montoPago: montoPago,
                 productosCredito: productosCredito,
-                productosPago: productosPago
+                productosPago: productosPago,
+                excedeLimite: true
             };
         }
     }
     
-    // CASO 3: Productos con peso y sin peso (mixto)
+    // CASO 3: Mixto
     if (hayProductosConPeso && hayProductosSinPeso) {
-        console.log('📦 Caso: Productos mixtos (con peso y sin peso)');
+        console.log('📦 Caso: Productos mixtos');
         
-        // Verificar si ambos límites se cumplen
         const pesoCumple = pesoTotal <= clienteLimiteCreditoPeso;
         const montoCumple = montoSinPeso <= clienteLimiteCreditoMonto;
         
@@ -1846,23 +1858,20 @@ function verificarCreditoDisponible() {
                 montoCredito: totalGeneral,
                 montoPago: 0,
                 productosCredito: carrito,
-                productosPago: []
+                productosPago: [],
+                excedeLimite: false
             };
         } else {
-            // Calcular qué excede y qué no
             let productosPago = [];
             let productosCredito = [];
             let montoPago = 0;
             let montoCredito = 0;
-            let pesoExcedente = 0;
-            let montoExcedente = 0;
             
-            // Primero manejar productos con peso
+            // Primero productos con peso
             if (!pesoCumple) {
                 const pesoExcedenteTotal = pesoTotal - clienteLimiteCreditoPeso;
                 let pesoAcumulado = 0;
                 
-                // Ordenar productos con peso de mayor a menor
                 const prodPesoOrdenados = [...productosConPeso].sort((a, b) => {
                     const prodA = productosGlobales.find(p => p.clave === a.clave);
                     const prodB = productosGlobales.find(p => p.clave === b.clave);
@@ -1913,12 +1922,11 @@ function verificarCreditoDisponible() {
                 }
             }
             
-            // Luego manejar productos sin peso (si el crédito de monto ya está ocupado)
+            // Luego productos sin peso
             if (!montoCumple) {
                 const montoExcedenteTotal = montoSinPeso - clienteLimiteCreditoMonto;
                 let montoAcumulado = 0;
                 
-                // Ordenar productos sin peso de mayor a menor precio
                 const prodSinPesoOrdenados = [...productosSinPeso].sort((a, b) => {
                     const prodA = productosGlobales.find(p => p.clave === a.clave);
                     const prodB = productosGlobales.find(p => p.clave === b.clave);
@@ -1928,7 +1936,6 @@ function verificarCreditoDisponible() {
                 });
                 
                 for (const item of prodSinPesoOrdenados) {
-                    // Verificar si ya fue procesado
                     if (productosPago.some(p => p.clave === item.clave) || 
                         productosCredito.some(p => p.clave === item.clave)) continue;
                     
@@ -1974,7 +1981,6 @@ function verificarCreditoDisponible() {
                 }
             }
             
-            // Los productos restantes van a crédito
             for (const item of carrito) {
                 if (!productosPago.some(p => p.clave === item.clave && p._parcial === true) && 
                     !productosPago.some(p => p.clave === item.clave && p._parcial !== true) &&
@@ -1992,37 +1998,20 @@ function verificarCreditoDisponible() {
                 }
             }
             
-            // Recalcular montos totales
-            const montoPagoTotal = productosPago.reduce((sum, item) => {
-                const producto = productosGlobales.find(p => p.clave === item.clave);
-                if (!producto) return sum;
-                const precioFinal = obtenerPrecioFinal(producto);
-                const descuento = calcularDescuentoProducto(producto, item.cantidad);
-                return sum + (precioFinal.precio * item.cantidad * (1 - descuento / 100));
-            }, 0);
-            
-            const montoCreditoTotal = productosCredito.reduce((sum, item) => {
-                const producto = productosGlobales.find(p => p.clave === item.clave);
-                if (!producto) return sum;
-                const precioFinal = obtenerPrecioFinal(producto);
-                const descuento = calcularDescuentoProducto(producto, item.cantidad);
-                return sum + (precioFinal.precio * item.cantidad * (1 - descuento / 100));
-            }, 0);
-            
             return {
                 puedeCredito: true,
                 tipo: 'credito_parcial',
-                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPagoTotal)} deben pagarse. El resto va a crédito.`,
+                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPago)} deben pagarse. El resto va a crédito.`,
                 pesoTotal: pesoTotal,
-                montoCredito: montoCreditoTotal,
-                montoPago: montoPagoTotal,
+                montoCredito: montoCredito,
+                montoPago: montoPago,
                 productosCredito: productosCredito,
-                productosPago: productosPago
+                productosPago: productosPago,
+                excedeLimite: true
             };
         }
     }
     
-    // Si no hay productos
     return {
         puedeCredito: false,
         tipo: 'sin_productos',
@@ -2031,7 +2020,8 @@ function verificarCreditoDisponible() {
         montoCredito: 0,
         montoPago: 0,
         productosCredito: [],
-        productosPago: []
+        productosPago: [],
+        excedeLimite: false
     };
 }
 
@@ -2108,7 +2098,7 @@ function vaciarCarrito() {
 }
 
 // ============================================
-// RENDERIZAR CARRITO CON INFORMACIÓN DE CRÉDITO
+// RENDERIZAR CARRITO - SIN MENSAJES DE CRÉDITO
 // ============================================
 
 function renderizarCarrito() {
@@ -2132,7 +2122,6 @@ function renderizarCarrito() {
         return;
     }
     
-    // Verificar peso mínimo (siempre requerido)
     const verificarPeso = verificarPesoMinimo();
     
     let html = `
@@ -2203,7 +2192,6 @@ function renderizarCarrito() {
         </table>
     `;
     
-    // Mostrar información de peso mínimo
     if (verificarPeso.productosConPeso > 0) {
         let detalleProductos = '';
         verificarPeso.productosAfectados.forEach(p => {
@@ -2254,17 +2242,21 @@ function renderizarCarrito() {
         `;
     }
     
-    // Mostrar información de crédito (si el cliente tiene crédito habilitado)
-    if (clienteCreditoHabilitado) {
+    // ⭐ SOLO MOSTRAR INFO DE CRÉDITO SI HAY PRODUCTOS Y EL CLIENTE TIENE CRÉDITO HABILITADO ⭐
+    // PERO NO MOSTRAMOS EL MENSAJE DE "TODO VA A CRÉDITO" EN EL CARRITO
+    // Solo mostramos si hay exceso de crédito para informar al cliente
+    
+    if (clienteCreditoHabilitado && carrito.length > 0) {
         const infoCredito = verificarCreditoDisponible();
         
-        if (infoCredito.tipo === 'credito_parcial') {
+        // Solo mostrar si hay exceso de crédito (crédito parcial)
+        if (infoCredito.tipo === 'credito_parcial' && infoCredito.excedeLimite) {
             html += `
                 <div style="margin-top: 1.5rem; padding: 1.5rem; border-radius: 12px; background: #fef3c7; border: 2px solid #fde68a;">
                     <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
                         <span style="font-size: 1.5rem;">⚠️</span>
                         <span style="font-weight: 700; color: #92400e; font-size: 1.1rem;">
-                            Crédito Parcial
+                            Excedes el límite de crédito
                         </span>
                     </div>
                     <div style="background: white; padding: 0.8rem 1rem; border-radius: 8px; margin: 0.5rem 0;">
@@ -2276,42 +2268,16 @@ function renderizarCarrito() {
                             <span>Monto a crédito:</span>
                             <span style="font-weight: 700; color: #16a34a;">${formatoMexicano(infoCredito.montoCredito)}</span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; padding: 4px 0; border-top: 2px solid #e2e8f0; margin-top: 4px; padding-top: 8px; font-weight: 700;">
-                            <span>TOTAL:</span>
-                            <span style="color: var(--primary-dark);">${formatoMexicano(infoCredito.montoPago + infoCredito.montoCredito)}</span>
-                        </div>
                     </div>
                     <div style="background: #fef3c7; padding: 0.8rem 1rem; border-radius: 8px; margin-top: 0.5rem; border: 1px solid #fde68a;">
                         <p style="margin: 0; font-weight: 600; color: #92400e; font-size: 0.95rem;">
-                            ${infoCredito.mensaje}
+                            Para usar crédito, deberás pagar el excedente de contado. 
+                            Si prefieres, puedes quitar productos para ajustarte al límite.
                         </p>
                     </div>
                 </div>
             `;
-        } else if (infoCredito.tipo === 'credito_total') {
-            html += `
-                <div style="margin-top: 1.5rem; padding: 1.5rem; border-radius: 12px; background: #dcfce7; border: 2px solid #bbf7d0;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span style="font-size: 1.5rem;">✅</span>
-                        <span style="font-weight: 700; color: #16a34a; font-size: 1.1rem;">
-                            ${infoCredito.mensaje}
-                        </span>
-                    </div>
-                </div>
-            `;
         }
-    } else {
-        // Cliente sin crédito habilitado
-        html += `
-            <div style="margin-top: 1.5rem; padding: 1.5rem; border-radius: 12px; background: #f1f5f9; border: 2px solid #e2e8f0;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <span style="font-size: 1.5rem;">ℹ️</span>
-                    <span style="font-weight: 600; color: var(--text-gray); font-size: 1rem;">
-                        El crédito no está habilitado para este cliente. Solo pago de contado (transferencia).
-                    </span>
-                </div>
-            </div>
-        `;
     }
     
     cartContent.innerHTML = html;
@@ -2323,7 +2289,6 @@ function renderizarCarrito() {
     document.getElementById('iva').textContent = formatoMexicano(iva);
     document.getElementById('total').textContent = formatoMexicano(total);
     
-    // Verificar si se puede realizar la compra
     if (verificarPeso.productosConPeso > 0 && !verificarPeso.cumple) {
         btnComprar.disabled = true;
         btnComprar.title = '⚠️ Debes completar el peso mínimo de 1 tonelada (1000 kg) para productos con peso.';
@@ -2338,7 +2303,7 @@ function renderizarCarrito() {
 }
 
 // ============================================
-// VERIFICACIÓN DE PESO MÍNIMO (ORIGINAL)
+// VERIFICACIÓN DE PESO MÍNIMO
 // ============================================
 
 function verificarPesoMinimo() {
@@ -2569,16 +2534,27 @@ function abrirModalPago() {
     let montoCredito = 0;
     let esCreditoParcial = false;
     let infoCredito = null;
+    let puedeCredito = false;
     
     if (clienteCreditoHabilitado) {
         infoCredito = verificarCreditoDisponible();
-        if (infoCredito.tipo === 'credito_parcial') {
+        infoCreditoCalculado = infoCredito;
+        puedeCredito = infoCredito.puedeCredito;
+        
+        if (infoCredito.tipo === 'credito_parcial' && infoCredito.excedeLimite) {
             esCreditoParcial = true;
             montoPago = infoCredito.montoPago;
             montoCredito = infoCredito.montoCredito;
+            // El crédito solo es válido si hay algo que pagar de contado
+            puedeCredito = montoPago > 0;
         } else if (infoCredito.tipo === 'credito_total') {
             montoPago = 0;
             montoCredito = total;
+            puedeCredito = true;
+        } else if (infoCredito.tipo === 'no_habilitado') {
+            puedeCredito = false;
+            montoPago = total;
+            montoCredito = 0;
         }
     }
     
@@ -2587,6 +2563,7 @@ function abrirModalPago() {
     window._esCreditoParcial = esCreditoParcial;
     window._montoPago = montoPago;
     window._montoCredito = montoCredito;
+    window._puedeCredito = puedeCredito;
     
     // Mostrar montos en el modal
     document.getElementById('montoTransferencia').textContent = formatoMexicano(montoPago || total);
@@ -2597,12 +2574,15 @@ function abrirModalPago() {
         const mensajeHTML = `
             <div style="background: #fef3c7; padding: 1rem; border-radius: 12px; margin-bottom: 1rem; border: 1px solid #fde68a;">
                 <p style="margin: 0; font-weight: 600; color: #92400e;">
-                    ${infoCredito.mensaje}
+                    ⚠️ Excedes el límite de crédito
                 </p>
                 <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; color: #92400e;">
                     <strong>Monto a pagar (contado):</strong> ${formatoMexicano(montoPago)}
                     <br>
                     <strong>Monto a crédito:</strong> ${formatoMexicano(montoCredito)}
+                </p>
+                <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #92400e;">
+                    Para usar crédito, deberás pagar el excedente de contado.
                 </p>
             </div>
         `;
@@ -2613,14 +2593,20 @@ function abrirModalPago() {
     // Configurar opciones de pago según crédito habilitado
     const btnCredito = document.getElementById('btnCredito');
     if (btnCredito) {
-        if (clienteCreditoHabilitado) {
+        if (clienteCreditoHabilitado && puedeCredito) {
             btnCredito.style.display = 'block';
             btnCredito.disabled = false;
             btnCredito.title = '';
+            btnCredito.style.opacity = '1';
+            btnCredito.style.cursor = 'pointer';
         } else {
             btnCredito.style.display = 'block';
             btnCredito.disabled = true;
-            btnCredito.title = 'El crédito no está habilitado para este cliente';
+            if (!clienteCreditoHabilitado) {
+                btnCredito.title = 'El crédito no está habilitado para este cliente';
+            } else if (!puedeCredito) {
+                btnCredito.title = 'No puedes usar crédito. El pago de contado es obligatorio.';
+            }
             btnCredito.style.opacity = '0.5';
             btnCredito.style.cursor = 'not-allowed';
         }
@@ -2649,7 +2635,7 @@ function abrirModalPago() {
     document.querySelectorAll('.opciones-pago button').forEach(b => b.classList.remove('selected'));
     
     // Si no hay crédito habilitado, seleccionar transferencia por defecto
-    if (!clienteCreditoHabilitado) {
+    if (!clienteCreditoHabilitado || !puedeCredito) {
         seleccionarPago('transferencia');
     }
 }
@@ -2664,6 +2650,7 @@ function cerrarModalPago() {
     comprobanteNombre = null;
     comprobanteTipo = null;
     document.getElementById('fileName').textContent = 'Ningún archivo seleccionado';
+    infoCreditoCalculado = null;
 }
 
 function seleccionarPago(tipo) {
@@ -2674,6 +2661,13 @@ function seleccionarPago(tipo) {
         document.getElementById('btnTransferencia').classList.add('selected');
         document.getElementById('formTransferencia').style.display = 'block';
         document.getElementById('formCredito').style.display = 'none';
+        
+        // Si hay crédito parcial, mostrar el monto a pagar
+        if (window._esCreditoParcial && window._infoCredito) {
+            document.getElementById('montoTransferencia').textContent = formatoMexicano(window._montoPago);
+        } else {
+            document.getElementById('montoTransferencia').textContent = formatoMexicano(calcularTotal());
+        }
     } else if (tipo === 'credito') {
         document.getElementById('btnCredito').classList.add('selected');
         document.getElementById('formCredito').style.display = 'block';
@@ -3021,7 +3015,7 @@ function generarPDFComprobante(datos) {
 }
 
 // ============================================
-// PROCESAMIENTO DE PAGOS - CON SOPORTE PARA CRÉDITO PARCIAL
+// PROCESAMIENTO DE PAGOS
 // ============================================
 
 async function procesarPagoTransferencia() {
@@ -3056,7 +3050,6 @@ async function procesarPagoTransferencia() {
         const folio = generarFolio();
         const fecha = new Date();
         
-        // Determinar si es crédito parcial
         const esCreditoParcial = window._esCreditoParcial || false;
         const infoCredito = window._infoCredito || null;
         
@@ -3067,13 +3060,11 @@ async function procesarPagoTransferencia() {
         let estadoPago = 'Validando pago';
         
         if (esCreditoParcial && infoCredito) {
-            // Crédito parcial: parte se paga, parte va a crédito
             tipoPago = 'Crédito Parcial';
             montoPago = infoCredito.montoPago;
             montoCredito = infoCredito.montoCredito;
             estadoPago = 'Validando pago';
             
-            // Productos que van a pago (contado)
             const productosPago = infoCredito.productosPago || [];
             productosPago.forEach(item => {
                 productosParaVenta.push({
@@ -3089,7 +3080,6 @@ async function procesarPagoTransferencia() {
                 });
             });
             
-            // Productos que van a crédito
             const productosCredito = infoCredito.productosCredito || [];
             productosCredito.forEach(item => {
                 productosParaVenta.push({
@@ -3106,7 +3096,6 @@ async function procesarPagoTransferencia() {
             });
             
         } else if (clienteCreditoHabilitado && pagoSeleccionado === 'credito') {
-            // Crédito total
             tipoPago = 'Crédito';
             montoPago = 0;
             montoCredito = total;
@@ -3118,7 +3107,6 @@ async function procesarPagoTransferencia() {
             }));
             
         } else {
-            // Pago de contado normal
             tipoPago = 'Transferencia';
             montoPago = total;
             montoCredito = 0;
@@ -3148,7 +3136,6 @@ async function procesarPagoTransferencia() {
             nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre',
             requiereFactura: requiereFactura,
             datosFactura: datosFacturaSeleccionados,
-            // ⭐ CAMPOS PARA CRÉDITO PARCIAL
             montoPago: montoPago,
             montoCredito: montoCredito,
             estadoPago: estadoPago,
@@ -3194,12 +3181,16 @@ async function procesarPagoTransferencia() {
         window._esCreditoParcial = false;
         window._montoPago = 0;
         window._montoCredito = 0;
+        window._puedeCredito = false;
+        infoCreditoCalculado = null;
         
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Compra';
         
         setTimeout(() => {
             cerrarModalPago();
+            // Recargar historial de compras
+            cargarHistorialCompras();
         }, 8000);
         
     } catch (error) {
@@ -3224,6 +3215,12 @@ async function procesarPagoCredito() {
         return;
     }
     
+    // Verificar si se puede usar crédito
+    if (!window._puedeCredito) {
+        mostrarMensajeModal('error', '⚠️ No puedes usar crédito. Por favor, selecciona la opción de transferencia para pagar de contado.');
+        return;
+    }
+    
     const btn = document.querySelector('#formCredito .btn-enviar');
     btn.disabled = true;
     btn.innerHTML = '<span class="loading-spinner"></span> Procesando...';
@@ -3234,7 +3231,6 @@ async function procesarPagoCredito() {
         const fechaPago = new Date(fecha);
         fechaPago.setDate(fechaPago.getDate() + dias);
         
-        // Verificar si es crédito parcial
         const esCreditoParcial = window._esCreditoParcial || false;
         const infoCredito = window._infoCredito || null;
         
@@ -3250,7 +3246,6 @@ async function procesarPagoCredito() {
             montoCredito = infoCredito.montoCredito;
             estadoPago = 'Validando pago';
             
-            // Productos que van a pago (contado)
             const productosPago = infoCredito.productosPago || [];
             productosPago.forEach(item => {
                 productosParaVenta.push({
@@ -3266,7 +3261,6 @@ async function procesarPagoCredito() {
                 });
             });
             
-            // Productos que van a crédito
             const productosCredito = infoCredito.productosCredito || [];
             productosCredito.forEach(item => {
                 productosParaVenta.push({
@@ -3283,7 +3277,6 @@ async function procesarPagoCredito() {
             });
             
         } else {
-            // Crédito total
             productosParaVenta = carrito.map(item => ({
                 ...item,
                 _tipo: 'credito'
@@ -3301,14 +3294,13 @@ async function procesarPagoCredito() {
             iva: total - (total / 1.16),
             tipoPago: tipoPago,
             diasCredito: dias,
-            anticipo: 0,
+            anticipo: montoPago,
             saldoPendiente: montoCredito,
             fechaPago: fechaPago,
             sucursal: SUCURSAL_WEB,
             nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre',
             requiereFactura: requiereFactura,
             datosFactura: datosFacturaSeleccionados,
-            // ⭐ CAMPOS PARA CRÉDITO PARCIAL
             montoPago: montoPago,
             montoCredito: montoCredito,
             estadoPago: estadoPago,
@@ -3361,12 +3353,15 @@ async function procesarPagoCredito() {
         window._esCreditoParcial = false;
         window._montoPago = 0;
         window._montoCredito = 0;
+        window._puedeCredito = false;
+        infoCreditoCalculado = null;
         
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
         
         setTimeout(() => {
             cerrarModalPago();
+            cargarHistorialCompras();
         }, 8000);
         
     } catch (error) {
@@ -3410,14 +3405,12 @@ async function guardarVentaEnEstadisticas(datos) {
                 ganancia = producto.importe - costoTotal;
             }
             
-            // Determinar si este producto va a crédito o a pago
             let creditoPendiente = 0;
             let creditoLiquidado = 0;
             let montoPagado = 0;
             
             if (datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial') {
                 if (producto._tipo === 'credito') {
-                    // Producto que va a crédito
                     if (datos.total > 0) {
                         const proporcion = producto.importe / datos.total;
                         creditoPendiente = (datos.montoCredito || datos.total) * proporcion;
@@ -3426,16 +3419,13 @@ async function guardarVentaEnEstadisticas(datos) {
                     }
                     montoPagado = 0;
                 } else if (producto._tipo === 'pago') {
-                    // Producto que se paga de contado
                     creditoPendiente = 0;
                     montoPagado = producto.importe;
                 } else {
-                    // Por defecto, si no se especifica, va a crédito
                     creditoPendiente = producto.importe;
                     montoPagado = 0;
                 }
             } else {
-                // Pago de contado normal
                 creditoPendiente = 0;
                 creditoLiquidado = 0;
                 montoPagado = producto.importe;
@@ -3448,9 +3438,9 @@ async function guardarVentaEnEstadisticas(datos) {
                 producto.cantidad,
                 producto.importe.toFixed(2),
                 ganancia.toFixed(2),
-                '', // Columna G: vacía
-                creditoPendiente.toFixed(2), // Columna H: Crédito pendiente
-                montoPagado.toFixed(2), // Columna I: Monto pagado
+                '',
+                creditoPendiente.toFixed(2),
+                montoPagado.toFixed(2),
                 datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial' ? DIAS_CREDITO_FIJO : 0,
                 datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial' ? datos.fechaPago.toLocaleDateString('es-MX') : '',
                 datos.sucursal
@@ -3459,7 +3449,6 @@ async function guardarVentaEnEstadisticas(datos) {
             await guardarFilaGoogleSheets(HOJA_EST_PRODUCTOS, filaProducto);
         }
         
-        // Guardar en la hoja de clientes
         const facturaTexto = datos.requiereFactura ? 'SÍ' : 'NO';
         const formaPago = datos.tipoPago === 'Transferencia' ? 'Transferencia bancaria' : 
                           datos.tipoPago === 'Crédito' ? 'Crédito' : 
@@ -3473,7 +3462,6 @@ async function guardarVentaEnEstadisticas(datos) {
             razonSocialFactura = datos.datosFactura.razonSocial || '';
         }
         
-        // Calcular crédito pendiente total y monto pagado total
         let creditoPendienteTotal = 0;
         let montoPagadoTotal = 0;
         
@@ -3488,18 +3476,15 @@ async function guardarVentaEnEstadisticas(datos) {
             } else if (producto._tipo === 'pago') {
                 montoPagadoTotal += producto.importe;
             } else {
-                // Si no tiene _tipo, asumir que todo es pago (transferencia normal)
                 montoPagadoTotal += producto.importe;
             }
         }
         
-        // Si es crédito total, todo el total va a crédito
         if (datos.tipoPago === 'Crédito') {
             creditoPendienteTotal = datos.total;
             montoPagadoTotal = 0;
         }
         
-        // Si es transferencia normal, todo es pago
         if (datos.tipoPago === 'Transferencia') {
             creditoPendienteTotal = 0;
             montoPagadoTotal = datos.total;
@@ -3511,14 +3496,14 @@ async function guardarVentaEnEstadisticas(datos) {
             datos.cliente.codigo,
             datos.cliente.nombre,
             datos.total.toFixed(2),
-            creditoPendienteTotal.toFixed(2), // Columna F: Crédito pendiente
-            montoPagadoTotal.toFixed(2), // Columna G: Monto pagado
+            creditoPendienteTotal.toFixed(2),
+            montoPagadoTotal.toFixed(2),
             facturaTexto,
             datos.sucursal,
             formaPago,
             tipoPago,
-            '', // Columna L: vacía
-            estadoPago, // Columna M: Estado del pago
+            '',
+            estadoPago,
             nombreDireccion,
             razonSocialFactura
         ];
