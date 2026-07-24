@@ -2258,6 +2258,8 @@ function renderizarCarrito() {
         `;
     }
     
+    // ⭐ NO MOSTRAMOS NADA DE CRÉDITO EN EL CARRITO ⭐
+    
     cartContent.innerHTML = html;
     cartTotales.style.display = 'block';
     
@@ -2578,19 +2580,6 @@ function abrirModalPago() {
     document.getElementById('facturaDatosPreview').style.display = 'none';
     datosFacturaSeleccionados = null;
     
-    // En crédito, usar el mismo bloque de factura
-    if (document.getElementById('facturaNoCredito')) {
-        document.getElementById('facturaNoCredito').classList.add('selected');
-        document.getElementById('facturaSiCredito').classList.remove('selected');
-    }
-    if (document.getElementById('facturaRazonSocialContainerCredito')) {
-        document.getElementById('facturaRazonSocialContainerCredito').style.display = 'none';
-    }
-    if (document.getElementById('facturaDatosPreviewCredito')) {
-        document.getElementById('facturaDatosPreviewCredito').style.display = 'none';
-    }
-    datosFacturaSeleccionados = null;
-    
     pagoSeleccionado = null;
     document.querySelectorAll('.opciones-pago button').forEach(b => b.classList.remove('selected'));
     
@@ -2632,7 +2621,6 @@ function seleccionarPago(tipo) {
     // Ocultar formulario de transferencia en crédito por defecto
     const formTransferencia = document.getElementById('formTransferencia');
     const formCredito = document.getElementById('formCredito');
-    const facturaContainer = document.getElementById('facturaContainer');
     
     if (tipo === 'transferencia') {
         document.getElementById('btnTransferencia').classList.add('selected');
@@ -2643,25 +2631,25 @@ function seleccionarPago(tipo) {
         const total = calcularTotal();
         document.getElementById('montoTransferencia').textContent = formatoMexicano(total);
         
-        // Mostrar el bloque de factura en transferencia
-        if (facturaContainer) facturaContainer.style.display = 'block';
-        
         // Habilitar/deshabilitar botón según campos
         validarCamposTransferencia();
         
-        // Restaurar botón de crédito
+        // Ocultar botón de crédito si estaba visible
         const btnConfirmarCredito = document.querySelector('#formCredito .btn-enviar');
         if (btnConfirmarCredito) {
             btnConfirmarCredito.style.display = 'none';
         }
+        
+        // Asegurar que el bloque de factura esté visible
+        document.getElementById('facturaContainer').style.display = 'block';
         
     } else if (tipo === 'credito') {
         document.getElementById('btnCredito').classList.add('selected');
         if (formCredito) formCredito.style.display = 'block';
         if (formTransferencia) formTransferencia.style.display = 'none';
         
-        // Mostrar el bloque de factura en crédito (solo una vez)
-        if (facturaContainer) facturaContainer.style.display = 'block';
+        // Asegurar que el bloque de factura esté visible
+        document.getElementById('facturaContainer').style.display = 'block';
         
         // Crédito: Mostrar información
         const infoCredito = window._infoCredito || infoCreditoCalculado;
@@ -2699,10 +2687,7 @@ function seleccionarPago(tipo) {
                 document.getElementById('montoTransferencia').textContent = formatoMexicano(montoExcedente);
             }
             
-            // Ocultar el bloque de factura duplicado (ya está visible)
-            // No hacemos nada, solo usamos el que ya está visible
-            
-            // Configurar el botón "Pagar Excedente y Finalizar" - SOLO ESTE BOTÓN
+            // ⭐ OCULTAR el botón "Confirmar Crédito" y mostrar "Pagar Excedente y Finalizar" ⭐
             if (btnConfirmarCompra) {
                 btnConfirmarCompra.style.display = 'block';
                 btnConfirmarCompra.innerHTML = '<i class="fas fa-university"></i> Pagar Excedente y Finalizar';
@@ -2726,7 +2711,7 @@ function seleccionarPago(tipo) {
                 formTransferencia.style.display = 'none';
             }
             
-            // Configurar el botón "Confirmar Crédito"
+            // Mostrar el botón "Confirmar Crédito"
             if (btnConfirmarCompra) {
                 btnConfirmarCompra.style.display = 'block';
                 btnConfirmarCompra.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
@@ -2782,84 +2767,22 @@ function validarCamposCreditoParcial() {
     }
 }
 
-// ⭐ FUNCIÓN PARA FACTURA EN CRÉDITO ⭐
-function seleccionarFacturaCredito(opcion) {
+// ⭐ FUNCIÓN PARA SELECCIONAR FACTURA EN AMBOS MÉTODOS ⭐
+function seleccionarFactura(opcion) {
     requiereFactura = (opcion === 'si');
     
-    if (document.getElementById('facturaNoCredito')) {
-        document.getElementById('facturaNoCredito').classList.remove('selected');
-        document.getElementById('facturaSiCredito').classList.remove('selected');
-    }
+    document.getElementById('facturaNo').classList.remove('selected');
+    document.getElementById('facturaSi').classList.remove('selected');
     
     if (opcion === 'no') {
-        if (document.getElementById('facturaNoCredito')) {
-            document.getElementById('facturaNoCredito').classList.add('selected');
-        }
-        if (document.getElementById('facturaRazonSocialContainerCredito')) {
-            document.getElementById('facturaRazonSocialContainerCredito').style.display = 'none';
-        }
-        if (document.getElementById('facturaDatosPreviewCredito')) {
-            document.getElementById('facturaDatosPreviewCredito').style.display = 'none';
-        }
+        document.getElementById('facturaNo').classList.add('selected');
+        document.getElementById('facturaRazonSocialContainer').style.display = 'none';
+        document.getElementById('facturaDatosPreview').style.display = 'none';
         datosFacturaSeleccionados = null;
     } else {
-        if (document.getElementById('facturaSiCredito')) {
-            document.getElementById('facturaSiCredito').classList.add('selected');
-        }
-        if (document.getElementById('facturaRazonSocialContainerCredito')) {
-            document.getElementById('facturaRazonSocialContainerCredito').style.display = 'block';
-        }
-        actualizarSelectorFacturacionCredito();
-    }
-}
-
-function actualizarSelectorFacturacionCredito() {
-    const select = document.getElementById('facturaRazonSocialSelectCredito');
-    if (!select) return;
-    
-    select.innerHTML = '<option value="">-- Selecciona una razón social --</option>';
-    facturacionCliente.forEach((fact, index) => {
-        const option = document.createElement('option');
-        option.value = index;
-        option.textContent = fact.razonSocial || fact.nombre || `Facturación ${index + 1}`;
-        select.appendChild(option);
-    });
-    select.value = '';
-}
-
-function cargarDatosFacturaSeleccionadosCredito() {
-    const select = document.getElementById('facturaRazonSocialSelectCredito');
-    const index = parseInt(select.value);
-    
-    if (isNaN(index) || index < 0 || index >= facturacionCliente.length) {
-        if (document.getElementById('facturaDatosPreviewCredito')) {
-            document.getElementById('facturaDatosPreviewCredito').style.display = 'none';
-        }
-        datosFacturaSeleccionados = null;
-        return;
-    }
-    
-    const fact = facturacionCliente[index];
-    datosFacturaSeleccionados = fact;
-    
-    if (document.getElementById('facturaPreviewRFCCredito')) {
-        document.getElementById('facturaPreviewRFCCredito').textContent = fact.rfc || '---';
-    }
-    if (document.getElementById('facturaPreviewUsoCredito')) {
-        document.getElementById('facturaPreviewUsoCredito').textContent = fact.usoCFDI || '---';
-    }
-    if (document.getElementById('facturaPreviewCPCredito')) {
-        document.getElementById('facturaPreviewCPCredito').textContent = fact.cp || '---';
-    }
-    if (document.getElementById('facturaPreviewRegimenCredito')) {
-        document.getElementById('facturaPreviewRegimenCredito').textContent = fact.regimen || '---';
-    }
-    if (document.getElementById('facturaPreviewCorreoCredito')) {
-        document.getElementById('facturaPreviewCorreoCredito').textContent = fact.correo || '---';
-    }
-    
-    if (document.getElementById('facturaDatosPreviewCredito')) {
-        document.getElementById('facturaDatosPreviewCredito').style.display = 'block';
+        document.getElementById('facturaSi').classList.add('selected');
+        document.getElementById('facturaRazonSocialContainer').style.display = 'block';
+        actualizarSelectorFacturacion();
     }
 }
 
@@ -3135,17 +3058,14 @@ function generarPDFComprobante(datos) {
             ventana.document.close();
             ventana.focus();
             
-            // Esperar a que se cargue y luego imprimir
             setTimeout(() => {
                 ventana.print();
             }, 500);
             
-            // Cerrar la ventana después de imprimir (con retraso)
             setTimeout(() => {
                 ventana.close();
             }, 3000);
         } else {
-            // Fallback: descargar como HTML
             const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
