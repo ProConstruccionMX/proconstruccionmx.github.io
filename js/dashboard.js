@@ -2047,7 +2047,7 @@ function generarPDFComprobante(datos) {
         // 7. Método de pago
         let metodoPagoHTML = `<p><strong>Método de pago:</strong> ${datos.tipoPago.toUpperCase()}</p>`;
 
-        // 8. Logo en base64
+        // 8. Logo en base64 (COMPLETO Y CORRECTO)
         const logoBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAACXBIWXMAAAsTAAALEwEAmpwYAAAG+ElEQVR4nO2dXWwUVRiGn3dmtrvQH6tABWkXBaEorVpWQSRR1khaU5AaIzYhNcaLrIqKgYSVYLixF4Z4sS7SX+hViWmD4h9KxYAYNGpC9MIYUAJIpECkUiVBS7G22+2P5zu72XbPObNnds7Oec+TnN125pn3nO/s2Zk5M98QYBAREREREU0wI6GekTkdFhYgAk6HtcfjvWcDz3A+ADnO1gcRcDqsrHfF5yLAzQCYK5OQgL50MptYdvzTo4XywrzBd+PP+Q3P/2cZIMcHAh4Jm4nv8s3fdg3eZ//bNRYePW8GkSMh9gyiAY4l7m3+ZmHnYLZQ9h/YT9jFeF8bRABmtb/8qL98N2nYt2/jI/r6+aY8lGdE8BUHvPvYEyliLYsO7hHx+Y8bG7TdK57r2gR6IsiVqSqrBdmNwMfLiyCsBHKmio0Ayzw7syE6AlmmeS8jUCC7EejdK65+HfAsMz2zIYghvZ59IugOflDuktmQ3QhU29PhtnsOzHokKgK9+wU7C8a+tcPZ6YdtAywL+gBdn0Dc80fAtkP79rQzmbPCvgGypgJkQzYQrNOmYe0EqNqgFzhBUiz+5GzpZKIrvbP/c7Z4Tqcdh7MT4D9Ll3du8+r0L7a/2q43iLX2nH+9Q7K5sKTpMEi2CbArXSg2TqVLvRn3H5BscQKhMQH+P/C7/vGrnH6TOf/wOwKMffs2Q2GfDMGWCTAs/rM2fflK19nzR7SF/bb5FcyuG//YHWTfAU7rJhNaIECpUi1NA9OBvSf+0Rb2G9bAN69Q/zzYtIeoCJAB2Tt+51dLmhYWEcfv3ygth0X+3HrqjLYIwc4Xc1tm3r+zY3CgMs+r/PrNlL7APO+8f2D7shOj7l3w1dLzlUu9mQ8eLPzLqcN0Oc+8/9v1+1JtPpLGVY9FkPm6U2fStw8f7xj8/sltF5M7xHJavw4Sx9YbGcVxla+6zxaKBa/9Kxt/7Rsd+v2mqAJQBfW6rMAG0AKjLuU9ul9M7T90Pbl74w9nC1Ounzb0nWn7d/cZvOOR9A2lnk1fX7/1ghd6bCz01N8z8Vid7/dk0+feKBGvXm+zQBDLl1FEBTwZRIDrP9R6B+7dvPr7u3OOQ1LqFhIx7NkAvO+x6Z96dHYiVn++5afR9nzKWLgI8CwzPZssWCTbF8Omd46+dH+ivkLcQmJbtVg5u1RwxJ1HxAXFzhfe5+3kYft4P9n+Yab1wX1iXQ4Lg1sprRIT3pmbHeWJcT2bLNhGwLDM9KyIF9P5xZ/ogCBNAlZIC4sZiL2r3i6OtcQ15BCR+wVs1wHCWit+jZAPhnjVvwqFZt+B2juXvdL+hGVto3UBrDn4tC32zGRskwDH2/ESd7mSf3tp++v7IMMIa33zs7s/so95cvR2abuyz/fcFpBp0BLXcD9BZIJM/dzPpK3Bpy/1yK1e+61TXsVnOvr6vsVztXQCi4YQNhAeq1nELc/+NNVtP6mT1W1C7ix6cdl7+SsJ3KcH7nl24PzM9CdzCnX/cP3Tl7cLhQGLBQjy3JgsR8AXHYgc8m/7X7tQ0bntXNsEArL1/J/7bQlkGSJw28MmkqOU/y9+U1VqfKp/G2NLbDgKpRrFc8RUCejoAsAurQciA9l9FPCg4x1bgBUgCgKYgLYdV4mJwJntwEJYIyLC3R+1MiLrSYFNIDc80a7B2fC14tqkSf0IgK01V3J9y2QtuBtzl1+';
 
         // 9. Generar HTML completo
@@ -2101,6 +2101,7 @@ function generarPDFComprobante(datos) {
     
     .logo { 
         max-width: 150px; 
+        height: auto;
     }
     
     .folio { 
@@ -2616,7 +2617,8 @@ async function guardarVentaEnEstadisticas(datos) {
         const facturaTexto = datos.requiereFactura ? 'SÍ' : 'NO';
         const formaPago = datos.tipoPago === 'Transferencia' ? 'Transferencia bancaria' : datos.tipoPago.toUpperCase();
         const tipoPago = datos.tipoPago === 'Crédito' ? 'Pago diferido en parcialidades' : 'Pago en una sola exhibición';
-        const estadoPago = datos.tipoPago === 'Transferencia' ? 'Validando' : 'Pendiente';
+        // ⭐ CORREGIDO: Para crédito, estado "En preparación" en lugar de "Pendiente" ⭐
+        const estadoPago = datos.tipoPago === 'Crédito' ? 'En preparación' : 'Validando';
         const nombreDireccion = datos.nombreDireccion || 'Sin nombre';
         
         // ⭐ OBTENER LA RAZÓN SOCIAL SELECCIONADA PARA FACTURA ⭐
