@@ -56,6 +56,7 @@ let productosMasComprados = [];
 
 // ============================================
 // ⭐ FUNCIÓN PARA PARSEAR FECHAS CORRECTAMENTE ⭐
+// CORREGIDA PARA MANEJAR "23/07/2026, 20:59:27"
 // ============================================
 
 function parseFechaGoogleSheets(fechaStr) {
@@ -80,7 +81,11 @@ function parseFechaGoogleSheets(fechaStr) {
         const minuto = parseInt(match[5]);
         const segundo = parseInt(match[6]);
         
-        return new Date(anio, mes, dia, hora, minuto, segundo);
+        const fecha = new Date(anio, mes, dia, hora, minuto, segundo);
+        // Verificar que la fecha sea válida
+        if (!isNaN(fecha.getTime())) {
+            return fecha;
+        }
     }
     
     // Intentar parsear formato: "DD/MM/YYYY" (sin hora)
@@ -90,13 +95,22 @@ function parseFechaGoogleSheets(fechaStr) {
         const dia = parseInt(matchFecha[1]);
         const mes = parseInt(matchFecha[2]) - 1;
         const anio = parseInt(matchFecha[3]);
-        return new Date(anio, mes, dia);
+        const fecha = new Date(anio, mes, dia);
+        if (!isNaN(fecha.getTime())) {
+            return fecha;
+        }
     }
     
     // Intentar parsear con Date nativo (para otros formatos)
     const fecha = new Date(fechaStr);
     if (!isNaN(fecha.getTime())) {
         return fecha;
+    }
+    
+    // Si todo falla, intentar con formato ISO
+    const fechaISO = new Date(fechaStr.replace(/\//g, '-'));
+    if (!isNaN(fechaISO.getTime())) {
+        return fechaISO;
     }
     
     console.warn('⚠️ No se pudo parsear la fecha:', fechaStr);
@@ -122,6 +136,19 @@ function formatearFechaCompleta(fechaStr) {
         day: '2-digit',
         month: 'long',
         year: 'numeric'
+    });
+}
+
+function formatearFechaHora(fechaStr) {
+    const fecha = parseFechaGoogleSheets(fechaStr);
+    if (!fecha) return 'Fecha no disponible';
+    
+    return fecha.toLocaleString('es-MX', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
     });
 }
 
