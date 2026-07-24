@@ -2288,6 +2288,12 @@ async function guardarVentaEnEstadisticas(datos) {
         const estadoPago = datos.tipoPago === 'Transferencia' ? 'Validando' : 'Pendiente';
         const nombreDireccion = datos.nombreDireccion || 'Sin nombre';
         
+        // ⭐ OBTENER LA RAZÓN SOCIAL SELECCIONADA PARA FACTURA ⭐
+        let razonSocialFactura = '';
+        if (datos.requiereFactura && datos.datosFactura) {
+            razonSocialFactura = datos.datosFactura.razonSocial || '';
+        }
+        
         const filaCliente = [
             fechaFormateada,
             datos.folio,
@@ -2302,7 +2308,8 @@ async function guardarVentaEnEstadisticas(datos) {
             tipoPago,
             '',
             estadoPago,
-            nombreDireccion
+            nombreDireccion,
+            razonSocialFactura  // ⭐ COLUMNA O - RAZÓN SOCIAL DE FACTURA ⭐
         ];
         
         await guardarFilaGoogleSheets(HOJA_EST_CLIENTES, filaCliente);
