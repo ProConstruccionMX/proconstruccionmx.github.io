@@ -2570,6 +2570,7 @@ function abrirModalPago() {
         }
     }
     
+    // ⭐ INICIALIZAR FACTURA - UN SOLO BLOQUE ⭐
     requiereFactura = false;
     document.getElementById('facturaNo').classList.add('selected');
     document.getElementById('facturaSi').classList.remove('selected');
@@ -2619,37 +2620,43 @@ function seleccionarPago(tipo) {
     document.getElementById('modalMensaje').innerHTML = '';
     document.getElementById('modalMensaje').style.display = 'none';
     
-    // Restaurar botones de crédito
-    const btnConfirmarCredito = document.querySelector('#formCredito .btn-enviar');
-    if (btnConfirmarCredito) {
-        btnConfirmarCredito.disabled = false;
-        btnConfirmarCredito.title = '';
-        btnConfirmarCredito.style.opacity = '1';
-        btnConfirmarCredito.style.cursor = 'pointer';
-        btnConfirmarCredito.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
-    }
+    // Ocultar formulario de transferencia en crédito por defecto
+    const formTransferencia = document.getElementById('formTransferencia');
+    const formCredito = document.getElementById('formCredito');
     
     if (tipo === 'transferencia') {
         document.getElementById('btnTransferencia').classList.add('selected');
-        document.getElementById('formTransferencia').style.display = 'block';
-        document.getElementById('formCredito').style.display = 'none';
+        if (formTransferencia) formTransferencia.style.display = 'block';
+        if (formCredito) formCredito.style.display = 'none';
         
-        // Transferencia: PAGAR EL TOTAL, no solo el excedente
+        // Transferencia: PAGAR EL TOTAL
         const total = calcularTotal();
         document.getElementById('montoTransferencia').textContent = formatoMexicano(total);
         
+        // Habilitar/deshabilitar botón según campos
+        validarCamposTransferencia();
+        
+        // Restaurar botón de crédito si estaba visible
+        const btnConfirmarCredito = document.querySelector('#formCredito .btn-enviar');
+        if (btnConfirmarCredito) {
+            btnConfirmarCredito.style.display = 'none';
+        }
+        
     } else if (tipo === 'credito') {
         document.getElementById('btnCredito').classList.add('selected');
-        document.getElementById('formCredito').style.display = 'block';
-        document.getElementById('formTransferencia').style.display = 'none';
+        if (formCredito) formCredito.style.display = 'block';
+        if (formTransferencia) formTransferencia.style.display = 'none';
         
-        // Crédito: Mostrar información de crédito y el excedente a pagar
+        // Crédito: Mostrar información
         const infoCredito = window._infoCredito || infoCreditoCalculado;
         const esCreditoParcial = window._esCreditoParcial || false;
         const montoExcedente = window._montoExcedente || 0;
         
+        // Ocultar el botón de confirmar compra por defecto
+        const btnConfirmarCompra = document.querySelector('#formCredito .btn-enviar');
+        
         if (esCreditoParcial && infoCredito && infoCredito.excedeLimite) {
-            // Si excede el límite de crédito, mostrar el excedente a pagar DENTRO del crédito
+            // Crédito con excedente - mostrar campos de transferencia DENTRO del crédito
             const mensajeHTML = `
                 <div style="background: #fef3c7; padding: 1rem; border-radius: 12px; margin-bottom: 1rem; border: 1px solid #fde68a;">
                     <p style="margin: 0; font-weight: 600; color: #92400e;">
@@ -2670,39 +2677,88 @@ function seleccionarPago(tipo) {
             document.getElementById('modalMensaje').innerHTML = mensajeHTML;
             document.getElementById('modalMensaje').style.display = 'block';
             
-            // Mostrar campos de transferencia dentro del crédito (para el excedente)
-            const formTransferencia = document.getElementById('formTransferencia');
-            if (formTransferencia) {
-                formTransferencia.style.display = 'block';
+            // Mostrar campos de transferencia dentro del crédito
+            const formTransferenciaCredito = document.getElementById('formTransferencia');
+            if (formTransferenciaCredito) {
+                formTransferenciaCredito.style.display = 'block';
                 document.getElementById('montoTransferencia').textContent = formatoMexicano(montoExcedente);
             }
             
-            // Cambiar el botón de "Confirmar Crédito" a "Pagar Excedente y Finalizar"
-            if (btnConfirmarCredito) {
-                btnConfirmarCredito.innerHTML = '<i class="fas fa-university"></i> Pagar Excedente y Finalizar';
-                btnConfirmarCredito.disabled = false;
-                btnConfirmarCredito.title = 'Paga el excedente de contado para completar la compra a crédito';
-                btnConfirmarCredito.style.opacity = '1';
-                btnConfirmarCredito.style.cursor = 'pointer';
+            // Configurar el botón "Pagar Excedente y Finalizar"
+            if (btnConfirmarCompra) {
+                btnConfirmarCompra.style.display = 'block';
+                btnConfirmarCompra.innerHTML = '<i class="fas fa-university"></i> Pagar Excedente y Finalizar';
+                btnConfirmarCompra.disabled = true;
+                btnConfirmarCompra.title = 'Completa el número de referencia y sube el comprobante';
+                btnConfirmarCompra.style.opacity = '0.5';
+                btnConfirmarCompra.style.cursor = 'not-allowed';
             }
+            
+            // Validar campos para habilitar el botón
+            validarCamposCreditoParcial();
+            
         } else {
             // Crédito total (sin excedente)
             document.getElementById('modalMensaje').innerHTML = '';
             document.getElementById('modalMensaje').style.display = 'none';
             
             // Ocultar campos de transferencia
-            const formTransferencia = document.getElementById('formTransferencia');
-            if (formTransferencia) {
-                formTransferencia.style.display = 'none';
+            const formTransferenciaCredito = document.getElementById('formTransferencia');
+            if (formTransferenciaCredito) {
+                formTransferenciaCredito.style.display = 'none';
             }
             
-            if (btnConfirmarCredito) {
-                btnConfirmarCredito.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
-                btnConfirmarCredito.disabled = false;
-                btnConfirmarCredito.title = '';
-                btnConfirmarCredito.style.opacity = '1';
-                btnConfirmarCredito.style.cursor = 'pointer';
+            // Configurar el botón "Confirmar Crédito"
+            if (btnConfirmarCompra) {
+                btnConfirmarCompra.style.display = 'block';
+                btnConfirmarCompra.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
+                btnConfirmarCompra.disabled = false;
+                btnConfirmarCompra.title = '';
+                btnConfirmarCompra.style.opacity = '1';
+                btnConfirmarCompra.style.cursor = 'pointer';
             }
+        }
+    }
+}
+
+// ⭐ FUNCIÓN PARA VALIDAR CAMPOS DE TRANSFERENCIA ⭐
+function validarCamposTransferencia() {
+    const referencia = document.getElementById('referenciaTransferencia').value.trim();
+    const archivo = document.getElementById('fileName').textContent;
+    const btnConfirmar = document.querySelector('#formTransferencia .btn-enviar');
+    
+    if (btnConfirmar) {
+        if (referencia && archivo && archivo !== 'Ningún archivo seleccionado') {
+            btnConfirmar.disabled = false;
+            btnConfirmar.title = '';
+            btnConfirmar.style.opacity = '1';
+            btnConfirmar.style.cursor = 'pointer';
+        } else {
+            btnConfirmar.disabled = true;
+            btnConfirmar.title = 'Completa el número de referencia y sube el comprobante';
+            btnConfirmar.style.opacity = '0.5';
+            btnConfirmar.style.cursor = 'not-allowed';
+        }
+    }
+}
+
+// ⭐ FUNCIÓN PARA VALIDAR CAMPOS DE CRÉDITO PARCIAL ⭐
+function validarCamposCreditoParcial() {
+    const referencia = document.getElementById('referenciaTransferencia').value.trim();
+    const archivo = document.getElementById('fileName').textContent;
+    const btnConfirmar = document.querySelector('#formCredito .btn-enviar');
+    
+    if (btnConfirmar) {
+        if (referencia && archivo && archivo !== 'Ningún archivo seleccionado') {
+            btnConfirmar.disabled = false;
+            btnConfirmar.title = '';
+            btnConfirmar.style.opacity = '1';
+            btnConfirmar.style.cursor = 'pointer';
+        } else {
+            btnConfirmar.disabled = true;
+            btnConfirmar.title = 'Completa el número de referencia y sube el comprobante del excedente';
+            btnConfirmar.style.opacity = '0.5';
+            btnConfirmar.style.cursor = 'not-allowed';
         }
     }
 }
@@ -2798,9 +2854,38 @@ function cargarComprobante(event) {
         comprobanteNombre = file.name;
         comprobanteTipo = file.type;
         document.getElementById('fileName').textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+        
+        // Validar campos después de cargar el archivo
+        const pagoSeleccionadoActual = pagoSeleccionado;
+        if (pagoSeleccionadoActual === 'transferencia') {
+            validarCamposTransferencia();
+        } else if (pagoSeleccionadoActual === 'credito') {
+            const esCreditoParcial = window._esCreditoParcial || false;
+            if (esCreditoParcial) {
+                validarCamposCreditoParcial();
+            }
+        }
     };
     reader.readAsDataURL(file);
 }
+
+// ⭐ AGREGAR EVENTO PARA VALIDAR REFERENCIA EN TIEMPO REAL ⭐
+document.addEventListener('DOMContentLoaded', function() {
+    // Evento para el campo de referencia en transferencia
+    const refTransferencia = document.getElementById('referenciaTransferencia');
+    if (refTransferencia) {
+        refTransferencia.addEventListener('input', function() {
+            if (pagoSeleccionado === 'transferencia') {
+                validarCamposTransferencia();
+            } else if (pagoSeleccionado === 'credito') {
+                const esCreditoParcial = window._esCreditoParcial || false;
+                if (esCreditoParcial) {
+                    validarCamposCreditoParcial();
+                }
+            }
+        });
+    }
+});
 
 function calcularTotal() {
     let subtotal = 0;
@@ -3082,7 +3167,6 @@ async function procesarPagoTransferencia() {
         const folio = generarFolio();
         const fecha = new Date();
         
-        // Transferencia: PAGAR EL TOTAL COMPLETO
         let productosParaVenta = carrito.map(item => ({
             ...item,
             _tipo: 'pago'
@@ -3418,7 +3502,6 @@ async function guardarVentaEnEstadisticas(datos) {
                     montoPagado = 0;
                 }
             } else {
-                // Transferencia: todo es pago
                 creditoPendiente = 0;
                 montoPagado = producto.importe;
             }
@@ -3458,13 +3541,11 @@ async function guardarVentaEnEstadisticas(datos) {
         let creditoPendienteTotal = datos.montoCredito || 0;
         let montoPagadoTotal = datos.montoPago || 0;
         
-        // Si es transferencia, todo es pago
         if (datos.tipoPago === 'Transferencia') {
             creditoPendienteTotal = 0;
             montoPagadoTotal = datos.total;
         }
         
-        // Si es crédito total, todo es crédito
         if (datos.tipoPago === 'Crédito' && !datos.esCreditoParcial) {
             creditoPendienteTotal = datos.total;
             montoPagadoTotal = 0;
