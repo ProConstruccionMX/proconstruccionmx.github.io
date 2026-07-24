@@ -55,6 +55,77 @@ let ventasDetalladas = [];
 let productosMasComprados = [];
 
 // ============================================
+// ⭐ FUNCIÓN PARA PARSEAR FECHAS CORRECTAMENTE ⭐
+// ============================================
+
+function parseFechaGoogleSheets(fechaStr) {
+    if (!fechaStr) return null;
+    
+    // Limpiar espacios
+    fechaStr = fechaStr.trim();
+    
+    // Si ya es un objeto Date, retornarlo
+    if (fechaStr instanceof Date) return fechaStr;
+    
+    // Intentar parsear formato: "23/07/2026, 20:59:27"
+    // Formato: DD/MM/YYYY, HH:MM:SS
+    const regex = /^(\d{1,2})\/(\d{1,2})\/(\d{4}),\s*(\d{1,2}):(\d{2}):(\d{2})$/;
+    const match = fechaStr.match(regex);
+    
+    if (match) {
+        const dia = parseInt(match[1]);
+        const mes = parseInt(match[2]) - 1; // Mes en JS es 0-11
+        const anio = parseInt(match[3]);
+        const hora = parseInt(match[4]);
+        const minuto = parseInt(match[5]);
+        const segundo = parseInt(match[6]);
+        
+        return new Date(anio, mes, dia, hora, minuto, segundo);
+    }
+    
+    // Intentar parsear formato: "DD/MM/YYYY" (sin hora)
+    const regexFecha = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+    const matchFecha = fechaStr.match(regexFecha);
+    if (matchFecha) {
+        const dia = parseInt(matchFecha[1]);
+        const mes = parseInt(matchFecha[2]) - 1;
+        const anio = parseInt(matchFecha[3]);
+        return new Date(anio, mes, dia);
+    }
+    
+    // Intentar parsear con Date nativo (para otros formatos)
+    const fecha = new Date(fechaStr);
+    if (!isNaN(fecha.getTime())) {
+        return fecha;
+    }
+    
+    console.warn('⚠️ No se pudo parsear la fecha:', fechaStr);
+    return null;
+}
+
+function formatearFecha(fechaStr) {
+    const fecha = parseFechaGoogleSheets(fechaStr);
+    if (!fecha) return 'Fecha no disponible';
+    
+    return fecha.toLocaleDateString('es-MX', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+    });
+}
+
+function formatearFechaCompleta(fechaStr) {
+    const fecha = parseFechaGoogleSheets(fechaStr);
+    if (!fecha) return 'Fecha no disponible';
+    
+    return fecha.toLocaleDateString('es-MX', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+    });
+}
+
+// ============================================
 // INICIALIZACIÓN
 // ============================================
 document.addEventListener('DOMContentLoaded', async function() {
@@ -2880,6 +2951,7 @@ async function cargarHistorialCompras() {
                 ventasMap.set(idVenta, {
                     idVenta: idVenta,
                     fecha: fecha,
+                    fechaObj: parseFechaGoogleSheets(fecha),
                     total: total,
                     estado: estado || 'Validando pago',
                     codigoCliente: codigo
@@ -2953,7 +3025,15 @@ async function cargarHistorialCompras() {
             });
         }
         
-        historialVentas.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+        // ⭐ ORDENAR POR FECHA (USANDO fechaObj) ⭐
+        historialVentas.sort((a, b) => {
+            const fechaA = a.fechaObj || parseFechaGoogleSheets(a.fecha);
+            const fechaB = b.fechaObj || parseFechaGoogleSheets(b.fecha);
+            if (!fechaA && !fechaB) return 0;
+            if (!fechaA) return 1;
+            if (!fechaB) return -1;
+            return fechaB - fechaA;
+        });
         
         productosMasComprados = Array.from(contadorProductos.values());
         productosMasComprados.sort((a, b) => b.totalImporte - a.totalImporte);
@@ -2961,7 +3041,11 @@ async function cargarHistorialCompras() {
         console.log(`📦 Historial cargado: ${historialVentas.length} ventas`);
         
         // 4. Poblar filtros de años
-        const anos = [...new Set(historialVentas.map(v => new Date(v.fecha).getFullYear()))];
+        const anos = [...new Set(historialVentas.map(v => {
+            const fecha = v.fechaObj || parseFechaGoogleSheets(v.fecha);
+            return fecha ? fecha.getFullYear() : null;
+        }).filter(a => a !== null))];
+        
         const anoSelect = document.getElementById('filtroAno');
         if (anoSelect) {
             anoSelect.innerHTML = '<option value="todos">Todos los años</option>';
@@ -2993,8 +3077,9 @@ function renderizarOrdenes() {
     hace15Dias.setDate(hace15Dias.getDate() - 15);
     
     const ordenesRecientes = historialVentas.filter(v => {
-        const fechaVenta = new Date(v.fecha);
-        return fechaVenta >= hace15Dias;
+        const fecha = v.fechaObj || parseFechaGoogleSheets(v.fecha);
+        if (!fecha) return false;
+        return fecha >= hace15Dias;
     });
     
     if (ordenesRecientes.length === 0) {
@@ -3008,7 +3093,14 @@ function renderizarOrdenes() {
         return;
     }
     
-    ordenesRecientes.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    ordenesRecientes.sort((a, b) => {
+        const fechaA = a.fechaObj || parseFechaGoogleSheets(a.fecha);
+        const fechaB = b.fechaObj || parseFechaGoogleSheets(b.fecha);
+        if (!fechaA && !fechaB) return 0;
+        if (!fechaA) return 1;
+        if (!fechaB) return -1;
+        return fechaB - fechaA;
+    });
     
     const estadoColors = {
         'Validando pago': '#f59e0b',
@@ -3036,12 +3128,12 @@ function renderizarOrdenes() {
         const estado = venta.estado || 'Validando pago';
         const color = estadoColors[estado] || '#6b7280';
         const icon = estadoIcons[estado] || 'fa-circle';
-        const fechaObj = new Date(venta.fecha);
-        const fechaFormateada = fechaObj.toLocaleDateString('es-MX', {
+        const fecha = venta.fechaObj || parseFechaGoogleSheets(venta.fecha);
+        const fechaFormateada = fecha ? fecha.toLocaleDateString('es-MX', {
             day: '2-digit',
             month: 'short',
             year: 'numeric'
-        });
+        }) : 'Fecha no disponible';
         
         if (index < ordenesRecientes.length - 1) {
             html += `<div style="position:absolute; left:10px; top:40px; bottom:0; width:2px; background:#e5e7eb;"></div>`;
@@ -3093,16 +3185,18 @@ function renderizarHistorialCompras(filtroAno, filtroMes) {
     let ventasFiltradas = [...historialVentas];
     
     if (filtroAno && filtroAno !== 'todos') {
+        const anoNum = parseInt(filtroAno);
         ventasFiltradas = ventasFiltradas.filter(v => {
-            const fecha = new Date(v.fecha);
-            return fecha.getFullYear() === parseInt(filtroAno);
+            const fecha = v.fechaObj || parseFechaGoogleSheets(v.fecha);
+            return fecha && fecha.getFullYear() === anoNum;
         });
     }
     
     if (filtroMes && filtroMes !== 'todos') {
+        const mesNum = parseInt(filtroMes);
         ventasFiltradas = ventasFiltradas.filter(v => {
-            const fecha = new Date(v.fecha);
-            return (fecha.getMonth() + 1) === parseInt(filtroMes);
+            const fecha = v.fechaObj || parseFechaGoogleSheets(v.fecha);
+            return fecha && (fecha.getMonth() + 1) === mesNum;
         });
     }
     
@@ -3150,12 +3244,12 @@ function renderizarHistorialCompras(filtroAno, filtroMes) {
             'Entregado': '#10b981'
         };
         const color = estadoColors[estado] || '#6b7280';
-        const fechaObj = new Date(venta.fecha);
-        const fechaFormateada = fechaObj.toLocaleDateString('es-MX', {
+        const fecha = venta.fechaObj || parseFechaGoogleSheets(venta.fecha);
+        const fechaFormateada = fecha ? fecha.toLocaleDateString('es-MX', {
             day: '2-digit',
             month: 'short',
             year: 'numeric'
-        });
+        }) : 'Fecha no disponible';
         
         html += `
             <tr style="border-bottom:1px solid #f3f4f6;">
@@ -3241,7 +3335,8 @@ function renderizarEstadisticasProductos() {
     
     const comprasPorMes = new Map();
     historialVentas.forEach(v => {
-        const fecha = new Date(v.fecha);
+        const fecha = v.fechaObj || parseFechaGoogleSheets(v.fecha);
+        if (!fecha) return;
         const key = `${fecha.getFullYear()}-${String(fecha.getMonth()+1).padStart(2,'0')}`;
         const label = `${fecha.toLocaleString('es-MX', {month:'short'})} ${fecha.getFullYear()}`;
         if (!comprasPorMes.has(key)) {
@@ -3279,12 +3374,12 @@ function verDetalleVenta(idVenta) {
         return;
     }
     
-    const fechaObj = new Date(venta.fecha);
-    const fechaFormateada = fechaObj.toLocaleDateString('es-MX', {
+    const fecha = venta.fechaObj || parseFechaGoogleSheets(venta.fecha);
+    const fechaFormateada = fecha ? fecha.toLocaleDateString('es-MX', {
         day: '2-digit',
         month: 'long',
         year: 'numeric'
-    });
+    }) : 'Fecha no disponible';
     
     const estadoColors = {
         'Validando pago': '#f59e0b',
