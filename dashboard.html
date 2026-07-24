@@ -940,15 +940,63 @@
     <!-- ===== TAB 4: MIS COMPRAS ===== -->
     <div id="tab-compras" class="tab-content">
         <div class="welcome-section">
-            <h1>📋 Historial de Compras</h1>
-            <p>Aquí puedes ver todas tus compras realizadas.</p>
+            <h1>📋 Mis Compras</h1>
+            <p>Aquí puedes ver todas tus compras realizadas y su estado actual.</p>
         </div>
-        <div class="cart-section" id="historialCompras">
+
+        <!-- SECCIÓN 1: ÓRDENES RECIENTES (LÍNEA DE TIEMPO) -->
+        <div class="cart-section" style="margin-bottom:2rem;">
+            <div id="ordenesContent">
+                <div class="empty-state">
+                    <i class="fas fa-clock"></i>
+                    <h4>Cargando órdenes...</h4>
+                    <p>Por favor espera un momento.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN 2: HISTORIAL DE COMPRAS CON FILTROS -->
+        <div class="cart-section" style="margin-bottom:2rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+                <h2 style="margin:0; color:var(--primary-dark);"><i class="fas fa-history"></i> Historial de Compras</h2>
+                <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+                    <label style="font-size:0.85rem; font-weight:600; color:var(--text-gray);">Filtrar por:</label>
+                    <select id="filtroAno" onchange="filtrarHistorial()" style="padding:0.4rem 0.8rem; border:2px solid #e2e8f0; border-radius:8px; font-family:'Inter',sans-serif; font-size:0.85rem;">
+                        <option value="todos">Todos los años</option>
+                    </select>
+                    <select id="filtroMes" onchange="filtrarHistorial()" style="padding:0.4rem 0.8rem; border:2px solid #e2e8f0; border-radius:8px; font-family:'Inter',sans-serif; font-size:0.85rem;">
+                        <option value="todos">Todos los meses</option>
+                        <option value="1">Enero</option>
+                        <option value="2">Febrero</option>
+                        <option value="3">Marzo</option>
+                        <option value="4">Abril</option>
+                        <option value="5">Mayo</option>
+                        <option value="6">Junio</option>
+                        <option value="7">Julio</option>
+                        <option value="8">Agosto</option>
+                        <option value="9">Septiembre</option>
+                        <option value="10">Octubre</option>
+                        <option value="11">Noviembre</option>
+                        <option value="12">Diciembre</option>
+                    </select>
+                </div>
+            </div>
             <div id="historialContent">
                 <div class="empty-state">
                     <i class="fas fa-receipt"></i>
-                    <h4>Sin compras registradas</h4>
-                    <p>Aún no tienes compras en tu historial.</p>
+                    <h4>Cargando historial...</h4>
+                    <p>Por favor espera un momento.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN 3: ESTADÍSTICAS DE PRODUCTOS -->
+        <div class="cart-section">
+            <div id="estadisticasContent">
+                <div class="empty-state">
+                    <i class="fas fa-chart-bar"></i>
+                    <h4>Cargando estadísticas...</h4>
+                    <p>Por favor espera un momento.</p>
                 </div>
             </div>
         </div>
@@ -1257,7 +1305,6 @@
                             <option value="">-- Selecciona una razón social --</option>
                         </select>
                     </div>
-                    <!-- ⭐ BOTÓN PARA AGREGAR NUEVA RAZÓN SOCIAL ⭐ -->
                     <div style="margin-bottom: 1rem; text-align: center;">
                         <button type="button" class="btn-secondary" onclick="abrirModalAgregarFacturacionDesdePago()" style="padding:0.5rem 1.5rem; font-size:0.85rem;">
                             <i class="fas fa-plus"></i> Registrar nueva razón social
@@ -1294,7 +1341,7 @@
             </div>
 
             <div id="formCredito" style="display:none;">
-                <!-- ⭐ SELECCIÓN DE FACTURA EN CRÉDITO ⭐ -->
+                <!-- SELECCIÓN DE FACTURA EN CRÉDITO -->
                 <div class="form-group">
                     <label>¿Deseas factura? <span style="color:red;">*</span></label>
                     <div class="factura-toggle" id="facturaToggleCredito">
@@ -1311,7 +1358,6 @@
                             <option value="">-- Selecciona una razón social --</option>
                         </select>
                     </div>
-                    <!-- ⭐ BOTÓN PARA AGREGAR NUEVA RAZÓN SOCIAL ⭐ -->
                     <div style="margin-bottom: 1rem; text-align: center;">
                         <button type="button" class="btn-secondary" onclick="abrirModalAgregarFacturacionDesdePago()" style="padding:0.5rem 1.5rem; font-size:0.85rem;">
                             <i class="fas fa-plus"></i> Registrar nueva razón social
