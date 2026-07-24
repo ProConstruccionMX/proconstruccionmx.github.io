@@ -54,21 +54,22 @@ let historialVentas = [];
 let ventasDetalladas = [];
 let productosMasComprados = [];
 
+// ⭐ VARIABLES PARA CRÉDITO ⭐
+let clienteCreditoHabilitado = false;
+let clienteLimiteCreditoPeso = 0;
+let clienteLimiteCreditoMonto = 0;
+
 // ============================================
 // ⭐ FUNCIÓN PARA PARSEAR FECHAS CORRECTAMENTE ⭐
-// CORREGIDA PARA MANEJAR OBJETOS Date Y STRINGS
 // ============================================
 
 function parseFechaGoogleSheets(fechaStr) {
-    // Si es null o undefined
     if (!fechaStr) return null;
     
-    // Función auxiliar para verificar si es un objeto Date válido
     function esDateValido(obj) {
         if (obj instanceof Date) {
             return !isNaN(obj.getTime());
         }
-        // Verificar si tiene métodos de Date (para objetos Date de Google Apps Script)
         if (typeof obj === 'object' && obj !== null) {
             if (typeof obj.getTime === 'function' && typeof obj.getFullYear === 'function') {
                 try {
@@ -81,29 +82,23 @@ function parseFechaGoogleSheets(fechaStr) {
         return false;
     }
     
-    // Si es un objeto con métodos de Date (incluyendo Date de Google Apps Script)
     if (typeof fechaStr === 'object' && fechaStr !== null) {
         if (typeof fechaStr.getTime === 'function') {
             try {
                 const time = fechaStr.getTime();
                 if (!isNaN(time)) {
-                    // Crear un Date nativo a partir del timestamp
                     const fecha = new Date(time);
                     if (!isNaN(fecha.getTime())) {
                         return fecha;
                     }
                 }
-            } catch (e) {
-                // Si falla, continuar
-            }
+            } catch (e) {}
         }
-        // Si ya es un Date válido
         if (fechaStr instanceof Date && !isNaN(fechaStr.getTime())) {
             return fechaStr;
         }
     }
     
-    // Si es un número (timestamp)
     if (typeof fechaStr === 'number') {
         const fecha = new Date(fechaStr);
         if (!isNaN(fecha.getTime())) {
@@ -112,11 +107,9 @@ function parseFechaGoogleSheets(fechaStr) {
         return null;
     }
     
-    // Asegurar que sea string para las siguientes operaciones
     const fechaString = String(fechaStr).trim();
     if (!fechaString) return null;
     
-    // Intentar parsear formato: "23/07/2026, 20:59:27"
     const regex = /^(\d{1,2})\/(\d{1,2})\/(\d{4}),\s*(\d{1,2}):(\d{2}):(\d{2})$/;
     const match = fechaString.match(regex);
     
@@ -134,7 +127,6 @@ function parseFechaGoogleSheets(fechaStr) {
         }
     }
     
-    // Intentar parsear formato: "DD/MM/YYYY"
     const regexFecha = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
     const matchFecha = fechaString.match(regexFecha);
     if (matchFecha) {
@@ -147,19 +139,16 @@ function parseFechaGoogleSheets(fechaStr) {
         }
     }
     
-    // Intentar parsear con Date nativo
     const fecha = new Date(fechaString);
     if (!isNaN(fecha.getTime())) {
         return fecha;
     }
     
-    // Intentar con formato ISO
     const fechaISO = new Date(fechaString.replace(/\//g, '-'));
     if (!isNaN(fechaISO.getTime())) {
         return fechaISO;
     }
     
-    // Intentar parsear como timestamp
     const timestamp = parseFloat(fechaString);
     if (!isNaN(timestamp)) {
         const fechaTimestamp = new Date(timestamp);
@@ -168,7 +157,6 @@ function parseFechaGoogleSheets(fechaStr) {
         }
     }
     
-    // Si el string contiene "Date(", extraer los valores
     if (fechaString.includes('Date(')) {
         try {
             const matchDate = fechaString.match(/Date\((\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\)/);
@@ -184,9 +172,7 @@ function parseFechaGoogleSheets(fechaStr) {
                     return fecha;
                 }
             }
-        } catch (e) {
-            // Si falla, continuar
-        }
+        } catch (e) {}
     }
     
     console.warn('⚠️ No se pudo parsear la fecha:', fechaStr);
@@ -196,7 +182,6 @@ function parseFechaGoogleSheets(fechaStr) {
 function formatearFecha(fechaStr) {
     const fecha = parseFechaGoogleSheets(fechaStr);
     if (!fecha) return 'Fecha no disponible';
-    
     if (fecha instanceof Date && !isNaN(fecha.getTime())) {
         return fecha.toLocaleDateString('es-MX', {
             day: '2-digit',
@@ -204,14 +189,12 @@ function formatearFecha(fechaStr) {
             year: 'numeric'
         });
     }
-    
     return 'Fecha no disponible';
 }
 
 function formatearFechaCompleta(fechaStr) {
     const fecha = parseFechaGoogleSheets(fechaStr);
     if (!fecha) return 'Fecha no disponible';
-    
     if (fecha instanceof Date && !isNaN(fecha.getTime())) {
         return fecha.toLocaleDateString('es-MX', {
             day: '2-digit',
@@ -219,14 +202,12 @@ function formatearFechaCompleta(fechaStr) {
             year: 'numeric'
         });
     }
-    
     return 'Fecha no disponible';
 }
 
 function formatearFechaHora(fechaStr) {
     const fecha = parseFechaGoogleSheets(fechaStr);
     if (!fecha) return 'Fecha no disponible';
-    
     if (fecha instanceof Date && !isNaN(fecha.getTime())) {
         return fecha.toLocaleString('es-MX', {
             day: '2-digit',
@@ -236,7 +217,6 @@ function formatearFechaHora(fechaStr) {
             minute: '2-digit'
         });
     }
-    
     return 'Fecha no disponible';
 }
 
@@ -960,6 +940,10 @@ async function cargarDatosCliente(email) {
             const correo = String(values[3] || '').trim();
             
             if (correo.toLowerCase() === email.toLowerCase()) {
+                // ⭐ NUEVAS COLUMNAS: N, O, P
+                const creditoHabilitadoRaw = String(values[13] || '').trim().toUpperCase();
+                const creditoHabilitado = creditoHabilitadoRaw === 'SI' || creditoHabilitadoRaw === 'TRUE' || creditoHabilitadoRaw === 'VERDADERO';
+                
                 clienteData = {
                     codigo: String(values[0] || '').trim(),
                     nombre: String(values[1] || '').trim(),
@@ -972,8 +956,22 @@ async function cargarDatosCliente(email) {
                     creditoPendiente: parseFloat(values[8]) || 0,
                     creditoLiquidado: parseFloat(values[9]) || 0,
                     sucursal: String(values[10] || '').trim(),
-                    fechaRegistro: String(values[11] || '').trim()
+                    fechaRegistro: String(values[11] || '').trim(),
+                    // ⭐ NUEVAS PROPIEDADES
+                    creditoHabilitado: creditoHabilitado,
+                    limiteCreditoPeso: parseFloat(values[14]) || 0, // Columna O
+                    limiteCreditoMonto: parseFloat(values[15]) || 0  // Columna P
                 };
+                
+                // ⭐ GUARDAR EN VARIABLES GLOBALES
+                clienteCreditoHabilitado = clienteData.creditoHabilitado;
+                clienteLimiteCreditoPeso = clienteData.limiteCreditoPeso;
+                clienteLimiteCreditoMonto = clienteData.limiteCreditoMonto;
+                
+                console.log('💳 CRÉDITO HABILITADO:', clienteCreditoHabilitado);
+                console.log('⚖️ LÍMITE CRÉDITO PESO:', clienteLimiteCreditoPeso, 'kg');
+                console.log('💰 LÍMITE CRÉDITO MONTO:', clienteLimiteCreditoMonto);
+                
                 break;
             }
         }
@@ -1536,65 +1534,505 @@ function calcularDescuentoProducto(producto, cantidad) {
 }
 
 // ============================================
-// VERIFICACIÓN DE PESO MÍNIMO
+// ⭐ VERIFICACIÓN DE CRÉDITO Y PESO MÍNIMO ⭐
 // ============================================
 
-function verificarPesoMinimo() {
-    console.log('🔍 Verificando peso mínimo...');
+function verificarCreditoDisponible() {
+    console.log('🔍 Verificando crédito disponible...');
+    console.log('💳 Cliente crédito habilitado:', clienteCreditoHabilitado);
+    console.log('⚖️ Límite crédito peso:', clienteLimiteCreditoPeso);
+    console.log('💰 Límite crédito monto:', clienteLimiteCreditoMonto);
     
+    // Separar productos con peso y sin peso
     const productosConPeso = carrito.filter(item => {
         const producto = productosGlobales.find(p => p.clave === item.clave);
         return producto && producto.pesoCondicion === 'SI' && producto.peso > 0;
     });
     
-    console.log(`📊 Productos con peso en carrito: ${productosConPeso.length}`);
+    const productosSinPeso = carrito.filter(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        return producto && (producto.pesoCondicion !== 'SI' || producto.peso === 0);
+    });
     
-    if (productosConPeso.length === 0) {
-        return { 
-            cumple: true, 
-            pesoTotal: 0, 
-            productosConPeso: 0,
-            mensaje: '',
-            productosAfectados: []
-        };
-    }
+    console.log(`📊 Productos con peso: ${productosConPeso.length}`);
+    console.log(`📊 Productos sin peso: ${productosSinPeso.length}`);
     
+    // Calcular peso total de productos con peso
     let pesoTotal = 0;
-    const productosAfectados = [];
-    
     productosConPeso.forEach(item => {
         const producto = productosGlobales.find(p => p.clave === item.clave);
         if (producto) {
-            const pesoItem = producto.peso * item.cantidad;
-            pesoTotal += pesoItem;
-            productosAfectados.push({
-                nombre: item.nombre,
-                cantidad: item.cantidad,
-                pesoUnitario: producto.peso,
-                pesoTotal: pesoItem
-            });
+            pesoTotal += producto.peso * item.cantidad;
         }
     });
     
-    console.log(`⚖️ PESO TOTAL: ${pesoTotal.toFixed(2)} kg`);
+    // Calcular monto total de productos sin peso
+    let montoSinPeso = 0;
+    productosSinPeso.forEach(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        if (producto) {
+            const precioFinal = obtenerPrecioFinal(producto);
+            const descuento = calcularDescuentoProducto(producto, item.cantidad);
+            const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+            montoSinPeso += importe;
+        }
+    });
     
-    if (pesoTotal >= PESO_MINIMO_TONELADA) {
-        return { 
-            cumple: true, 
-            pesoTotal: pesoTotal, 
-            productosConPeso: productosConPeso.length,
-            productosAfectados: productosAfectados,
-            mensaje: `✅ ¡Cumpliste con el peso mínimo! Total: ${pesoTotal.toFixed(2)} kg (1 tonelada)` 
-        };
-    } else {
-        return { 
-            cumple: false, 
-            pesoTotal: pesoTotal, 
-            productosConPeso: productosConPeso.length,
-            productosAfectados: productosAfectados,
-            mensaje: `⚠️ Peso total: ${pesoTotal.toFixed(2)} kg. Se requiere mínimo ${PESO_MINIMO_TONELADA} kg (1 tonelada). Faltan ${(PESO_MINIMO_TONELADA - pesoTotal).toFixed(2)} kg.` 
-        };
+    // Calcular monto total de productos con peso (para el pago restante)
+    let montoConPeso = 0;
+    productosConPeso.forEach(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        if (producto) {
+            const precioFinal = obtenerPrecioFinal(producto);
+            const descuento = calcularDescuentoProducto(producto, item.cantidad);
+            const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+            montoConPeso += importe;
+        }
+    });
+    
+    const totalGeneral = montoConPeso + montoSinPeso;
+    
+    console.log(`⚖️ Peso total (con peso): ${pesoTotal.toFixed(2)} kg`);
+    console.log(`💰 Monto productos con peso: ${formatoMexicano(montoConPeso)}`);
+    console.log(`💰 Monto productos sin peso: ${formatoMexicano(montoSinPeso)}`);
+    console.log(`💰 Total general: ${formatoMexicano(totalGeneral)}`);
+    
+    // Verificar si hay productos con peso
+    const hayProductosConPeso = productosConPeso.length > 0;
+    const hayProductosSinPeso = productosSinPeso.length > 0;
+    
+    // CASO 1: Solo productos con peso
+    if (hayProductosConPeso && !hayProductosSinPeso) {
+        console.log('📦 Caso: Solo productos con peso');
+        
+        if (pesoTotal <= clienteLimiteCreditoPeso) {
+            // Todo va a crédito
+            return {
+                puedeCredito: true,
+                tipo: 'credito_total',
+                mensaje: `✅ Todos los productos van a crédito. Peso total: ${pesoTotal.toFixed(2)} kg (límite: ${clienteLimiteCreditoPeso} kg)`,
+                pesoTotal: pesoTotal,
+                montoCredito: totalGeneral,
+                montoPago: 0,
+                productosCredito: carrito,
+                productosPago: []
+            };
+        } else {
+            // Calcular cuántos kg van a crédito y cuántos a pago
+            // Usar la proporción para determinar qué productos van a pago
+            const pesoExcedente = pesoTotal - clienteLimiteCreditoPeso;
+            const proporcionPago = pesoExcedente / pesoTotal;
+            
+            // Seleccionar productos para pago (los que cubran el excedente)
+            let pesoAcumulado = 0;
+            let productosPago = [];
+            let productosCredito = [];
+            let montoPago = 0;
+            let montoCredito = 0;
+            
+            // Ordenar productos por peso (de mayor a menor) para optimizar
+            const productosOrdenados = [...productosConPeso].sort((a, b) => {
+                const prodA = productosGlobales.find(p => p.clave === a.clave);
+                const prodB = productosGlobales.find(p => p.clave === b.clave);
+                return (prodB ? prodB.peso * b.cantidad : 0) - (prodA ? prodA.peso * a.cantidad : 0);
+            });
+            
+            for (const item of productosOrdenados) {
+                const producto = productosGlobales.find(p => p.clave === item.clave);
+                if (!producto) continue;
+                
+                const pesoItem = producto.peso * item.cantidad;
+                const precioFinal = obtenerPrecioFinal(producto);
+                const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                
+                if (pesoAcumulado + pesoItem <= pesoExcedente) {
+                    // Este producto va a pago
+                    productosPago.push(item);
+                    montoPago += importe;
+                    pesoAcumulado += pesoItem;
+                } else {
+                    // Dividir el producto
+                    const pesoRestante = pesoExcedente - pesoAcumulado;
+                    if (pesoRestante > 0 && pesoItem > 0) {
+                        const cantidadPago = pesoRestante / producto.peso;
+                        const cantidadCredito = item.cantidad - cantidadPago;
+                        
+                        if (cantidadPago > 0) {
+                            const importePago = precioFinal.precio * cantidadPago * (1 - descuento / 100);
+                            productosPago.push({
+                                ...item,
+                                cantidad: cantidadPago,
+                                _parcial: true
+                            });
+                            montoPago += importePago;
+                        }
+                        
+                        if (cantidadCredito > 0) {
+                            const importeCredito = precioFinal.precio * cantidadCredito * (1 - descuento / 100);
+                            productosCredito.push({
+                                ...item,
+                                cantidad: cantidadCredito,
+                                _parcial: true
+                            });
+                            montoCredito += importeCredito;
+                        }
+                    }
+                    pesoAcumulado = pesoExcedente;
+                }
+            }
+            
+            // Los productos restantes van a crédito
+            for (const item of productosConPeso) {
+                if (!productosPago.some(p => p.clave === item.clave && p._parcial === true) && 
+                    !productosPago.some(p => p.clave === item.clave && p._parcial !== true)) {
+                    const producto = productosGlobales.find(p => p.clave === item.clave);
+                    if (!producto) continue;
+                    
+                    const precioFinal = obtenerPrecioFinal(producto);
+                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                    
+                    // Verificar si este producto ya fue procesado parcialmente
+                    const yaProcesado = productosPago.some(p => p.clave === item.clave) || 
+                                       productosCredito.some(p => p.clave === item.clave);
+                    
+                    if (!yaProcesado) {
+                        productosCredito.push(item);
+                        montoCredito += importe;
+                    }
+                }
+            }
+            
+            return {
+                puedeCredito: true,
+                tipo: 'credito_parcial',
+                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPago)} deben pagarse. El resto va a crédito.`,
+                pesoTotal: pesoTotal,
+                pesoExcedente: pesoExcedente,
+                montoCredito: montoCredito,
+                montoPago: montoPago,
+                productosCredito: productosCredito,
+                productosPago: productosPago
+            };
+        }
     }
+    
+    // CASO 2: Solo productos sin peso
+    if (!hayProductosConPeso && hayProductosSinPeso) {
+        console.log('📦 Caso: Solo productos sin peso');
+        
+        if (montoSinPeso <= clienteLimiteCreditoMonto) {
+            return {
+                puedeCredito: true,
+                tipo: 'credito_total',
+                mensaje: `✅ Todos los productos van a crédito. Monto: ${formatoMexicano(montoSinPeso)} (límite: ${formatoMexicano(clienteLimiteCreditoMonto)})`,
+                pesoTotal: 0,
+                montoCredito: montoSinPeso,
+                montoPago: 0,
+                productosCredito: carrito,
+                productosPago: []
+            };
+        } else {
+            // Calcular cuánto va a crédito y cuánto a pago
+            const montoExcedente = montoSinPeso - clienteLimiteCreditoMonto;
+            const proporcionPago = montoExcedente / montoSinPeso;
+            
+            let montoAcumulado = 0;
+            let productosPago = [];
+            let productosCredito = [];
+            let montoPago = 0;
+            let montoCredito = 0;
+            
+            // Ordenar productos por precio (de mayor a menor)
+            const productosOrdenados = [...productosSinPeso].sort((a, b) => {
+                const prodA = productosGlobales.find(p => p.clave === a.clave);
+                const prodB = productosGlobales.find(p => p.clave === b.clave);
+                const precioA = prodA ? prodA.precio * a.cantidad : 0;
+                const precioB = prodB ? prodB.precio * b.cantidad : 0;
+                return precioB - precioA;
+            });
+            
+            for (const item of productosOrdenados) {
+                const producto = productosGlobales.find(p => p.clave === item.clave);
+                if (!producto) continue;
+                
+                const precioFinal = obtenerPrecioFinal(producto);
+                const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                
+                if (montoAcumulado + importe <= montoExcedente) {
+                    productosPago.push(item);
+                    montoPago += importe;
+                    montoAcumulado += importe;
+                } else {
+                    const montoRestante = montoExcedente - montoAcumulado;
+                    if (montoRestante > 0 && importe > 0) {
+                        const cantidadPago = montoRestante / (precioFinal.precio * (1 - descuento / 100));
+                        const cantidadCredito = item.cantidad - cantidadPago;
+                        
+                        if (cantidadPago > 0) {
+                            const importePago = precioFinal.precio * cantidadPago * (1 - descuento / 100);
+                            productosPago.push({
+                                ...item,
+                                cantidad: cantidadPago,
+                                _parcial: true
+                            });
+                            montoPago += importePago;
+                        }
+                        
+                        if (cantidadCredito > 0) {
+                            const importeCredito = precioFinal.precio * cantidadCredito * (1 - descuento / 100);
+                            productosCredito.push({
+                                ...item,
+                                cantidad: cantidadCredito,
+                                _parcial: true
+                            });
+                            montoCredito += importeCredito;
+                        }
+                    }
+                    montoAcumulado = montoExcedente;
+                }
+            }
+            
+            // Productos restantes a crédito
+            for (const item of productosSinPeso) {
+                if (!productosPago.some(p => p.clave === item.clave && p._parcial === true) && 
+                    !productosPago.some(p => p.clave === item.clave && p._parcial !== true)) {
+                    const producto = productosGlobales.find(p => p.clave === item.clave);
+                    if (!producto) continue;
+                    
+                    const precioFinal = obtenerPrecioFinal(producto);
+                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                    
+                    const yaProcesado = productosPago.some(p => p.clave === item.clave) || 
+                                       productosCredito.some(p => p.clave === item.clave);
+                    
+                    if (!yaProcesado) {
+                        productosCredito.push(item);
+                        montoCredito += importe;
+                    }
+                }
+            }
+            
+            return {
+                puedeCredito: true,
+                tipo: 'credito_parcial',
+                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPago)} deben pagarse. El resto va a crédito.`,
+                pesoTotal: 0,
+                montoCredito: montoCredito,
+                montoPago: montoPago,
+                productosCredito: productosCredito,
+                productosPago: productosPago
+            };
+        }
+    }
+    
+    // CASO 3: Productos con peso y sin peso (mixto)
+    if (hayProductosConPeso && hayProductosSinPeso) {
+        console.log('📦 Caso: Productos mixtos (con peso y sin peso)');
+        
+        // Verificar si ambos límites se cumplen
+        const pesoCumple = pesoTotal <= clienteLimiteCreditoPeso;
+        const montoCumple = montoSinPeso <= clienteLimiteCreditoMonto;
+        
+        if (pesoCumple && montoCumple) {
+            return {
+                puedeCredito: true,
+                tipo: 'credito_total',
+                mensaje: `✅ Todos los productos van a crédito. Peso: ${pesoTotal.toFixed(2)} kg, Monto: ${formatoMexicano(montoSinPeso)}`,
+                pesoTotal: pesoTotal,
+                montoCredito: totalGeneral,
+                montoPago: 0,
+                productosCredito: carrito,
+                productosPago: []
+            };
+        } else {
+            // Calcular qué excede y qué no
+            let productosPago = [];
+            let productosCredito = [];
+            let montoPago = 0;
+            let montoCredito = 0;
+            let pesoExcedente = 0;
+            let montoExcedente = 0;
+            
+            // Primero manejar productos con peso
+            if (!pesoCumple) {
+                const pesoExcedenteTotal = pesoTotal - clienteLimiteCreditoPeso;
+                let pesoAcumulado = 0;
+                
+                // Ordenar productos con peso de mayor a menor
+                const prodPesoOrdenados = [...productosConPeso].sort((a, b) => {
+                    const prodA = productosGlobales.find(p => p.clave === a.clave);
+                    const prodB = productosGlobales.find(p => p.clave === b.clave);
+                    return (prodB ? prodB.peso * b.cantidad : 0) - (prodA ? prodA.peso * a.cantidad : 0);
+                });
+                
+                for (const item of prodPesoOrdenados) {
+                    const producto = productosGlobales.find(p => p.clave === item.clave);
+                    if (!producto) continue;
+                    
+                    const pesoItem = producto.peso * item.cantidad;
+                    const precioFinal = obtenerPrecioFinal(producto);
+                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                    
+                    if (pesoAcumulado + pesoItem <= pesoExcedenteTotal) {
+                        productosPago.push(item);
+                        montoPago += importe;
+                        pesoAcumulado += pesoItem;
+                    } else {
+                        const pesoRestante = pesoExcedenteTotal - pesoAcumulado;
+                        if (pesoRestante > 0 && pesoItem > 0) {
+                            const cantidadPago = pesoRestante / producto.peso;
+                            const cantidadCredito = item.cantidad - cantidadPago;
+                            
+                            if (cantidadPago > 0) {
+                                const importePago = precioFinal.precio * cantidadPago * (1 - descuento / 100);
+                                productosPago.push({
+                                    ...item,
+                                    cantidad: cantidadPago,
+                                    _parcial: true
+                                });
+                                montoPago += importePago;
+                            }
+                            
+                            if (cantidadCredito > 0) {
+                                const importeCredito = precioFinal.precio * cantidadCredito * (1 - descuento / 100);
+                                productosCredito.push({
+                                    ...item,
+                                    cantidad: cantidadCredito,
+                                    _parcial: true
+                                });
+                                montoCredito += importeCredito;
+                            }
+                        }
+                        pesoAcumulado = pesoExcedenteTotal;
+                    }
+                }
+            }
+            
+            // Luego manejar productos sin peso (si el crédito de monto ya está ocupado)
+            if (!montoCumple) {
+                const montoExcedenteTotal = montoSinPeso - clienteLimiteCreditoMonto;
+                let montoAcumulado = 0;
+                
+                // Ordenar productos sin peso de mayor a menor precio
+                const prodSinPesoOrdenados = [...productosSinPeso].sort((a, b) => {
+                    const prodA = productosGlobales.find(p => p.clave === a.clave);
+                    const prodB = productosGlobales.find(p => p.clave === b.clave);
+                    const precioA = prodA ? prodA.precio * a.cantidad : 0;
+                    const precioB = prodB ? prodB.precio * b.cantidad : 0;
+                    return precioB - precioA;
+                });
+                
+                for (const item of prodSinPesoOrdenados) {
+                    // Verificar si ya fue procesado
+                    if (productosPago.some(p => p.clave === item.clave) || 
+                        productosCredito.some(p => p.clave === item.clave)) continue;
+                    
+                    const producto = productosGlobales.find(p => p.clave === item.clave);
+                    if (!producto) continue;
+                    
+                    const precioFinal = obtenerPrecioFinal(producto);
+                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                    
+                    if (montoAcumulado + importe <= montoExcedenteTotal) {
+                        productosPago.push(item);
+                        montoPago += importe;
+                        montoAcumulado += importe;
+                    } else {
+                        const montoRestante = montoExcedenteTotal - montoAcumulado;
+                        if (montoRestante > 0 && importe > 0) {
+                            const cantidadPago = montoRestante / (precioFinal.precio * (1 - descuento / 100));
+                            const cantidadCredito = item.cantidad - cantidadPago;
+                            
+                            if (cantidadPago > 0) {
+                                const importePago = precioFinal.precio * cantidadPago * (1 - descuento / 100);
+                                productosPago.push({
+                                    ...item,
+                                    cantidad: cantidadPago,
+                                    _parcial: true
+                                });
+                                montoPago += importePago;
+                            }
+                            
+                            if (cantidadCredito > 0) {
+                                const importeCredito = precioFinal.precio * cantidadCredito * (1 - descuento / 100);
+                                productosCredito.push({
+                                    ...item,
+                                    cantidad: cantidadCredito,
+                                    _parcial: true
+                                });
+                                montoCredito += importeCredito;
+                            }
+                        }
+                        montoAcumulado = montoExcedenteTotal;
+                    }
+                }
+            }
+            
+            // Los productos restantes van a crédito
+            for (const item of carrito) {
+                if (!productosPago.some(p => p.clave === item.clave && p._parcial === true) && 
+                    !productosPago.some(p => p.clave === item.clave && p._parcial !== true) &&
+                    !productosCredito.some(p => p.clave === item.clave && p._parcial === true) &&
+                    !productosCredito.some(p => p.clave === item.clave && p._parcial !== true)) {
+                    const producto = productosGlobales.find(p => p.clave === item.clave);
+                    if (!producto) continue;
+                    
+                    const precioFinal = obtenerPrecioFinal(producto);
+                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                    
+                    productosCredito.push(item);
+                    montoCredito += importe;
+                }
+            }
+            
+            // Recalcular montos totales
+            const montoPagoTotal = productosPago.reduce((sum, item) => {
+                const producto = productosGlobales.find(p => p.clave === item.clave);
+                if (!producto) return sum;
+                const precioFinal = obtenerPrecioFinal(producto);
+                const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                return sum + (precioFinal.precio * item.cantidad * (1 - descuento / 100));
+            }, 0);
+            
+            const montoCreditoTotal = productosCredito.reduce((sum, item) => {
+                const producto = productosGlobales.find(p => p.clave === item.clave);
+                if (!producto) return sum;
+                const precioFinal = obtenerPrecioFinal(producto);
+                const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                return sum + (precioFinal.precio * item.cantidad * (1 - descuento / 100));
+            }, 0);
+            
+            return {
+                puedeCredito: true,
+                tipo: 'credito_parcial',
+                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPagoTotal)} deben pagarse. El resto va a crédito.`,
+                pesoTotal: pesoTotal,
+                montoCredito: montoCreditoTotal,
+                montoPago: montoPagoTotal,
+                productosCredito: productosCredito,
+                productosPago: productosPago
+            };
+        }
+    }
+    
+    // Si no hay productos
+    return {
+        puedeCredito: false,
+        tipo: 'sin_productos',
+        mensaje: '⚠️ No hay productos en el carrito.',
+        pesoTotal: 0,
+        montoCredito: 0,
+        montoPago: 0,
+        productosCredito: [],
+        productosPago: []
+    };
 }
 
 // ============================================
@@ -1669,6 +2107,10 @@ function vaciarCarrito() {
     renderizarCarrito();
 }
 
+// ============================================
+// RENDERIZAR CARRITO CON INFORMACIÓN DE CRÉDITO
+// ============================================
+
 function renderizarCarrito() {
     const cartContent = document.getElementById('cartContent');
     const cartTotales = document.getElementById('cartTotales');
@@ -1690,6 +2132,7 @@ function renderizarCarrito() {
         return;
     }
     
+    // Verificar peso mínimo (siempre requerido)
     const verificarPeso = verificarPesoMinimo();
     
     let html = `
@@ -1760,6 +2203,7 @@ function renderizarCarrito() {
         </table>
     `;
     
+    // Mostrar información de peso mínimo
     if (verificarPeso.productosConPeso > 0) {
         let detalleProductos = '';
         verificarPeso.productosAfectados.forEach(p => {
@@ -1810,6 +2254,66 @@ function renderizarCarrito() {
         `;
     }
     
+    // Mostrar información de crédito (si el cliente tiene crédito habilitado)
+    if (clienteCreditoHabilitado) {
+        const infoCredito = verificarCreditoDisponible();
+        
+        if (infoCredito.tipo === 'credito_parcial') {
+            html += `
+                <div style="margin-top: 1.5rem; padding: 1.5rem; border-radius: 12px; background: #fef3c7; border: 2px solid #fde68a;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <span style="font-size: 1.5rem;">⚠️</span>
+                        <span style="font-weight: 700; color: #92400e; font-size: 1.1rem;">
+                            Crédito Parcial
+                        </span>
+                    </div>
+                    <div style="background: white; padding: 0.8rem 1rem; border-radius: 8px; margin: 0.5rem 0;">
+                        <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #f0f0f0;">
+                            <span>Monto a pagar (contado):</span>
+                            <span style="font-weight: 700; color: #dc2626;">${formatoMexicano(infoCredito.montoPago)}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 4px 0;">
+                            <span>Monto a crédito:</span>
+                            <span style="font-weight: 700; color: #16a34a;">${formatoMexicano(infoCredito.montoCredito)}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 4px 0; border-top: 2px solid #e2e8f0; margin-top: 4px; padding-top: 8px; font-weight: 700;">
+                            <span>TOTAL:</span>
+                            <span style="color: var(--primary-dark);">${formatoMexicano(infoCredito.montoPago + infoCredito.montoCredito)}</span>
+                        </div>
+                    </div>
+                    <div style="background: #fef3c7; padding: 0.8rem 1rem; border-radius: 8px; margin-top: 0.5rem; border: 1px solid #fde68a;">
+                        <p style="margin: 0; font-weight: 600; color: #92400e; font-size: 0.95rem;">
+                            ${infoCredito.mensaje}
+                        </p>
+                    </div>
+                </div>
+            `;
+        } else if (infoCredito.tipo === 'credito_total') {
+            html += `
+                <div style="margin-top: 1.5rem; padding: 1.5rem; border-radius: 12px; background: #dcfce7; border: 2px solid #bbf7d0;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 1.5rem;">✅</span>
+                        <span style="font-weight: 700; color: #16a34a; font-size: 1.1rem;">
+                            ${infoCredito.mensaje}
+                        </span>
+                    </div>
+                </div>
+            `;
+        }
+    } else {
+        // Cliente sin crédito habilitado
+        html += `
+            <div style="margin-top: 1.5rem; padding: 1.5rem; border-radius: 12px; background: #f1f5f9; border: 2px solid #e2e8f0;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 1.5rem;">ℹ️</span>
+                    <span style="font-weight: 600; color: var(--text-gray); font-size: 1rem;">
+                        El crédito no está habilitado para este cliente. Solo pago de contado (transferencia).
+                    </span>
+                </div>
+            </div>
+        `;
+    }
+    
     cartContent.innerHTML = html;
     cartTotales.style.display = 'block';
     
@@ -1819,6 +2323,7 @@ function renderizarCarrito() {
     document.getElementById('iva').textContent = formatoMexicano(iva);
     document.getElementById('total').textContent = formatoMexicano(total);
     
+    // Verificar si se puede realizar la compra
     if (verificarPeso.productosConPeso > 0 && !verificarPeso.cumple) {
         btnComprar.disabled = true;
         btnComprar.title = '⚠️ Debes completar el peso mínimo de 1 tonelada (1000 kg) para productos con peso.';
@@ -1829,6 +2334,68 @@ function renderizarCarrito() {
         btnComprar.title = '';
         btnComprar.style.opacity = '1';
         btnComprar.style.cursor = 'pointer';
+    }
+}
+
+// ============================================
+// VERIFICACIÓN DE PESO MÍNIMO (ORIGINAL)
+// ============================================
+
+function verificarPesoMinimo() {
+    console.log('🔍 Verificando peso mínimo...');
+    
+    const productosConPeso = carrito.filter(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        return producto && producto.pesoCondicion === 'SI' && producto.peso > 0;
+    });
+    
+    console.log(`📊 Productos con peso en carrito: ${productosConPeso.length}`);
+    
+    if (productosConPeso.length === 0) {
+        return { 
+            cumple: true, 
+            pesoTotal: 0, 
+            productosConPeso: 0,
+            mensaje: '',
+            productosAfectados: []
+        };
+    }
+    
+    let pesoTotal = 0;
+    const productosAfectados = [];
+    
+    productosConPeso.forEach(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        if (producto) {
+            const pesoItem = producto.peso * item.cantidad;
+            pesoTotal += pesoItem;
+            productosAfectados.push({
+                nombre: item.nombre,
+                cantidad: item.cantidad,
+                pesoUnitario: producto.peso,
+                pesoTotal: pesoItem
+            });
+        }
+    });
+    
+    console.log(`⚖️ PESO TOTAL: ${pesoTotal.toFixed(2)} kg`);
+    
+    if (pesoTotal >= PESO_MINIMO_TONELADA) {
+        return { 
+            cumple: true, 
+            pesoTotal: pesoTotal, 
+            productosConPeso: productosConPeso.length,
+            productosAfectados: productosAfectados,
+            mensaje: `✅ ¡Cumpliste con el peso mínimo! Total: ${pesoTotal.toFixed(2)} kg (1 tonelada)` 
+        };
+    } else {
+        return { 
+            cumple: false, 
+            pesoTotal: pesoTotal, 
+            productosConPeso: productosConPeso.length,
+            productosAfectados: productosAfectados,
+            mensaje: `⚠️ Peso total: ${pesoTotal.toFixed(2)} kg. Se requiere mínimo ${PESO_MINIMO_TONELADA} kg (1 tonelada). Faltan ${(PESO_MINIMO_TONELADA - pesoTotal).toFixed(2)} kg.` 
+        };
     }
 }
 
@@ -1984,7 +2551,7 @@ function mostrarMensajeModalDireccion(tipo, mensaje) {
 }
 
 // ============================================
-// FUNCIONES DE PAGO
+// FUNCIONES DE PAGO - CON SOPORTE PARA CRÉDITO PARCIAL
 // ============================================
 
 function abrirModalPago() {
@@ -1996,9 +2563,68 @@ function abrirModalPago() {
     document.getElementById('formTransferencia').style.display = 'none';
     document.getElementById('formCredito').style.display = 'none';
     
-    const total = calcularTotal();
-    document.getElementById('montoTransferencia').textContent = formatoMexicano(total);
+    // Calcular totales según el tipo de crédito
+    let total = calcularTotal();
+    let montoPago = total;
+    let montoCredito = 0;
+    let esCreditoParcial = false;
+    let infoCredito = null;
+    
+    if (clienteCreditoHabilitado) {
+        infoCredito = verificarCreditoDisponible();
+        if (infoCredito.tipo === 'credito_parcial') {
+            esCreditoParcial = true;
+            montoPago = infoCredito.montoPago;
+            montoCredito = infoCredito.montoCredito;
+        } else if (infoCredito.tipo === 'credito_total') {
+            montoPago = 0;
+            montoCredito = total;
+        }
+    }
+    
+    // Guardar en variables globales para usar en el procesamiento
+    window._infoCredito = infoCredito;
+    window._esCreditoParcial = esCreditoParcial;
+    window._montoPago = montoPago;
+    window._montoCredito = montoCredito;
+    
+    // Mostrar montos en el modal
+    document.getElementById('montoTransferencia').textContent = formatoMexicano(montoPago || total);
     document.getElementById('totalCredito').textContent = formatoMexicano(total);
+    
+    // Si hay crédito parcial, mostrar mensaje informativo en el modal
+    if (esCreditoParcial && infoCredito) {
+        const mensajeHTML = `
+            <div style="background: #fef3c7; padding: 1rem; border-radius: 12px; margin-bottom: 1rem; border: 1px solid #fde68a;">
+                <p style="margin: 0; font-weight: 600; color: #92400e;">
+                    ${infoCredito.mensaje}
+                </p>
+                <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; color: #92400e;">
+                    <strong>Monto a pagar (contado):</strong> ${formatoMexicano(montoPago)}
+                    <br>
+                    <strong>Monto a crédito:</strong> ${formatoMexicano(montoCredito)}
+                </p>
+            </div>
+        `;
+        document.getElementById('modalMensaje').innerHTML = mensajeHTML;
+        document.getElementById('modalMensaje').style.display = 'block';
+    }
+    
+    // Configurar opciones de pago según crédito habilitado
+    const btnCredito = document.getElementById('btnCredito');
+    if (btnCredito) {
+        if (clienteCreditoHabilitado) {
+            btnCredito.style.display = 'block';
+            btnCredito.disabled = false;
+            btnCredito.title = '';
+        } else {
+            btnCredito.style.display = 'block';
+            btnCredito.disabled = true;
+            btnCredito.title = 'El crédito no está habilitado para este cliente';
+            btnCredito.style.opacity = '0.5';
+            btnCredito.style.cursor = 'not-allowed';
+        }
+    }
     
     requiereFactura = false;
     document.getElementById('facturaNo').classList.add('selected');
@@ -2007,7 +2633,6 @@ function abrirModalPago() {
     document.getElementById('facturaDatosPreview').style.display = 'none';
     datosFacturaSeleccionados = null;
     
-    // ⭐ FACTURA EN CRÉDITO - INICIALIZAR ⭐
     if (document.getElementById('facturaNoCredito')) {
         document.getElementById('facturaNoCredito').classList.add('selected');
         document.getElementById('facturaSiCredito').classList.remove('selected');
@@ -2022,6 +2647,11 @@ function abrirModalPago() {
     
     pagoSeleccionado = null;
     document.querySelectorAll('.opciones-pago button').forEach(b => b.classList.remove('selected'));
+    
+    // Si no hay crédito habilitado, seleccionar transferencia por defecto
+    if (!clienteCreditoHabilitado) {
+        seleccionarPago('transferencia');
+    }
 }
 
 function cerrarModalPago() {
@@ -2164,24 +2794,20 @@ function generarPDFComprobante(datos) {
     try {
         console.log('📄 Generando PDF del comprobante...');
 
-        // 1. Formatear fecha
         const hoy = new Date();
         const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 
                        'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
         const fechaFormateada = `${hoy.getDate()} de ${meses[hoy.getMonth()]} de ${hoy.getFullYear()}`;
 
-        // 2. Formatear nombre del asesor
         let nombreAsesor = "Gabriel";
         if (clienteData && clienteData.asesor) {
             nombreAsesor = clienteData.asesor;
         }
 
-        // 3. Determinar título del documento
         const tituloDocumento = 'Comprobante de Compra';
         const mensajeFooter = '¡Gracias por su preferencia!';
         const facturaFooter = datos.requiereFactura ? '<p><strong>✅ Factura solicitada</strong></p>' : '';
 
-        // 4. Generar filas de la tabla de productos
         let tablaProductos = '';
         datos.productos.forEach(producto => {
             let precioInfo = formatoMexicano(producto.precio);
@@ -2200,9 +2826,8 @@ function generarPDFComprobante(datos) {
             `;
         });
 
-        // 5. Información de crédito (si aplica)
         let infoCreditoHTML = '';
-        if (datos.tipoPago === 'Crédito') {
+        if (datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial') {
             const diasCredito = datos.diasCredito || 20;
             const anticipo = datos.anticipo || 0;
             const saldoPendiente = datos.saldoPendiente || datos.total;
@@ -2226,7 +2851,6 @@ function generarPDFComprobante(datos) {
             `;
         }
 
-        // 6. Información de factura (si aplica)
         let infoFacturaHTML = '';
         if (datos.requiereFactura && datos.datosFactura) {
             infoFacturaHTML = `
@@ -2243,217 +2867,55 @@ function generarPDFComprobante(datos) {
             `;
         }
 
-        // 7. Método de pago
         let metodoPagoHTML = `<p><strong>Método de pago:</strong> ${datos.tipoPago.toUpperCase()}</p>`;
 
-        // 8. Logo - Usar URL de Imgur
         const logoUrl = 'https://i.imgur.com/1T3PCYR.png';
 
-        // 9. Generar HTML completo
         const html = `
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <style>
-    * { 
-        margin: 0; 
-        padding: 0; 
-        box-sizing: border-box; 
-    }
-    
-    body { 
-        margin: 0; 
-        padding: 0; 
-        background: white; 
-        font-family: Arial, sans-serif; 
-    }
-    
-    .container { 
-        width: 100%; 
-        padding: 30px 40px; 
-        background: white; 
-    }
-    
-    .titulo-empresa { 
-        text-align: center; 
-        font-size: 20px; 
-        font-weight: bold; 
-        color: #000000; 
-        margin-bottom: 2px; 
-    }
-    
-    .rfc { 
-        text-align: center; 
-        font-size: 14px; 
-        color: #000000; 
-        margin-bottom: 15px; 
-    }
-    
-    .header { 
-        display: flex; 
-        justify-content: space-between; 
-        margin-bottom: 30px; 
-        padding-bottom: 20px; 
-        border-bottom: 2px solid #2a3990; 
-    }
-    
-    .logo { 
-        max-width: 150px; 
-        height: auto;
-    }
-    
-    .folio { 
-        font-size: 18px; 
-        font-weight: bold; 
-        color: #2a3990; 
-    }
-    
-    .datos-cliente { 
-        margin-bottom: 20px; 
-    }
-    
-    .datos-cliente h3 { 
-        margin-bottom: 10px; 
-        color: #2a3990; 
-    }
-    
-    .datos-cliente p { 
-        margin: 3px 0; 
-    }
-    
-    .info-credito { 
-        background: #fff3cd; 
-        padding: 15px; 
-        border-radius: 8px; 
-        margin: 20px 0; 
-        border: 1px solid #ffeaa7; 
-    }
-    
-    .info-credito h3 { 
-        color: #856404; 
-        margin-top: 0; 
-    }
-    
-    .info-factura { 
-        background: #d4edda; 
-        padding: 15px; 
-        border-radius: 8px; 
-        margin: 20px 0; 
-        border: 1px solid #c3e6cb; 
-    }
-    
-    .info-factura h3 { 
-        color: #155724; 
-        margin-top: 0; 
-    }
-    
-    table { 
-        width: 100%; 
-        border-collapse: collapse; 
-        margin: 25px 0; 
-        font-size: 12px; 
-    }
-    
-    th { 
-        background: #2a3990; 
-        color: white; 
-        padding: 15px 8px; 
-        text-align: left; 
-    }
-    
-    td { 
-        padding: 12px 8px; 
-        border-bottom: 1px solid #e0e0e0; 
-    }
-    
-    .precio-personalizado { 
-        background-color: #e8f4fd; 
-        font-size: 10px; 
-        padding: 2px 5px; 
-        border-radius: 3px; 
-        margin-left: 5px; 
-    }
-    
-    .totales { 
-        margin-top: 30px; 
-        text-align: right; 
-    }
-    
-    .total-row { 
-        font-weight: bold; 
-        font-size: 16px; 
-        color: #2a3990; 
-    }
-    
-    .terminos { 
-        margin-top: 30px; 
-        padding: 15px; 
-        background: #f8f9fa; 
-        border-radius: 8px; 
-        font-size: 10px; 
-        color: #666; 
-    }
-    
-    .terminos h4 { 
-        margin: 0 0 8px 0; 
-        color: #2a3990; 
-        font-size: 11px; 
-    }
-    
-    .terminos p { 
-        margin: 3px 0; 
-    }
-    
-    .datos-bancarios { 
-        margin-top: 30px; 
-        padding: 15px; 
-        background: #f8f9fa; 
-        border-radius: 8px; 
-        font-size: 12px; 
-        color: #333; 
-    }
-    
-    .datos-bancarios h4 { 
-        margin: 0 0 8px 0; 
-        color: #2a3990; 
-        font-size: 13px; 
-    }
-    
-    .datos-bancarios p { 
-        margin: 3px 0; 
-    }
-    
-    .footer { 
-        margin-top: 40px; 
-        padding-top: 20px; 
-        font-size: 11px; 
-        color: #666; 
-        text-align: center; 
-        border-top: 1px solid #2a3990; 
-    }
-    
-    .footer .pro { 
-        color: #2a3990; 
-    }
-    
-    .footer .mx { 
-        color: #D4AF37; 
-    }
-    
-    @page { 
-        margin: 0; 
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { margin: 0; padding: 0; background: white; font-family: Arial, sans-serif; }
+    .container { width: 100%; padding: 30px 40px; background: white; }
+    .titulo-empresa { text-align: center; font-size: 20px; font-weight: bold; color: #000000; margin-bottom: 2px; }
+    .rfc { text-align: center; font-size: 14px; color: #000000; margin-bottom: 15px; }
+    .header { display: flex; justify-content: space-between; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #2a3990; }
+    .logo { max-width: 150px; height: auto; }
+    .folio { font-size: 18px; font-weight: bold; color: #2a3990; }
+    .datos-cliente { margin-bottom: 20px; }
+    .datos-cliente h3 { margin-bottom: 10px; color: #2a3990; }
+    .datos-cliente p { margin: 3px 0; }
+    .info-credito { background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #ffeaa7; }
+    .info-credito h3 { color: #856404; margin-top: 0; }
+    .info-factura { background: #d4edda; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #c3e6cb; }
+    .info-factura h3 { color: #155724; margin-top: 0; }
+    table { width: 100%; border-collapse: collapse; margin: 25px 0; font-size: 12px; }
+    th { background: #2a3990; color: white; padding: 15px 8px; text-align: left; }
+    td { padding: 12px 8px; border-bottom: 1px solid #e0e0e0; }
+    .precio-personalizado { background-color: #e8f4fd; font-size: 10px; padding: 2px 5px; border-radius: 3px; margin-left: 5px; }
+    .totales { margin-top: 30px; text-align: right; }
+    .total-row { font-weight: bold; font-size: 16px; color: #2a3990; }
+    .terminos { margin-top: 30px; padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 10px; color: #666; }
+    .terminos h4 { margin: 0 0 8px 0; color: #2a3990; font-size: 11px; }
+    .terminos p { margin: 3px 0; }
+    .datos-bancarios { margin-top: 30px; padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 12px; color: #333; }
+    .datos-bancarios h4 { margin: 0 0 8px 0; color: #2a3990; font-size: 13px; }
+    .datos-bancarios p { margin: 3px 0; }
+    .footer { margin-top: 40px; padding-top: 20px; font-size: 11px; color: #666; text-align: center; border-top: 1px solid #2a3990; }
+    .footer .pro { color: #2a3990; }
+    .footer .mx { color: #D4AF37; }
+    @page { margin: 0; }
 </style>
 </head>
 <body>
 <div class="container">
     
-    <!-- ENCABEZADO DE LA EMPRESA -->
     <div class="titulo-empresa">PROCONSTRUCCIONMX SAS DE CV</div>
     <div class="rfc">RFC: PRO2605135X4</div>
     
-    <!-- HEADER CON LOGO Y FOLIO -->
     <div class="header">
         <div>
             <img src="${logoUrl}" alt="ProConstrucciónMX" class="logo">
@@ -2465,7 +2927,6 @@ function generarPDFComprobante(datos) {
         </div>
     </div>
     
-    <!-- DATOS DEL CLIENTE -->
     <div class="datos-cliente">
         <h3>Datos del Cliente</h3>
         <p><strong>Nombre:</strong> ${datos.cliente.nombre}</p>
@@ -2474,13 +2935,9 @@ function generarPDFComprobante(datos) {
         ${metodoPagoHTML}
     </div>
     
-    <!-- INFORMACIÓN DE CRÉDITO -->
     ${infoCreditoHTML}
-    
-    <!-- INFORMACIÓN DE FACTURA -->
     ${infoFacturaHTML}
     
-    <!-- TABLA DE PRODUCTOS -->
     <table>
         <thead>
             <tr>
@@ -2496,7 +2953,6 @@ function generarPDFComprobante(datos) {
         </tbody>
     </table>
     
-    <!-- TOTALES -->
     <div class="totales">
         <p><strong>Importe base:</strong> ${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16))}</p>
         <p><strong>Descuento aplicado:</strong> -${formatoMexicano((datos.subtotal + (datos.subtotal * 0.16)) - datos.total)}</p>
@@ -2505,7 +2961,6 @@ function generarPDFComprobante(datos) {
         <p class="total-row"><strong>Total a pagar:</strong> ${formatoMexicano(datos.total)}</p>
     </div>
     
-    <!-- CONDICIONES COMERCIALES -->
     <div class="terminos">
         <h4>Condiciones comerciales</h4>
         <p>Precios en moneda nacional.</p>
@@ -2519,7 +2974,6 @@ function generarPDFComprobante(datos) {
         <p>Los productos que lleguen dañados deben reportarse de inmediato o no permitir la descarga, ya que después no serán válidos los cambios o devoluciones.</p>
     </div>
     
-    <!-- DATOS BANCARIOS -->
     <div class="datos-bancarios">
         <h4>Datos bancarios para depósitos</h4>
         <p><strong>PROCONSTRUCCIONMX SAS DE CV</strong></p>
@@ -2528,7 +2982,6 @@ function generarPDFComprobante(datos) {
         <p><strong>CUENTA CLABE:</strong> 012180001277440643</p>
     </div>
     
-    <!-- FOOTER -->
     <div class="footer">
         <p><strong><span class="pro">ProConstrucción</span><span class="mx">MX</span></strong></p>
         <p>📧 ventas@proconstruccionmx.com</p>
@@ -2540,7 +2993,6 @@ function generarPDFComprobante(datos) {
 </body>
 </html>`;
 
-        // 10. Crear el PDF usando la ventana de impresión
         const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         
@@ -2569,7 +3021,7 @@ function generarPDFComprobante(datos) {
 }
 
 // ============================================
-// PROCESAMIENTO DE PAGOS
+// PROCESAMIENTO DE PAGOS - CON SOPORTE PARA CRÉDITO PARCIAL
 // ============================================
 
 async function procesarPagoTransferencia() {
@@ -2604,25 +3056,90 @@ async function procesarPagoTransferencia() {
         const folio = generarFolio();
         const fecha = new Date();
         
+        // Determinar si es crédito parcial
+        const esCreditoParcial = window._esCreditoParcial || false;
+        const infoCredito = window._infoCredito || null;
+        
+        let productosParaVenta = [];
+        let montoPago = total;
+        let montoCredito = 0;
+        let tipoPago = 'Transferencia';
+        let estadoPago = 'Validando pago';
+        
+        if (esCreditoParcial && infoCredito) {
+            // Crédito parcial: parte se paga, parte va a crédito
+            tipoPago = 'Crédito Parcial';
+            montoPago = infoCredito.montoPago;
+            montoCredito = infoCredito.montoCredito;
+            estadoPago = 'Validando pago';
+            
+            // Productos que van a pago (contado)
+            const productosPago = infoCredito.productosPago || [];
+            productosPago.forEach(item => {
+                productosParaVenta.push({
+                    clave: item.clave,
+                    nombre: item.nombre,
+                    cantidad: item.cantidad,
+                    precio: item.precio,
+                    descuento: item.descuento,
+                    importe: item.precio * item.cantidad * (1 - item.descuento / 100),
+                    precioCompra: item.precioCompra || 0,
+                    personalizado: item.personalizado || false,
+                    _tipo: 'pago'
+                });
+            });
+            
+            // Productos que van a crédito
+            const productosCredito = infoCredito.productosCredito || [];
+            productosCredito.forEach(item => {
+                productosParaVenta.push({
+                    clave: item.clave,
+                    nombre: item.nombre,
+                    cantidad: item.cantidad,
+                    precio: item.precio,
+                    descuento: item.descuento,
+                    importe: item.precio * item.cantidad * (1 - item.descuento / 100),
+                    precioCompra: item.precioCompra || 0,
+                    personalizado: item.personalizado || false,
+                    _tipo: 'credito'
+                });
+            });
+            
+        } else if (clienteCreditoHabilitado && pagoSeleccionado === 'credito') {
+            // Crédito total
+            tipoPago = 'Crédito';
+            montoPago = 0;
+            montoCredito = total;
+            estadoPago = 'En preparación';
+            
+            productosParaVenta = carrito.map(item => ({
+                ...item,
+                _tipo: 'credito'
+            }));
+            
+        } else {
+            // Pago de contado normal
+            tipoPago = 'Transferencia';
+            montoPago = total;
+            montoCredito = 0;
+            estadoPago = 'Validando pago';
+            
+            productosParaVenta = carrito.map(item => ({
+                ...item,
+                _tipo: 'pago'
+            }));
+        }
+        
         const datosVenta = {
             folio: folio,
             fecha: fecha,
             cliente: clienteData,
             direccion: window.datosEnvio || null,
-            productos: carrito.map(item => ({
-                clave: item.clave,
-                nombre: item.nombre,
-                cantidad: item.cantidad,
-                precio: item.precio,
-                descuento: item.descuento,
-                importe: item.importe,
-                precioCompra: item.precioCompra,
-                personalizado: item.personalizado || false
-            })),
+            productos: productosParaVenta,
             total: total,
             subtotal: total / 1.16,
             iva: total - (total / 1.16),
-            tipoPago: 'Transferencia',
+            tipoPago: tipoPago,
             referencia: referencia,
             comprobante: comprobanteBase64,
             comprobanteNombre: comprobanteNombre,
@@ -2630,7 +3147,12 @@ async function procesarPagoTransferencia() {
             sucursal: SUCURSAL_WEB,
             nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre',
             requiereFactura: requiereFactura,
-            datosFactura: datosFacturaSeleccionados
+            datosFactura: datosFacturaSeleccionados,
+            // ⭐ CAMPOS PARA CRÉDITO PARCIAL
+            montoPago: montoPago,
+            montoCredito: montoCredito,
+            estadoPago: estadoPago,
+            esCreditoParcial: esCreditoParcial
         };
         
         await guardarVentaEnEstadisticas(datosVenta);
@@ -2638,20 +3160,40 @@ async function procesarPagoTransferencia() {
         
         generarPDFComprobante(datosVenta);
         
-        mostrarMensajeModal('exito', `
+        let mensajeExito = `
             ✅ ¡Compra realizada con éxito!<br>
             <strong>Folio:</strong> ${folio}<br>
             <strong>Total:</strong> ${formatoMexicano(total)}<br>
-            <strong>Método:</strong> Transferencia<br>
+            <strong>Método:</strong> ${tipoPago}<br>
             <strong>Referencia:</strong> ${referencia}<br>
-            ${requiereFactura ? `<strong>Factura:</strong> Sí - ${datosFacturaSeleccionados ? datosFacturaSeleccionados.razonSocial : 'N/A'}` : '<strong>Factura:</strong> No'}<br><br>
-            Se ha descargado el comprobante en formato PDF.<br>
-            Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles y comprobante.
-        `);
+        `;
+        
+        if (esCreditoParcial) {
+            mensajeExito += `
+                <strong>Monto pagado (contado):</strong> ${formatoMexicano(montoPago)}<br>
+                <strong>Monto a crédito:</strong> ${formatoMexicano(montoCredito)}<br>
+                <strong>Días de crédito:</strong> ${DIAS_CREDITO_FIJO} días<br>
+                <span style="color:#92400e;font-size:0.9rem;">⚠️ El saldo a crédito deberá ser liquidado en ${DIAS_CREDITO_FIJO} días.</span><br>
+            `;
+        }
+        
+        if (requiereFactura) {
+            mensajeExito += `<strong>Factura:</strong> Sí - ${datosFacturaSeleccionados ? datosFacturaSeleccionados.razonSocial : 'N/A'}<br>`;
+        } else {
+            mensajeExito += `<strong>Factura:</strong> No<br>`;
+        }
+        
+        mensajeExito += `<br>Se ha descargado el comprobante en formato PDF.<br>Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.`;
+        
+        mostrarMensajeModal('exito', mensajeExito);
         
         carrito = [];
         renderizarCarrito();
         window.datosEnvio = null;
+        window._infoCredito = null;
+        window._esCreditoParcial = false;
+        window._montoPago = 0;
+        window._montoCredito = 0;
         
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Compra';
@@ -2692,33 +3234,89 @@ async function procesarPagoCredito() {
         const fechaPago = new Date(fecha);
         fechaPago.setDate(fechaPago.getDate() + dias);
         
+        // Verificar si es crédito parcial
+        const esCreditoParcial = window._esCreditoParcial || false;
+        const infoCredito = window._infoCredito || null;
+        
+        let productosParaVenta = [];
+        let montoPago = 0;
+        let montoCredito = total;
+        let tipoPago = 'Crédito';
+        let estadoPago = 'En preparación';
+        
+        if (esCreditoParcial && infoCredito) {
+            tipoPago = 'Crédito Parcial';
+            montoPago = infoCredito.montoPago;
+            montoCredito = infoCredito.montoCredito;
+            estadoPago = 'Validando pago';
+            
+            // Productos que van a pago (contado)
+            const productosPago = infoCredito.productosPago || [];
+            productosPago.forEach(item => {
+                productosParaVenta.push({
+                    clave: item.clave,
+                    nombre: item.nombre,
+                    cantidad: item.cantidad,
+                    precio: item.precio,
+                    descuento: item.descuento,
+                    importe: item.precio * item.cantidad * (1 - item.descuento / 100),
+                    precioCompra: item.precioCompra || 0,
+                    personalizado: item.personalizado || false,
+                    _tipo: 'pago'
+                });
+            });
+            
+            // Productos que van a crédito
+            const productosCredito = infoCredito.productosCredito || [];
+            productosCredito.forEach(item => {
+                productosParaVenta.push({
+                    clave: item.clave,
+                    nombre: item.nombre,
+                    cantidad: item.cantidad,
+                    precio: item.precio,
+                    descuento: item.descuento,
+                    importe: item.precio * item.cantidad * (1 - item.descuento / 100),
+                    precioCompra: item.precioCompra || 0,
+                    personalizado: item.personalizado || false,
+                    _tipo: 'credito'
+                });
+            });
+            
+        } else {
+            // Crédito total
+            productosParaVenta = carrito.map(item => ({
+                ...item,
+                _tipo: 'credito'
+            }));
+        }
+        
         const datosVenta = {
             folio: folio,
             fecha: fecha,
             cliente: clienteData,
             direccion: window.datosEnvio || null,
-            productos: carrito.map(item => ({
-                clave: item.clave,
-                nombre: item.nombre,
-                cantidad: item.cantidad,
-                precio: item.precio,
-                descuento: item.descuento,
-                importe: item.importe,
-                precioCompra: item.precioCompra,
-                personalizado: item.personalizado || false
-            })),
+            productos: productosParaVenta,
             total: total,
             subtotal: total / 1.16,
             iva: total - (total / 1.16),
-            tipoPago: 'Crédito',
+            tipoPago: tipoPago,
             diasCredito: dias,
             anticipo: 0,
-            saldoPendiente: total,
+            saldoPendiente: montoCredito,
             fechaPago: fechaPago,
             sucursal: SUCURSAL_WEB,
             nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre',
             requiereFactura: requiereFactura,
-            datosFactura: datosFacturaSeleccionados
+            datosFactura: datosFacturaSeleccionados,
+            // ⭐ CAMPOS PARA CRÉDITO PARCIAL
+            montoPago: montoPago,
+            montoCredito: montoCredito,
+            estadoPago: estadoPago,
+            esCreditoParcial: esCreditoParcial,
+            referencia: 'CRÉDITO',
+            comprobante: null,
+            comprobanteNombre: null,
+            comprobanteTipo: null
         };
         
         await guardarVentaEnEstadisticas(datosVenta);
@@ -2726,21 +3324,43 @@ async function procesarPagoCredito() {
         
         generarPDFComprobante(datosVenta);
         
-        mostrarMensajeModal('exito', `
-            ✅ ¡Crédito aprobado!<br>
+        let mensajeExito = `
+            ✅ ¡Crédito ${esCreditoParcial ? 'parcial' : ''} aprobado!<br>
             <strong>Folio:</strong> ${folio}<br>
             <strong>Total:</strong> ${formatoMexicano(total)}<br>
             <strong>Días de crédito:</strong> ${dias} días fijos<br>
             <strong>Fecha de pago:</strong> ${fechaPago.toLocaleDateString('es-MX')}<br>
-            ${requiereFactura ? `<strong>Factura:</strong> Sí - ${datosFacturaSeleccionados ? datosFacturaSeleccionados.razonSocial : 'N/A'}` : '<strong>Factura:</strong> No'}<br><br>
-            Se ha descargado el comprobante en formato PDF.<br>
-            Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.<br>
-            <span style="color:#92400e;font-size:0.9rem;">⚠️ Si no se cumple con el pago en la fecha establecida, se podrá eliminar el crédito.</span>
-        `);
+        `;
+        
+        if (esCreditoParcial) {
+            mensajeExito += `
+                <strong>Monto pagado (contado):</strong> ${formatoMexicano(montoPago)}<br>
+                <strong>Monto a crédito:</strong> ${formatoMexicano(montoCredito)}<br>
+                <span style="color:#92400e;font-size:0.9rem;">⚠️ El saldo a crédito deberá ser liquidado en ${dias} días.</span><br>
+            `;
+        }
+        
+        if (requiereFactura) {
+            mensajeExito += `<strong>Factura:</strong> Sí - ${datosFacturaSeleccionados ? datosFacturaSeleccionados.razonSocial : 'N/A'}<br>`;
+        } else {
+            mensajeExito += `<strong>Factura:</strong> No<br>`;
+        }
+        
+        mensajeExito += `<br>Se ha descargado el comprobante en formato PDF.<br>Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.`;
+        
+        if (esCreditoParcial) {
+            mensajeExito += `<br><span style="color:#92400e;font-size:0.9rem;">⚠️ Realiza la transferencia del monto de contado para completar la compra.</span>`;
+        }
+        
+        mostrarMensajeModal('exito', mensajeExito);
         
         carrito = [];
         renderizarCarrito();
         window.datosEnvio = null;
+        window._infoCredito = null;
+        window._esCreditoParcial = false;
+        window._montoPago = 0;
+        window._montoCredito = 0;
         
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
@@ -2764,6 +3384,9 @@ async function procesarPagoCredito() {
 async function guardarVentaEnEstadisticas(datos) {
     try {
         console.log('📊 Guardando venta en estadísticas...');
+        console.log('📊 Tipo de pago:', datos.tipoPago);
+        console.log('📊 Monto pago:', datos.montoPago);
+        console.log('📊 Monto crédito:', datos.montoCredito);
         
         const fechaFormateada = datos.fecha.toLocaleString('es-MX', {
             day: '2-digit',
@@ -2775,6 +3398,7 @@ async function guardarVentaEnEstadisticas(datos) {
             hour12: false
         });
         
+        // Procesar cada producto
         for (const producto of datos.productos) {
             let precioCompra = 0;
             let ganancia = 0;
@@ -2786,12 +3410,35 @@ async function guardarVentaEnEstadisticas(datos) {
                 ganancia = producto.importe - costoTotal;
             }
             
+            // Determinar si este producto va a crédito o a pago
             let creditoPendiente = 0;
             let creditoLiquidado = 0;
-            if (datos.tipoPago === 'Crédito' && datos.total > 0) {
-                const proporcion = producto.importe / datos.total;
-                creditoPendiente = datos.saldoPendiente * proporcion;
+            let montoPagado = 0;
+            
+            if (datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial') {
+                if (producto._tipo === 'credito') {
+                    // Producto que va a crédito
+                    if (datos.total > 0) {
+                        const proporcion = producto.importe / datos.total;
+                        creditoPendiente = (datos.montoCredito || datos.total) * proporcion;
+                    } else {
+                        creditoPendiente = producto.importe;
+                    }
+                    montoPagado = 0;
+                } else if (producto._tipo === 'pago') {
+                    // Producto que se paga de contado
+                    creditoPendiente = 0;
+                    montoPagado = producto.importe;
+                } else {
+                    // Por defecto, si no se especifica, va a crédito
+                    creditoPendiente = producto.importe;
+                    montoPagado = 0;
+                }
+            } else {
+                // Pago de contado normal
+                creditoPendiente = 0;
                 creditoLiquidado = 0;
+                montoPagado = producto.importe;
             }
             
             const filaProducto = [
@@ -2801,26 +3448,61 @@ async function guardarVentaEnEstadisticas(datos) {
                 producto.cantidad,
                 producto.importe.toFixed(2),
                 ganancia.toFixed(2),
-                '',
-                creditoPendiente.toFixed(2),
-                creditoLiquidado.toFixed(2),
-                datos.tipoPago === 'Crédito' ? datos.diasCredito : 0,
-                datos.tipoPago === 'Crédito' ? datos.fechaPago.toLocaleDateString('es-MX') : '',
+                '', // Columna G: vacía
+                creditoPendiente.toFixed(2), // Columna H: Crédito pendiente
+                montoPagado.toFixed(2), // Columna I: Monto pagado
+                datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial' ? DIAS_CREDITO_FIJO : 0,
+                datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial' ? datos.fechaPago.toLocaleDateString('es-MX') : '',
                 datos.sucursal
             ];
             
             await guardarFilaGoogleSheets(HOJA_EST_PRODUCTOS, filaProducto);
         }
         
+        // Guardar en la hoja de clientes
         const facturaTexto = datos.requiereFactura ? 'SÍ' : 'NO';
-        const formaPago = datos.tipoPago === 'Transferencia' ? 'Transferencia bancaria' : datos.tipoPago.toUpperCase();
-        const tipoPago = datos.tipoPago === 'Crédito' ? 'Pago diferido en parcialidades' : 'Pago en una sola exhibición';
-        const estadoPago = datos.tipoPago === 'Crédito' ? 'En preparación' : 'Validando pago';
+        const formaPago = datos.tipoPago === 'Transferencia' ? 'Transferencia bancaria' : 
+                          datos.tipoPago === 'Crédito' ? 'Crédito' : 
+                          datos.tipoPago === 'Crédito Parcial' ? 'Crédito parcial' : datos.tipoPago;
+        const tipoPago = datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial' ? 'Pago diferido en parcialidades' : 'Pago en una sola exhibición';
+        const estadoPago = datos.estadoPago || (datos.tipoPago === 'Crédito' ? 'En preparación' : 'Validando pago');
         const nombreDireccion = datos.nombreDireccion || 'Sin nombre';
         
         let razonSocialFactura = '';
         if (datos.requiereFactura && datos.datosFactura) {
             razonSocialFactura = datos.datosFactura.razonSocial || '';
+        }
+        
+        // Calcular crédito pendiente total y monto pagado total
+        let creditoPendienteTotal = 0;
+        let montoPagadoTotal = 0;
+        
+        for (const producto of datos.productos) {
+            if (producto._tipo === 'credito') {
+                if (datos.total > 0) {
+                    const proporcion = producto.importe / datos.total;
+                    creditoPendienteTotal += (datos.montoCredito || datos.total) * proporcion;
+                } else {
+                    creditoPendienteTotal += producto.importe;
+                }
+            } else if (producto._tipo === 'pago') {
+                montoPagadoTotal += producto.importe;
+            } else {
+                // Si no tiene _tipo, asumir que todo es pago (transferencia normal)
+                montoPagadoTotal += producto.importe;
+            }
+        }
+        
+        // Si es crédito total, todo el total va a crédito
+        if (datos.tipoPago === 'Crédito') {
+            creditoPendienteTotal = datos.total;
+            montoPagadoTotal = 0;
+        }
+        
+        // Si es transferencia normal, todo es pago
+        if (datos.tipoPago === 'Transferencia') {
+            creditoPendienteTotal = 0;
+            montoPagadoTotal = datos.total;
         }
         
         const filaCliente = [
@@ -2829,14 +3511,14 @@ async function guardarVentaEnEstadisticas(datos) {
             datos.cliente.codigo,
             datos.cliente.nombre,
             datos.total.toFixed(2),
-            datos.tipoPago === 'Crédito' ? datos.saldoPendiente.toFixed(2) : '0.00',
-            '0.00',
+            creditoPendienteTotal.toFixed(2), // Columna F: Crédito pendiente
+            montoPagadoTotal.toFixed(2), // Columna G: Monto pagado
             facturaTexto,
             datos.sucursal,
             formaPago,
             tipoPago,
-            '',
-            estadoPago,
+            '', // Columna L: vacía
+            estadoPago, // Columna M: Estado del pago
             nombreDireccion,
             razonSocialFactura
         ];
@@ -2864,10 +3546,17 @@ async function enviarCorreoVentaWeb(datos) {
         
         let htmlProductos = '';
         datos.productos.forEach(p => {
+            let tipoLabel = '';
+            if (p._tipo === 'credito') {
+                tipoLabel = '<span style="color:#92400e;font-weight:600;">(Crédito)</span>';
+            } else if (p._tipo === 'pago') {
+                tipoLabel = '<span style="color:#16a34a;font-weight:600;">(Pagado)</span>';
+            }
+            
             htmlProductos += `
                 <tr>
                     <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:center;">${p.cantidad}</td>
-                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;">${p.nombre}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;">${p.nombre} ${tipoLabel}</td>
                     <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:right;">${formatoMexicano(p.precio)}</td>
                     <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:center;">${p.descuento}%</td>
                     <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:right;">${formatoMexicano(p.importe)}</td>
@@ -2912,11 +3601,12 @@ async function enviarCorreoVentaWeb(datos) {
                 <p><strong>Referencia:</strong> ${datos.referencia}</p>
                 <p><strong>Comprobante:</strong> ${datos.comprobanteNombre}</p>
             `;
-        } else if (datos.tipoPago === 'Crédito') {
+        } else if (datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial') {
             infoPago = `
-                <p><strong>Días de crédito:</strong> ${datos.diasCredito} días</p>
-                <p><strong>Saldo pendiente:</strong> ${formatoMexicano(datos.saldoPendiente)}</p>
-                <p><strong>Fecha de pago:</strong> ${datos.fechaPago.toLocaleDateString('es-MX')}</p>
+                <p><strong>Días de crédito:</strong> ${datos.diasCredito || DIAS_CREDITO_FIJO} días</p>
+                <p><strong>Saldo pendiente:</strong> ${formatoMexicano(datos.montoCredito || datos.total)}</p>
+                <p><strong>Fecha de pago:</strong> ${datos.fechaPago ? datos.fechaPago.toLocaleDateString('es-MX') : 'No definida'}</p>
+                ${datos.esCreditoParcial ? `<p style="color:#92400e;font-weight:600;">⚠️ Crédito parcial - Monto pagado: ${formatoMexicano(datos.montoPago)}</p>` : ''}
                 <p style="color:#92400e;font-weight:600;">⚠️ Si no se cumple con el pago, se podrá eliminar el crédito.</p>
             `;
         }
@@ -2935,6 +3625,14 @@ async function enviarCorreoVentaWeb(datos) {
                     <p><strong>Fecha:</strong> ${datos.fecha.toLocaleString('es-MX')}</p>
                     <p><strong>Método de pago:</strong> ${datos.tipoPago}</p>
                     <p><strong>Factura:</strong> ${datos.requiereFactura ? 'SÍ' : 'NO'}</p>
+                    <p><strong>Estado:</strong> ${datos.estadoPago || 'Validando pago'}</p>
+                    
+                    ${datos.esCreditoParcial ? `
+                        <div style="background:#fef3c7;padding:10px;border-radius:8px;margin:10px 0;border:1px solid #fde68a;">
+                            <p style="margin:0;color:#92400e;font-weight:600;">⚠️ CRÉDITO PARCIAL</p>
+                            <p style="margin:0;color:#92400e;">Monto pagado: ${formatoMexicano(datos.montoPago)} | Monto a crédito: ${formatoMexicano(datos.montoCredito)}</p>
+                        </div>
+                    ` : ''}
                     
                     <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
                     
@@ -2973,6 +3671,10 @@ async function enviarCorreoVentaWeb(datos) {
                         <p><strong>Subtotal:</strong> ${formatoMexicano(datos.subtotal)}</p>
                         <p><strong>IVA (16%):</strong> ${formatoMexicano(datos.iva)}</p>
                         <p style="font-size:1.4rem;font-weight:700;color:#0A2540;"><strong>TOTAL:</strong> ${formatoMexicano(datos.total)}</p>
+                        ${datos.esCreditoParcial ? `
+                            <p style="color:#92400e;font-weight:600;">Monto pagado: ${formatoMexicano(datos.montoPago)}</p>
+                            <p style="color:#92400e;font-weight:600;">Monto a crédito: ${formatoMexicano(datos.montoCredito)}</p>
+                        ` : ''}
                     </div>
                     
                     <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
@@ -3042,7 +3744,6 @@ async function cargarHistorialCompras() {
         
         console.log('📥 Cargando historial de compras para cliente:', codigoCliente);
         
-        // 1. Obtener IDs de venta del cliente desde la hoja "Clientes"
         const urlClientes = `https://docs.google.com/spreadsheets/d/${ID_ESTADISTICAS}/gviz/tq?tqx=out:json&sheet=${HOJA_EST_CLIENTES}`;
         const responseClientes = await fetch(urlClientes);
         const textClientes = await responseClientes.text();
@@ -3057,7 +3758,6 @@ async function cargarHistorialCompras() {
             const values = rowsClientes[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[2] || '').trim();
             const idVenta = String(values[1] || '').trim();
-            // Extraer fecha correctamente - puede ser string o objeto con propiedad v
             let fecha = values[0];
             if (fecha && typeof fecha === 'object' && fecha.v !== undefined) {
                 fecha = fecha.v;
@@ -3086,7 +3786,6 @@ async function cargarHistorialCompras() {
             return;
         }
         
-        // 2. Obtener productos de las ventas desde la hoja "Productos"
         const urlProductos = `https://docs.google.com/spreadsheets/d/${ID_ESTADISTICAS}/gviz/tq?tqx=out:json&sheet=${HOJA_EST_PRODUCTOS}`;
         const responseProductos = await fetch(urlProductos);
         const textProductos = await responseProductos.text();
@@ -3130,7 +3829,6 @@ async function cargarHistorialCompras() {
             }
         }
         
-        // 3. Construir historial completo
         historialVentas = [];
         
         for (const [idVenta, info] of ventasMap) {
@@ -3145,7 +3843,6 @@ async function cargarHistorialCompras() {
             });
         }
         
-        // ⭐ ORDENAR POR FECHA (USANDO fechaObj) ⭐
         historialVentas.sort((a, b) => {
             const fechaA = a.fechaObj || parseFechaGoogleSheets(a.fecha);
             const fechaB = b.fechaObj || parseFechaGoogleSheets(b.fecha);
@@ -3160,7 +3857,6 @@ async function cargarHistorialCompras() {
         
         console.log(`📦 Historial cargado: ${historialVentas.length} ventas`);
         
-        // 4. Poblar filtros de años
         const anos = [...new Set(historialVentas.map(v => {
             const fecha = v.fechaObj || parseFechaGoogleSheets(v.fecha);
             return fecha ? fecha.getFullYear() : null;
@@ -3448,11 +4144,6 @@ function renderizarEstadisticasProductos() {
     
     html += `</div>`;
     
-    // Frecuencia de compras
-    html += `
-        <div style="margin-top:2rem; display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:1rem;">
-    `;
-    
     const comprasPorMes = new Map();
     historialVentas.forEach(v => {
         const fecha = v.fechaObj || parseFechaGoogleSheets(v.fecha);
@@ -3710,7 +4401,6 @@ function configurarTabs() {
             contents.forEach(c => c.classList.remove('active'));
             document.getElementById(target).classList.add('active');
             
-            // Si es la pestaña de compras, cargar datos
             if (target === 'tab-compras' && historialVentas.length === 0) {
                 cargarHistorialCompras();
             }
