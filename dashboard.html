@@ -793,6 +793,9 @@
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
         .loading-spinner {
             display: inline-block;
             width: 20px;
@@ -803,9 +806,6 @@
             animation: spin 0.8s linear infinite;
             vertical-align: middle;
             margin-right: 8px;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -944,7 +944,6 @@
             <p>Aquí puedes ver todas tus compras realizadas y su estado actual.</p>
         </div>
 
-        <!-- SECCIÓN 1: ÓRDENES RECIENTES (LÍNEA DE TIEMPO) -->
         <div class="cart-section" style="margin-bottom:2rem;">
             <div id="ordenesContent">
                 <div class="empty-state">
@@ -955,7 +954,6 @@
             </div>
         </div>
 
-        <!-- SECCIÓN 2: HISTORIAL DE COMPRAS CON FILTROS -->
         <div class="cart-section" style="margin-bottom:2rem;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
                 <h2 style="margin:0; color:var(--primary-dark);"><i class="fas fa-history"></i> Historial de Compras</h2>
@@ -990,7 +988,6 @@
             </div>
         </div>
 
-        <!-- SECCIÓN 3: ESTADÍSTICAS DE PRODUCTOS -->
         <div class="cart-section">
             <div id="estadisticasContent">
                 <div class="empty-state">
@@ -1263,7 +1260,7 @@
         </div>
     </div>
 
-    <!-- ===== MODAL DE PAGO ===== -->
+    <!-- ===== MODAL DE PAGO - CORREGIDO (UN SOLO BLOQUE DE FACTURA) ===== -->
     <div class="modal-overlay" id="modalPago">
         <div class="modal">
             <h2>💳 Realizar Compra</h2>
@@ -1280,15 +1277,8 @@
                 </button>
             </div>
 
-            <div id="formTransferencia" style="display:none;">
-                <div class="datos-bancarios">
-                    <p><strong>PROCONSTRUCCIONMX SAS DE CV</strong></p>
-                    <p><strong>BANCO:</strong> BBVA</p>
-                    <p><strong>NÚMERO DE CUENTA:</strong> 0127744064</p>
-                    <p><strong>CUENTA CLABE:</strong> 012180001277440643</p>
-                </div>
-                
-                <!-- SELECCIÓN DE FACTURA -->
+            <!-- ⭐ BLOQUE DE FACTURA - ÚNICO, SE USA PARA AMBOS MÉTODOS ⭐ -->
+            <div id="facturaContainer">
                 <div class="form-group">
                     <label>¿Deseas factura? <span style="color:red;">*</span></label>
                     <div class="factura-toggle" id="facturaToggle">
@@ -1297,7 +1287,6 @@
                     </div>
                 </div>
 
-                <!-- SELECCIÓN DE RAZÓN SOCIAL (solo si factura = Sí) -->
                 <div id="facturaRazonSocialContainer" style="display:none;">
                     <div class="form-group">
                         <label>Selecciona la razón social para facturar <span style="color:red;">*</span></label>
@@ -1318,7 +1307,17 @@
                         <p><strong>Correo:</strong> <span id="facturaPreviewCorreo">---</span></p>
                     </div>
                 </div>
+            </div>
 
+            <!-- FORMULARIO DE TRANSFERENCIA -->
+            <div id="formTransferencia" style="display:none;">
+                <div class="datos-bancarios">
+                    <p><strong>PROCONSTRUCCIONMX SAS DE CV</strong></p>
+                    <p><strong>BANCO:</strong> BBVA</p>
+                    <p><strong>NÚMERO DE CUENTA:</strong> 0127744064</p>
+                    <p><strong>CUENTA CLABE:</strong> 012180001277440643</p>
+                </div>
+                
                 <div class="form-group">
                     <label>Monto a transferir: <strong id="montoTransferencia">$0.00</strong></label>
                 </div>
@@ -1335,52 +1334,23 @@
                         <input type="file" id="comprobanteFile" accept="*/*" onchange="cargarComprobante(event)">
                     </div>
                 </div>
-                <button class="btn-enviar" onclick="procesarPagoTransferencia()">
+                <button class="btn-enviar" id="btnConfirmarTransferencia" onclick="procesarPagoTransferencia()" disabled>
                     <i class="fas fa-paper-plane"></i> Confirmar Compra
                 </button>
             </div>
 
+            <!-- FORMULARIO DE CRÉDITO -->
             <div id="formCredito" style="display:none;">
-                <!-- SELECCIÓN DE FACTURA EN CRÉDITO -->
                 <div class="form-group">
-                    <label>¿Deseas factura? <span style="color:red;">*</span></label>
-                    <div class="factura-toggle" id="facturaToggleCredito">
-                        <button class="selected" onclick="seleccionarFacturaCredito('no')" id="facturaNoCredito">No</button>
-                        <button onclick="seleccionarFacturaCredito('si')" id="facturaSiCredito">Sí</button>
-                    </div>
+                    <label>Total a pagar: <strong id="totalCredito">$0.00</strong></label>
                 </div>
-
-                <!-- SELECCIÓN DE RAZÓN SOCIAL (solo si factura = Sí) -->
-                <div id="facturaRazonSocialContainerCredito" style="display:none;">
-                    <div class="form-group">
-                        <label>Selecciona la razón social para facturar <span style="color:red;">*</span></label>
-                        <select id="facturaRazonSocialSelectCredito" onchange="cargarDatosFacturaSeleccionadosCredito()">
-                            <option value="">-- Selecciona una razón social --</option>
-                        </select>
-                    </div>
-                    <div style="margin-bottom: 1rem; text-align: center;">
-                        <button type="button" class="btn-secondary" onclick="abrirModalAgregarFacturacionDesdePago()" style="padding:0.5rem 1.5rem; font-size:0.85rem;">
-                            <i class="fas fa-plus"></i> Registrar nueva razón social
-                        </button>
-                    </div>
-                    <div id="facturaDatosPreviewCredito" style="display:none; background:var(--gray-light); padding:1rem; border-radius:12px; margin-bottom:1rem;">
-                        <p><strong>RFC:</strong> <span id="facturaPreviewRFCCredito">---</span></p>
-                        <p><strong>Uso de CFDI:</strong> <span id="facturaPreviewUsoCredito">---</span></p>
-                        <p><strong>C.P.:</strong> <span id="facturaPreviewCPCredito">---</span></p>
-                        <p><strong>Régimen Fiscal:</strong> <span id="facturaPreviewRegimenCredito">---</span></p>
-                        <p><strong>Correo:</strong> <span id="facturaPreviewCorreoCredito">---</span></p>
-                    </div>
-                </div>
-
                 <div class="form-group">
                     <label>Días de crédito: <strong>20 días fijos</strong></label>
                     <p style="font-size:0.9rem;color:var(--text-gray);">El crédito es por 20 días. Si no se cumple con el pago, se podrá eliminar el crédito.</p>
                     <input type="hidden" id="diasCredito" value="20">
                 </div>
-                <div class="form-group">
-                    <label>Total a pagar: <strong id="totalCredito">$0.00</strong></label>
-                </div>
-                <button class="btn-enviar" onclick="procesarPagoCredito()">
+                <!-- ⭐ BOTÓN QUE SE REEMPLAZA POR "Pagar Excedente y Finalizar" cuando hay crédito parcial ⭐ -->
+                <button class="btn-enviar" id="btnConfirmarCredito" onclick="procesarPagoCredito()">
                     <i class="fas fa-check"></i> Confirmar Crédito
                 </button>
             </div>
