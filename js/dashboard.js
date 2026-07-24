@@ -24,7 +24,8 @@ const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
 const ID_COTIZACIONES = '1S4qoHh3lTDoSUwDNeilmN6QKk8uhmvxjwvRQpEHQbS0';
 const HOJA_COTIZACIONES = 'Hoja 1';
 
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyRT70rT0pgG6IX4vjjvX44DuPnQqF1evnkQ7Vdz4XVyaZj0j3v4Em36U5FwLBlaRRxtQ/exec';
+// ⭐ NUEVA URL DEL APPS SCRIPT (ACTUALIZADA) ⭐
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby1yrHy1Ob7HijY1lR84L4ab9PSVQRVT2isLQka8meQ5RMSSoQ7xcyoFf6RFneE7CXt/exec';
 
 // ⭐ URL DEL SCRIPT DE FACTURACIÓN ⭐
 const APPS_SCRIPT_FACTURACION_URL = 'https://script.google.com/macros/s/AKfycbwcEwB2K17lhR5d52eab8EL-2K7C2mXzEubtyP-TcF-VWcmfNS-lODtFWAYdllNmHz9Mg/exec';
