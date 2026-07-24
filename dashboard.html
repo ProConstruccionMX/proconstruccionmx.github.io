@@ -929,6 +929,9 @@
                     <i class="fas fa-file-invoice"></i>
                     <h4>Sin datos de facturación registrados</h4>
                     <p>Agrega tus datos de facturación para poder facturar tus compras.</p>
+                    <button class="btn-primary" style="margin-top:1rem;padding:0.8rem 2rem;" onclick="abrirModalAgregarFacturacion()">
+                        <i class="fas fa-plus"></i> Agregar datos de facturación
+                    </button>
                 </div>
             </div>
         </div>
@@ -1120,11 +1123,13 @@
         </div>
     </div>
 
-    <!-- ===== MODAL DE AGREGAR FACTURACIÓN ===== -->
+    <!-- ===== MODAL DE AGREGAR FACTURACIÓN (DESDE PESTAÑA) ===== -->
     <div class="modal-overlay" id="modalAgregarFacturacion">
         <div class="modal">
             <h2>📄 Agregar Datos de Facturación</h2>
-            <p class="subtitle">Ingresa tus datos para poder facturar tus compras</p>
+            <p class="subtitle">Registra una nueva razón social para tus facturas</p>
+
+            <div id="modalAgregarFactMensaje" style="display:none;"></div>
 
             <div class="form-group">
                 <label>Nombre del cliente</label>
@@ -1159,6 +1164,52 @@
                 <i class="fas fa-save"></i> Guardar
             </button>
             <button class="btn-cerrar-modal" onclick="cerrarModalAgregarFacturacion()">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+        </div>
+    </div>
+
+    <!-- ===== MODAL DE AGREGAR FACTURACIÓN (DESDE PAGO) ===== -->
+    <div class="modal-overlay" id="modalAgregarFacturacionPago">
+        <div class="modal">
+            <h2>📄 Registrar nueva razón social</h2>
+            <p class="subtitle">Agrega una nueva opción de facturación</p>
+
+            <div id="modalAgregarFactPagoMensaje" style="display:none;"></div>
+
+            <div class="form-group">
+                <label>Nombre del cliente</label>
+                <input type="text" id="agregarFactPagoNombre" readonly style="background:#f0f0f0;">
+            </div>
+            <div class="form-group">
+                <label>Razón Social <span style="color:red;">*</span></label>
+                <input type="text" id="agregarFactPagoRazonSocial" placeholder="Ej: ProConstrucción MX SAS DE CV">
+            </div>
+            <div class="form-group">
+                <label>RFC <span style="color:red;">*</span></label>
+                <input type="text" id="agregarFactPagoRFC" placeholder="Ej: PRO2605135X4">
+            </div>
+            <div class="form-group">
+                <label>Uso de CFDI <span style="color:red;">*</span></label>
+                <input type="text" id="agregarFactPagoUsoCFDI" placeholder="Ej: G03 - Gastos en general">
+            </div>
+            <div class="form-group">
+                <label>Código Postal <span style="color:red;">*</span></label>
+                <input type="text" id="agregarFactPagoCP" placeholder="Ej: 03100">
+            </div>
+            <div class="form-group">
+                <label>Régimen Fiscal <span style="color:red;">*</span></label>
+                <input type="text" id="agregarFactPagoRegimen" placeholder="Ej: 601 - General de Ley Personas Morales">
+            </div>
+            <div class="form-group">
+                <label>Correo <span style="color:red;">*</span></label>
+                <input type="email" id="agregarFactPagoCorreo" placeholder="Ej: facturacion@empresa.com">
+            </div>
+
+            <button class="btn-enviar" onclick="guardarNuevaFacturacionDesdePago()">
+                <i class="fas fa-save"></i> Guardar
+            </button>
+            <button class="btn-cerrar-modal" onclick="cerrarModalAgregarFacturacionPago()">
                 <i class="fas fa-times"></i> Cancelar
             </button>
         </div>
@@ -1205,6 +1256,12 @@
                         <select id="facturaRazonSocialSelect" onchange="cargarDatosFacturaSeleccionados()">
                             <option value="">-- Selecciona una razón social --</option>
                         </select>
+                    </div>
+                    <!-- ⭐ BOTÓN PARA AGREGAR NUEVA RAZÓN SOCIAL ⭐ -->
+                    <div style="margin-bottom: 1rem; text-align: center;">
+                        <button type="button" class="btn-secondary" onclick="abrirModalAgregarFacturacionDesdePago()" style="padding:0.5rem 1.5rem; font-size:0.85rem;">
+                            <i class="fas fa-plus"></i> Registrar nueva razón social
+                        </button>
                     </div>
                     <div id="facturaDatosPreview" style="display:none; background:var(--gray-light); padding:1rem; border-radius:12px; margin-bottom:1rem;">
                         <p><strong>RFC:</strong> <span id="facturaPreviewRFC">---</span></p>
