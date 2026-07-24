@@ -1596,7 +1596,6 @@ function verificarCreditoDisponible() {
     const hayProductosConPeso = productosConPeso.length > 0;
     const hayProductosSinPeso = productosSinPeso.length > 0;
     
-    // Si no hay productos o el cliente no tiene crédito habilitado
     if (carrito.length === 0) {
         return {
             puedeCredito: false,
@@ -1608,7 +1607,8 @@ function verificarCreditoDisponible() {
             productosCredito: [],
             productosPago: [],
             excedeLimite: false,
-            puedeUsarCredito: false
+            puedeUsarCredito: false,
+            montoExcedente: 0
         };
     }
     
@@ -1623,7 +1623,8 @@ function verificarCreditoDisponible() {
             productosCredito: [],
             productosPago: carrito,
             excedeLimite: true,
-            puedeUsarCredito: false
+            puedeUsarCredito: false,
+            montoExcedente: totalGeneral
         };
     }
     
@@ -1642,10 +1643,10 @@ function verificarCreditoDisponible() {
                 productosCredito: carrito,
                 productosPago: [],
                 excedeLimite: false,
-                puedeUsarCredito: true
+                puedeUsarCredito: true,
+                montoExcedente: 0
             };
         } else {
-            // Calcular crédito parcial
             const pesoExcedente = pesoTotal - clienteLimiteCreditoPeso;
             let pesoAcumulado = 0;
             let productosPago = [];
@@ -1733,7 +1734,8 @@ function verificarCreditoDisponible() {
                 productosCredito: productosCredito,
                 productosPago: productosPago,
                 excedeLimite: true,
-                puedeUsarCredito: montoPago > 0
+                puedeUsarCredito: true,
+                montoExcedente: montoPago
             };
         }
     }
@@ -1753,7 +1755,8 @@ function verificarCreditoDisponible() {
                 productosCredito: carrito,
                 productosPago: [],
                 excedeLimite: false,
-                puedeUsarCredito: true
+                puedeUsarCredito: true,
+                montoExcedente: 0
             };
         } else {
             const montoExcedente = montoSinPeso - clienteLimiteCreditoMonto;
@@ -1843,7 +1846,8 @@ function verificarCreditoDisponible() {
                 productosCredito: productosCredito,
                 productosPago: productosPago,
                 excedeLimite: true,
-                puedeUsarCredito: montoPago > 0
+                puedeUsarCredito: true,
+                montoExcedente: montoPago
             };
         }
     }
@@ -1866,7 +1870,8 @@ function verificarCreditoDisponible() {
                 productosCredito: carrito,
                 productosPago: [],
                 excedeLimite: false,
-                puedeUsarCredito: true
+                puedeUsarCredito: true,
+                montoExcedente: 0
             };
         } else {
             let productosPago = [];
@@ -1874,7 +1879,6 @@ function verificarCreditoDisponible() {
             let montoPago = 0;
             let montoCredito = 0;
             
-            // Primero productos con peso
             if (!pesoCumple) {
                 const pesoExcedenteTotal = pesoTotal - clienteLimiteCreditoPeso;
                 let pesoAcumulado = 0;
@@ -1929,7 +1933,6 @@ function verificarCreditoDisponible() {
                 }
             }
             
-            // Luego productos sin peso
             if (!montoCumple) {
                 const montoExcedenteTotal = montoSinPeso - clienteLimiteCreditoMonto;
                 let montoAcumulado = 0;
@@ -2005,6 +2008,8 @@ function verificarCreditoDisponible() {
                 }
             }
             
+            const montoExcedenteTotal = montoPago;
+            
             return {
                 puedeCredito: true,
                 tipo: 'credito_parcial',
@@ -2015,7 +2020,8 @@ function verificarCreditoDisponible() {
                 productosCredito: productosCredito,
                 productosPago: productosPago,
                 excedeLimite: true,
-                puedeUsarCredito: montoPago > 0
+                puedeUsarCredito: true,
+                montoExcedente: montoExcedenteTotal
             };
         }
     }
@@ -2030,7 +2036,8 @@ function verificarCreditoDisponible() {
         productosCredito: [],
         productosPago: [],
         excedeLimite: false,
-        puedeUsarCredito: false
+        puedeUsarCredito: false,
+        montoExcedente: 0
     };
 }
 
@@ -2201,7 +2208,6 @@ function renderizarCarrito() {
         </table>
     `;
     
-    // Solo mostrar información de peso mínimo (si aplica)
     if (verificarPeso.productosConPeso > 0) {
         let detalleProductos = '';
         verificarPeso.productosAfectados.forEach(p => {
@@ -2488,7 +2494,7 @@ function mostrarMensajeModalDireccion(tipo, mensaje) {
 }
 
 // ============================================
-// FUNCIONES DE PAGO - CON SOPORTE PARA CRÉDITO PARCIAL
+// FUNCIONES DE PAGO - CORREGIDAS
 // ============================================
 
 function abrirModalPago() {
@@ -2500,24 +2506,25 @@ function abrirModalPago() {
     document.getElementById('formTransferencia').style.display = 'none';
     document.getElementById('formCredito').style.display = 'none';
     
-    // Calcular totales según el tipo de crédito
+    // Calcular totales
     let total = calcularTotal();
     let montoPago = total;
     let montoCredito = 0;
     let esCreditoParcial = false;
     let infoCredito = null;
     let puedeUsarCredito = false;
+    let montoExcedente = 0;
     
     if (clienteCreditoHabilitado) {
         infoCredito = verificarCreditoDisponible();
         infoCreditoCalculado = infoCredito;
         puedeUsarCredito = infoCredito.puedeUsarCredito || false;
+        esCreditoParcial = infoCredito.tipo === 'credito_parcial' && infoCredito.excedeLimite;
+        montoExcedente = infoCredito.montoExcedente || 0;
         
-        if (infoCredito.tipo === 'credito_parcial' && infoCredito.excedeLimite) {
-            esCreditoParcial = true;
-            montoPago = infoCredito.montoPago;
+        if (esCreditoParcial) {
+            montoPago = infoCredito.montoExcedente || infoCredito.montoPago;
             montoCredito = infoCredito.montoCredito;
-            puedeUsarCredito = montoPago > 0;
         } else if (infoCredito.tipo === 'credito_total') {
             montoPago = 0;
             montoCredito = total;
@@ -2535,13 +2542,11 @@ function abrirModalPago() {
     window._montoPago = montoPago;
     window._montoCredito = montoCredito;
     window._puedeUsarCredito = puedeUsarCredito;
+    window._montoExcedente = montoExcedente;
     
     // Mostrar montos en el modal
-    document.getElementById('montoTransferencia').textContent = formatoMexicano(montoPago || total);
+    document.getElementById('montoTransferencia').textContent = formatoMexicano(total);
     document.getElementById('totalCredito').textContent = formatoMexicano(total);
-    
-    // Mostrar mensaje de crédito parcial SOLO si se excede el límite y se selecciona crédito
-    // Este mensaje se mostrará cuando el usuario haga clic en el botón de crédito
     
     // Configurar opciones de pago
     const btnCredito = document.getElementById('btnCredito');
@@ -2610,73 +2615,93 @@ function seleccionarPago(tipo) {
     pagoSeleccionado = tipo;
     document.querySelectorAll('.opciones-pago button').forEach(b => b.classList.remove('selected'));
     
+    // Limpiar mensajes anteriores
+    document.getElementById('modalMensaje').innerHTML = '';
+    document.getElementById('modalMensaje').style.display = 'none';
+    
+    // Restaurar botones de crédito
+    const btnConfirmarCredito = document.querySelector('#formCredito .btn-enviar');
+    if (btnConfirmarCredito) {
+        btnConfirmarCredito.disabled = false;
+        btnConfirmarCredito.title = '';
+        btnConfirmarCredito.style.opacity = '1';
+        btnConfirmarCredito.style.cursor = 'pointer';
+        btnConfirmarCredito.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
+    }
+    
     if (tipo === 'transferencia') {
         document.getElementById('btnTransferencia').classList.add('selected');
         document.getElementById('formTransferencia').style.display = 'block';
         document.getElementById('formCredito').style.display = 'none';
         
-        // Mostrar el monto a pagar
-        const monto = window._montoPago || calcularTotal();
-        document.getElementById('montoTransferencia').textContent = formatoMexicano(monto);
-        
-        // Limpiar mensajes de crédito
-        document.getElementById('modalMensaje').innerHTML = '';
-        document.getElementById('modalMensaje').style.display = 'none';
+        // Transferencia: PAGAR EL TOTAL, no solo el excedente
+        const total = calcularTotal();
+        document.getElementById('montoTransferencia').textContent = formatoMexicano(total);
         
     } else if (tipo === 'credito') {
         document.getElementById('btnCredito').classList.add('selected');
         document.getElementById('formCredito').style.display = 'block';
         document.getElementById('formTransferencia').style.display = 'none';
         
-        // Mostrar información de crédito
+        // Crédito: Mostrar información de crédito y el excedente a pagar
         const infoCredito = window._infoCredito || infoCreditoCalculado;
         const esCreditoParcial = window._esCreditoParcial || false;
+        const montoExcedente = window._montoExcedente || 0;
         
         if (esCreditoParcial && infoCredito && infoCredito.excedeLimite) {
+            // Si excede el límite de crédito, mostrar el excedente a pagar DENTRO del crédito
             const mensajeHTML = `
                 <div style="background: #fef3c7; padding: 1rem; border-radius: 12px; margin-bottom: 1rem; border: 1px solid #fde68a;">
                     <p style="margin: 0; font-weight: 600; color: #92400e;">
                         ⚠️ Excedes el límite de crédito
                     </p>
                     <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; color: #92400e;">
-                        <strong>Monto a pagar (contado):</strong> ${formatoMexicano(infoCredito.montoPago)}
+                        <strong>Monto a pagar (excedente):</strong> ${formatoMexicano(montoExcedente)}
                         <br>
                         <strong>Monto a crédito:</strong> ${formatoMexicano(infoCredito.montoCredito)}
                     </p>
                     <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #92400e;">
                         Para usar crédito, deberás pagar el excedente de contado.
                         <br>
-                        <strong>Selecciona la opción de Transferencia para pagar el excedente.</strong>
+                        <strong>Completa los datos de transferencia para pagar el excedente y finalizar la compra.</strong>
                     </p>
-                    <div style="margin-top: 0.5rem; padding: 0.5rem; background: #fff; border-radius: 8px; border: 1px solid #fde68a;">
-                        <button onclick="seleccionarPago('transferencia')" style="width:100%; padding:0.5rem; background:#F5A623; color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif;">
-                            <i class="fas fa-university"></i> Pagar excedente con transferencia
-                        </button>
-                    </div>
                 </div>
             `;
             document.getElementById('modalMensaje').innerHTML = mensajeHTML;
             document.getElementById('modalMensaje').style.display = 'block';
             
-            // Deshabilitar el botón de confirmar crédito
-            const btnConfirmar = document.querySelector('#formCredito .btn-enviar');
-            if (btnConfirmar) {
-                btnConfirmar.disabled = true;
-                btnConfirmar.title = 'Debes pagar el excedente de contado primero.';
-                btnConfirmar.style.opacity = '0.5';
-                btnConfirmar.style.cursor = 'not-allowed';
+            // Mostrar campos de transferencia dentro del crédito (para el excedente)
+            const formTransferencia = document.getElementById('formTransferencia');
+            if (formTransferencia) {
+                formTransferencia.style.display = 'block';
+                document.getElementById('montoTransferencia').textContent = formatoMexicano(montoExcedente);
+            }
+            
+            // Cambiar el botón de "Confirmar Crédito" a "Pagar Excedente y Finalizar"
+            if (btnConfirmarCredito) {
+                btnConfirmarCredito.innerHTML = '<i class="fas fa-university"></i> Pagar Excedente y Finalizar';
+                btnConfirmarCredito.disabled = false;
+                btnConfirmarCredito.title = 'Paga el excedente de contado para completar la compra a crédito';
+                btnConfirmarCredito.style.opacity = '1';
+                btnConfirmarCredito.style.cursor = 'pointer';
             }
         } else {
-            // Crédito total o normal
+            // Crédito total (sin excedente)
             document.getElementById('modalMensaje').innerHTML = '';
             document.getElementById('modalMensaje').style.display = 'none';
             
-            const btnConfirmar = document.querySelector('#formCredito .btn-enviar');
-            if (btnConfirmar) {
-                btnConfirmar.disabled = false;
-                btnConfirmar.title = '';
-                btnConfirmar.style.opacity = '1';
-                btnConfirmar.style.cursor = 'pointer';
+            // Ocultar campos de transferencia
+            const formTransferencia = document.getElementById('formTransferencia');
+            if (formTransferencia) {
+                formTransferencia.style.display = 'none';
+            }
+            
+            if (btnConfirmarCredito) {
+                btnConfirmarCredito.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
+                btnConfirmarCredito.disabled = false;
+                btnConfirmarCredito.title = '';
+                btnConfirmarCredito.style.opacity = '1';
+                btnConfirmarCredito.style.cursor = 'pointer';
             }
         }
     }
@@ -3057,73 +3082,11 @@ async function procesarPagoTransferencia() {
         const folio = generarFolio();
         const fecha = new Date();
         
-        const esCreditoParcial = window._esCreditoParcial || false;
-        const infoCredito = window._infoCredito || null;
-        
-        let productosParaVenta = [];
-        let montoPago = total;
-        let montoCredito = 0;
-        let tipoPago = 'Transferencia';
-        let estadoPago = 'Validando pago';
-        
-        if (esCreditoParcial && infoCredito) {
-            tipoPago = 'Crédito Parcial';
-            montoPago = infoCredito.montoPago;
-            montoCredito = infoCredito.montoCredito;
-            estadoPago = 'Validando pago';
-            
-            const productosPago = infoCredito.productosPago || [];
-            productosPago.forEach(item => {
-                productosParaVenta.push({
-                    clave: item.clave,
-                    nombre: item.nombre,
-                    cantidad: item.cantidad,
-                    precio: item.precio,
-                    descuento: item.descuento,
-                    importe: item.precio * item.cantidad * (1 - item.descuento / 100),
-                    precioCompra: item.precioCompra || 0,
-                    personalizado: item.personalizado || false,
-                    _tipo: 'pago'
-                });
-            });
-            
-            const productosCredito = infoCredito.productosCredito || [];
-            productosCredito.forEach(item => {
-                productosParaVenta.push({
-                    clave: item.clave,
-                    nombre: item.nombre,
-                    cantidad: item.cantidad,
-                    precio: item.precio,
-                    descuento: item.descuento,
-                    importe: item.precio * item.cantidad * (1 - item.descuento / 100),
-                    precioCompra: item.precioCompra || 0,
-                    personalizado: item.personalizado || false,
-                    _tipo: 'credito'
-                });
-            });
-            
-        } else if (clienteCreditoHabilitado && pagoSeleccionado === 'credito') {
-            tipoPago = 'Crédito';
-            montoPago = 0;
-            montoCredito = total;
-            estadoPago = 'En preparación';
-            
-            productosParaVenta = carrito.map(item => ({
-                ...item,
-                _tipo: 'credito'
-            }));
-            
-        } else {
-            tipoPago = 'Transferencia';
-            montoPago = total;
-            montoCredito = 0;
-            estadoPago = 'Validando pago';
-            
-            productosParaVenta = carrito.map(item => ({
-                ...item,
-                _tipo: 'pago'
-            }));
-        }
+        // Transferencia: PAGAR EL TOTAL COMPLETO
+        let productosParaVenta = carrito.map(item => ({
+            ...item,
+            _tipo: 'pago'
+        }));
         
         const datosVenta = {
             folio: folio,
@@ -3134,7 +3097,7 @@ async function procesarPagoTransferencia() {
             total: total,
             subtotal: total / 1.16,
             iva: total - (total / 1.16),
-            tipoPago: tipoPago,
+            tipoPago: 'Transferencia',
             referencia: referencia,
             comprobante: comprobanteBase64,
             comprobanteNombre: comprobanteNombre,
@@ -3143,10 +3106,14 @@ async function procesarPagoTransferencia() {
             nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre',
             requiereFactura: requiereFactura,
             datosFactura: datosFacturaSeleccionados,
-            montoPago: montoPago,
-            montoCredito: montoCredito,
-            estadoPago: estadoPago,
-            esCreditoParcial: esCreditoParcial
+            montoPago: total,
+            montoCredito: 0,
+            estadoPago: 'Validando pago',
+            esCreditoParcial: false,
+            diasCredito: 0,
+            fechaPago: null,
+            saldoPendiente: 0,
+            anticipo: total
         };
         
         await guardarVentaEnEstadisticas(datosVenta);
@@ -3158,18 +3125,9 @@ async function procesarPagoTransferencia() {
             ✅ ¡Compra realizada con éxito!<br>
             <strong>Folio:</strong> ${folio}<br>
             <strong>Total:</strong> ${formatoMexicano(total)}<br>
-            <strong>Método:</strong> ${tipoPago}<br>
+            <strong>Método:</strong> Transferencia<br>
             <strong>Referencia:</strong> ${referencia}<br>
         `;
-        
-        if (esCreditoParcial) {
-            mensajeExito += `
-                <strong>Monto pagado (contado):</strong> ${formatoMexicano(montoPago)}<br>
-                <strong>Monto a crédito:</strong> ${formatoMexicano(montoCredito)}<br>
-                <strong>Días de crédito:</strong> ${DIAS_CREDITO_FIJO} días<br>
-                <span style="color:#92400e;font-size:0.9rem;">⚠️ El saldo a crédito deberá ser liquidado en ${DIAS_CREDITO_FIJO} días.</span><br>
-            `;
-        }
         
         if (requiereFactura) {
             mensajeExito += `<strong>Factura:</strong> Sí - ${datosFacturaSeleccionados ? datosFacturaSeleccionados.razonSocial : 'N/A'}<br>`;
@@ -3189,6 +3147,7 @@ async function procesarPagoTransferencia() {
         window._montoPago = 0;
         window._montoCredito = 0;
         window._puedeUsarCredito = false;
+        window._montoExcedente = 0;
         infoCreditoCalculado = null;
         
         btn.disabled = false;
@@ -3227,6 +3186,24 @@ async function procesarPagoCredito() {
         return;
     }
     
+    // Verificar si es crédito parcial (excede el límite)
+    const esCreditoParcial = window._esCreditoParcial || false;
+    const infoCredito = window._infoCredito || infoCreditoCalculado;
+    const montoExcedente = window._montoExcedente || 0;
+    
+    // Si es crédito parcial, validar que se haya subido comprobante del excedente
+    if (esCreditoParcial && montoExcedente > 0) {
+        const referencia = document.getElementById('referenciaTransferencia').value.trim();
+        if (!referencia) {
+            mostrarMensajeModal('error', '⚠️ Para el crédito parcial, debes ingresar el número de referencia o folio de transferencia del excedente.');
+            return;
+        }
+        if (!comprobanteBase64) {
+            mostrarMensajeModal('error', '⚠️ Para el crédito parcial, debes subir el comprobante de transferencia del excedente.');
+            return;
+        }
+    }
+    
     const btn = document.querySelector('#formCredito .btn-enviar');
     btn.disabled = true;
     btn.innerHTML = '<span class="loading-spinner"></span> Procesando...';
@@ -3237,21 +3214,27 @@ async function procesarPagoCredito() {
         const fechaPago = new Date(fecha);
         fechaPago.setDate(fechaPago.getDate() + dias);
         
-        const esCreditoParcial = window._esCreditoParcial || false;
-        const infoCredito = window._infoCredito || null;
-        
         let productosParaVenta = [];
         let montoPago = 0;
         let montoCredito = total;
         let tipoPago = 'Crédito';
         let estadoPago = 'En preparación';
+        let anticipo = 0;
+        let saldoPendiente = total;
+        let referenciaExcedente = null;
+        let comprobanteExcedente = null;
         
-        if (esCreditoParcial && infoCredito) {
+        if (esCreditoParcial && infoCredito && infoCredito.excedeLimite) {
             tipoPago = 'Crédito Parcial';
-            montoPago = infoCredito.montoPago;
+            montoPago = infoCredito.montoExcedente || infoCredito.montoPago;
             montoCredito = infoCredito.montoCredito;
             estadoPago = 'Validando pago';
+            anticipo = montoPago;
+            saldoPendiente = montoCredito;
+            referenciaExcedente = document.getElementById('referenciaTransferencia').value.trim();
+            comprobanteExcedente = comprobanteBase64;
             
+            // Productos que van a pago (excedente)
             const productosPago = infoCredito.productosPago || [];
             productosPago.forEach(item => {
                 productosParaVenta.push({
@@ -3267,6 +3250,7 @@ async function procesarPagoCredito() {
                 });
             });
             
+            // Productos que van a crédito
             const productosCredito = infoCredito.productosCredito || [];
             productosCredito.forEach(item => {
                 productosParaVenta.push({
@@ -3283,6 +3267,7 @@ async function procesarPagoCredito() {
             });
             
         } else {
+            // Crédito total
             productosParaVenta = carrito.map(item => ({
                 ...item,
                 _tipo: 'credito'
@@ -3300,8 +3285,8 @@ async function procesarPagoCredito() {
             iva: total - (total / 1.16),
             tipoPago: tipoPago,
             diasCredito: dias,
-            anticipo: montoPago,
-            saldoPendiente: montoCredito,
+            anticipo: anticipo,
+            saldoPendiente: saldoPendiente,
             fechaPago: fechaPago,
             sucursal: SUCURSAL_WEB,
             nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre',
@@ -3311,10 +3296,10 @@ async function procesarPagoCredito() {
             montoCredito: montoCredito,
             estadoPago: estadoPago,
             esCreditoParcial: esCreditoParcial,
-            referencia: 'CRÉDITO',
-            comprobante: null,
-            comprobanteNombre: null,
-            comprobanteTipo: null
+            referencia: esCreditoParcial ? referenciaExcedente : 'CRÉDITO',
+            comprobante: esCreditoParcial ? comprobanteExcedente : null,
+            comprobanteNombre: esCreditoParcial ? comprobanteNombre : null,
+            comprobanteTipo: esCreditoParcial ? comprobanteTipo : null
         };
         
         await guardarVentaEnEstadisticas(datosVenta);
@@ -3332,8 +3317,9 @@ async function procesarPagoCredito() {
         
         if (esCreditoParcial) {
             mensajeExito += `
-                <strong>Monto pagado (contado):</strong> ${formatoMexicano(montoPago)}<br>
+                <strong>Monto pagado (excedente):</strong> ${formatoMexicano(montoPago)}<br>
                 <strong>Monto a crédito:</strong> ${formatoMexicano(montoCredito)}<br>
+                <strong>Referencia excedente:</strong> ${referenciaExcedente || 'N/A'}<br>
                 <span style="color:#92400e;font-size:0.9rem;">⚠️ El saldo a crédito deberá ser liquidado en ${dias} días.</span><br>
             `;
         }
@@ -3347,7 +3333,7 @@ async function procesarPagoCredito() {
         mensajeExito += `<br>Se ha descargado el comprobante en formato PDF.<br>Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.`;
         
         if (esCreditoParcial) {
-            mensajeExito += `<br><span style="color:#92400e;font-size:0.9rem;">⚠️ Realiza la transferencia del monto de contado para completar la compra.</span>`;
+            mensajeExito += `<br><span style="color:#92400e;font-size:0.9rem;">✅ El excedente ha sido pagado. El resto queda a crédito.</span>`;
         }
         
         mostrarMensajeModal('exito', mensajeExito);
@@ -3360,6 +3346,7 @@ async function procesarPagoCredito() {
         window._montoPago = 0;
         window._montoCredito = 0;
         window._puedeUsarCredito = false;
+        window._montoExcedente = 0;
         infoCreditoCalculado = null;
         
         btn.disabled = false;
@@ -3412,14 +3399,13 @@ async function guardarVentaEnEstadisticas(datos) {
             }
             
             let creditoPendiente = 0;
-            let creditoLiquidado = 0;
             let montoPagado = 0;
             
             if (datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial') {
                 if (producto._tipo === 'credito') {
-                    if (datos.total > 0) {
+                    if (datos.total > 0 && datos.montoCredito > 0) {
                         const proporcion = producto.importe / datos.total;
-                        creditoPendiente = (datos.montoCredito || datos.total) * proporcion;
+                        creditoPendiente = datos.montoCredito * proporcion;
                     } else {
                         creditoPendiente = producto.importe;
                     }
@@ -3432,8 +3418,8 @@ async function guardarVentaEnEstadisticas(datos) {
                     montoPagado = 0;
                 }
             } else {
+                // Transferencia: todo es pago
                 creditoPendiente = 0;
-                creditoLiquidado = 0;
                 montoPagado = producto.importe;
             }
             
@@ -3448,7 +3434,8 @@ async function guardarVentaEnEstadisticas(datos) {
                 creditoPendiente.toFixed(2),
                 montoPagado.toFixed(2),
                 datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial' ? DIAS_CREDITO_FIJO : 0,
-                datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial' ? datos.fechaPago.toLocaleDateString('es-MX') : '',
+                datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial' ? 
+                    (datos.fechaPago ? datos.fechaPago.toLocaleDateString('es-MX') : '') : '',
                 datos.sucursal
             ];
             
@@ -3468,32 +3455,19 @@ async function guardarVentaEnEstadisticas(datos) {
             razonSocialFactura = datos.datosFactura.razonSocial || '';
         }
         
-        let creditoPendienteTotal = 0;
-        let montoPagadoTotal = 0;
+        let creditoPendienteTotal = datos.montoCredito || 0;
+        let montoPagadoTotal = datos.montoPago || 0;
         
-        for (const producto of datos.productos) {
-            if (producto._tipo === 'credito') {
-                if (datos.total > 0) {
-                    const proporcion = producto.importe / datos.total;
-                    creditoPendienteTotal += (datos.montoCredito || datos.total) * proporcion;
-                } else {
-                    creditoPendienteTotal += producto.importe;
-                }
-            } else if (producto._tipo === 'pago') {
-                montoPagadoTotal += producto.importe;
-            } else {
-                montoPagadoTotal += producto.importe;
-            }
-        }
-        
-        if (datos.tipoPago === 'Crédito') {
-            creditoPendienteTotal = datos.total;
-            montoPagadoTotal = 0;
-        }
-        
+        // Si es transferencia, todo es pago
         if (datos.tipoPago === 'Transferencia') {
             creditoPendienteTotal = 0;
             montoPagadoTotal = datos.total;
+        }
+        
+        // Si es crédito total, todo es crédito
+        if (datos.tipoPago === 'Crédito' && !datos.esCreditoParcial) {
+            creditoPendienteTotal = datos.total;
+            montoPagadoTotal = 0;
         }
         
         const filaCliente = [
@@ -3597,7 +3571,8 @@ async function enviarCorreoVentaWeb(datos) {
                 <p><strong>Días de crédito:</strong> ${datos.diasCredito || DIAS_CREDITO_FIJO} días</p>
                 <p><strong>Saldo pendiente:</strong> ${formatoMexicano(datos.montoCredito || datos.total)}</p>
                 <p><strong>Fecha de pago:</strong> ${datos.fechaPago ? datos.fechaPago.toLocaleDateString('es-MX') : 'No definida'}</p>
-                ${datos.esCreditoParcial ? `<p style="color:#92400e;font-weight:600;">⚠️ Crédito parcial - Monto pagado: ${formatoMexicano(datos.montoPago)}</p>` : ''}
+                <p><strong>Anticipo recibido:</strong> ${formatoMexicano(datos.anticipo || 0)}</p>
+                ${datos.esCreditoParcial ? `<p style="color:#92400e;font-weight:600;">⚠️ Crédito parcial - Referencia excedente: ${datos.referencia || 'N/A'}</p>` : ''}
                 <p style="color:#92400e;font-weight:600;">⚠️ Si no se cumple con el pago, se podrá eliminar el crédito.</p>
             `;
         }
@@ -3621,7 +3596,7 @@ async function enviarCorreoVentaWeb(datos) {
                     ${datos.esCreditoParcial ? `
                         <div style="background:#fef3c7;padding:10px;border-radius:8px;margin:10px 0;border:1px solid #fde68a;">
                             <p style="margin:0;color:#92400e;font-weight:600;">⚠️ CRÉDITO PARCIAL</p>
-                            <p style="margin:0;color:#92400e;">Monto pagado: ${formatoMexicano(datos.montoPago)} | Monto a crédito: ${formatoMexicano(datos.montoCredito)}</p>
+                            <p style="margin:0;color:#92400e;">Monto pagado (excedente): ${formatoMexicano(datos.montoPago)} | Monto a crédito: ${formatoMexicano(datos.montoCredito)}</p>
                         </div>
                     ` : ''}
                     
@@ -3663,7 +3638,7 @@ async function enviarCorreoVentaWeb(datos) {
                         <p><strong>IVA (16%):</strong> ${formatoMexicano(datos.iva)}</p>
                         <p style="font-size:1.4rem;font-weight:700;color:#0A2540;"><strong>TOTAL:</strong> ${formatoMexicano(datos.total)}</p>
                         ${datos.esCreditoParcial ? `
-                            <p style="color:#92400e;font-weight:600;">Monto pagado: ${formatoMexicano(datos.montoPago)}</p>
+                            <p style="color:#92400e;font-weight:600;">Monto pagado (excedente): ${formatoMexicano(datos.montoPago)}</p>
                             <p style="color:#92400e;font-weight:600;">Monto a crédito: ${formatoMexicano(datos.montoCredito)}</p>
                         ` : ''}
                     </div>
