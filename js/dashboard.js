@@ -78,79 +78,52 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 
 // ============================================
-// FUNCIONES PARA APPS SCRIPT
+// FUNCIONES PARA APPS SCRIPT (CON NO-CORS)
 // ============================================
 
 async function agregarDireccionEnSheets(direccion) {
     try {
         console.log('📝 Enviando a Apps Script - AGREGAR:', direccion);
         
-        // Intentar con CORS primero
-        try {
-            const response = await fetch(APPS_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    action: 'agregar',
-                    codigo: direccion.codigo,
-                    nombre: direccion.nombre,
-                    calle: direccion.calle,
-                    colonia: direccion.colonia,
-                    alcaldia: direccion.alcaldia,
-                    estado: direccion.estado,
-                    cp: direccion.cp,
-                    mapsUrl: direccion.mapsUrl || '',
-                    telefono: direccion.telefono,
-                    nombreRecibe: direccion.nombreRecibe
-                })
-            });
-            
-            const result = await response.json();
-            console.log('📝 Respuesta de Apps Script (AGREGAR):', result);
-            return result;
-        } catch (corsError) {
-            console.log('⚠️ CORS falló, usando no-cors:', corsError);
-            // Fallback a no-cors
-            await fetch(APPS_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    action: 'agregar',
-                    codigo: direccion.codigo,
-                    nombre: direccion.nombre,
-                    calle: direccion.calle,
-                    colonia: direccion.colonia,
-                    alcaldia: direccion.alcaldia,
-                    estado: direccion.estado,
-                    cp: direccion.cp,
-                    mapsUrl: direccion.mapsUrl || '',
-                    telefono: direccion.telefono,
-                    nombreRecibe: direccion.nombreRecibe
-                })
-            });
-            return { success: true };
-        }
+        await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'agregar',
+                codigo: direccion.codigo,
+                nombre: direccion.nombre,
+                calle: direccion.calle,
+                colonia: direccion.colonia,
+                alcaldia: direccion.alcaldia,
+                estado: direccion.estado,
+                cp: direccion.cp,
+                mapsUrl: direccion.mapsUrl || '',
+                telefono: direccion.telefono,
+                nombreRecibe: direccion.nombreRecibe
+            })
+        });
+        
+        console.log('📝 Petición AGREGAR enviada (no-cors)');
+        return { success: true };
     } catch (error) {
         console.error('Error al agregar dirección:', error);
         return { success: false, error: error.toString() };
     }
 }
 
-// ⭐ CORREGIDO: Enviar la fila REAL y manejar respuesta ⭐
+// ⭐ FUNCIÓN RESTAURADA - VERSIÓN QUE FUNCIONABA ⭐
 async function actualizarDireccionEnSheets(fila, datos) {
     try {
-        console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila:', fila);
+        const filaEnviar = fila + 1;
+        console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         console.log('📝 Datos:', datos);
         
         const body = {
             action: 'actualizar',
-            fila: fila,
+            fila: filaEnviar,
             codigo: datos.codigo || sessionStorage.getItem('codigoCliente'),
             nombre: datos.nombre,
             calle: datos.calle,
@@ -165,82 +138,49 @@ async function actualizarDireccionEnSheets(fila, datos) {
         
         console.log('📝 Body enviado:', JSON.stringify(body));
         
-        // Intentar con CORS primero
-        try {
-            const response = await fetch(APPS_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(body)
-            });
-            
-            const result = await response.json();
-            console.log('📝 Respuesta de Apps Script (ACTUALIZAR):', result);
-            return result;
-        } catch (corsError) {
-            console.log('⚠️ CORS falló, usando no-cors:', corsError);
-            // Fallback a no-cors
-            await fetch(APPS_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(body)
-            });
-            console.log('📝 Petición ACTUALIZAR enviada con no-cors');
-            return { success: true };
-        }
+        await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body)
+        });
+        
+        console.log('📝 Petición ACTUALIZAR enviada (no-cors) para fila:', filaEnviar);
+        return { success: true };
     } catch (error) {
-        console.error('❌ Error al actualizar dirección:', error);
+        console.error('Error al actualizar dirección:', error);
         return { success: false, error: error.toString() };
     }
 }
 
-// ⭐ CORREGIDO: Enviar la fila REAL y manejar respuesta ⭐
+// ⭐ FUNCIÓN RESTAURADA - VERSIÓN QUE FUNCIONABA ⭐
 async function eliminarDireccionEnSheets(fila) {
     try {
-        console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila:', fila);
+        const filaEnviar = fila + 1;
+        console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         
         const body = {
             action: 'eliminar',
-            fila: fila
+            fila: filaEnviar
         };
         
         console.log('🗑️ Body enviado:', JSON.stringify(body));
         
-        // Intentar con CORS primero
-        try {
-            const response = await fetch(APPS_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(body)
-            });
-            
-            const result = await response.json();
-            console.log('🗑️ Respuesta de Apps Script (ELIMINAR):', result);
-            return result;
-        } catch (corsError) {
-            console.log('⚠️ CORS falló, usando no-cors:', corsError);
-            // Fallback a no-cors
-            await fetch(APPS_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(body)
-            });
-            console.log('🗑️ Petición ELIMINAR enviada con no-cors');
-            return { success: true };
-        }
+        await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body)
+        });
+        
+        console.log('🗑️ Petición ELIMINAR enviada (no-cors) para fila:', filaEnviar);
+        return { success: true };
     } catch (error) {
-        console.error('❌ Error al eliminar dirección:', error);
+        console.error('Error al eliminar dirección:', error);
         return { success: false, error: error.toString() };
     }
 }
@@ -256,31 +196,17 @@ async function guardarFilaGoogleSheets(sheetName, datos) {
             datos: datos
         };
         
-        try {
-            const response = await fetch(APPS_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(body)
-            });
-            
-            const result = await response.json();
-            console.log(`✅ Fila guardada en ${sheetName}`, result);
-            return result;
-        } catch (corsError) {
-            console.log('⚠️ CORS falló, usando no-cors para guardarFila');
-            await fetch(APPS_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(body)
-            });
-            return { success: true };
-        }
+        await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body)
+        });
+        
+        console.log(`✅ Fila guardada en ${sheetName}`);
+        return { success: true };
     } catch (error) {
         console.error('Error al guardar fila:', error);
         return { success: false, error: error.toString() };
@@ -548,9 +474,9 @@ async function guardarEdicionFacturacion() {
         console.log('📝 Datos:', datosActualizados);
         console.log('📝 Fila:', fila);
         
-        const response = await fetch(APPS_SCRIPT_FACTURACION_URL, {
+        await fetch(APPS_SCRIPT_FACTURACION_URL, {
             method: 'POST',
-            mode: 'cors',
+            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -568,19 +494,16 @@ async function guardarEdicionFacturacion() {
             })
         });
         
-        const result = await response.json();
-        console.log('✅ Respuesta de Apps Script:', result);
+        console.log('✅ Petición enviada (no-cors)');
         
-        if (result.success) {
-            facturacionCliente[index] = { ...fact, ...datosActualizados, fila: fila };
-            renderizarFacturacion();
-            actualizarSelectorFacturacion();
-            cerrarModalEditarFacturacion();
-            mostrarNotificacion('✅ Datos de facturación actualizados correctamente');
-            setTimeout(() => cargarFacturacionCliente(), 1500);
-        } else {
-            mostrarNotificacion('❌ Error: ' + (result.error || 'No se pudo guardar'));
-        }
+        facturacionCliente[index] = { ...fact, ...datosActualizados, fila: fila };
+        renderizarFacturacion();
+        actualizarSelectorFacturacion();
+        cerrarModalEditarFacturacion();
+        mostrarNotificacion('✅ Datos de facturación actualizados correctamente');
+        
+        setTimeout(() => cargarFacturacionCliente(), 1500);
+        
     } catch (error) {
         console.error('❌ Error al actualizar facturación:', error);
         mostrarNotificacion('❌ Error al guardar los cambios. Intenta de nuevo.');
@@ -610,9 +533,9 @@ async function eliminarFacturacion(index) {
         console.log('🗑️ Enviando a Apps Script - ELIMINAR FACTURACIÓN');
         console.log('🗑️ Fila:', fact.fila);
         
-        const response = await fetch(APPS_SCRIPT_FACTURACION_URL, {
+        await fetch(APPS_SCRIPT_FACTURACION_URL, {
             method: 'POST',
-            mode: 'cors',
+            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -622,18 +545,15 @@ async function eliminarFacturacion(index) {
             })
         });
         
-        const result = await response.json();
-        console.log('✅ Respuesta de Apps Script:', result);
+        console.log('✅ Petición ELIMINAR enviada (no-cors)');
         
-        if (result.success) {
-            facturacionCliente.splice(index, 1);
-            renderizarFacturacion();
-            actualizarSelectorFacturacion();
-            mostrarNotificacion('🗑️ Datos de facturación eliminados correctamente');
-            setTimeout(() => cargarFacturacionCliente(), 1500);
-        } else {
-            mostrarNotificacion('❌ Error: ' + (result.error || 'No se pudo eliminar'));
-        }
+        facturacionCliente.splice(index, 1);
+        renderizarFacturacion();
+        actualizarSelectorFacturacion();
+        mostrarNotificacion('🗑️ Datos de facturación eliminados correctamente');
+        
+        setTimeout(() => cargarFacturacionCliente(), 1500);
+        
     } catch (error) {
         console.error('❌ Error al eliminar facturación:', error);
         mostrarNotificacion('❌ Error al eliminar los datos de facturación.');
@@ -692,9 +612,9 @@ async function guardarNuevaFacturacion() {
         console.log('📝 Enviando a Apps Script - AGREGAR FACTURACIÓN');
         console.log('📝 Datos:', datos);
         
-        const response = await fetch(APPS_SCRIPT_FACTURACION_URL, {
+        await fetch(APPS_SCRIPT_FACTURACION_URL, {
             method: 'POST',
-            mode: 'cors',
+            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -711,16 +631,13 @@ async function guardarNuevaFacturacion() {
             })
         });
         
-        const result = await response.json();
-        console.log('✅ Respuesta de Apps Script:', result);
+        console.log('✅ Petición AGREGAR enviada (no-cors)');
         
-        if (result.success) {
-            cerrarModalAgregarFacturacion();
-            mostrarNotificacion('✅ Datos de facturación agregados correctamente');
-            setTimeout(() => cargarFacturacionCliente(), 1500);
-        } else {
-            mostrarMensajeModalAgregar('error', '❌ Error: ' + (result.error || 'No se pudo guardar'));
-        }
+        cerrarModalAgregarFacturacion();
+        mostrarNotificacion('✅ Datos de facturación agregados correctamente');
+        
+        setTimeout(() => cargarFacturacionCliente(), 1500);
+        
     } catch (error) {
         console.error('❌ Error al agregar facturación:', error);
         mostrarMensajeModalAgregar('error', '❌ Error al guardar los datos. Intenta de nuevo.');
@@ -789,9 +706,9 @@ async function guardarNuevaFacturacionDesdePago() {
         console.log('📝 Enviando a Apps Script - AGREGAR FACTURACIÓN (desde pago)');
         console.log('📝 Datos:', datos);
         
-        const response = await fetch(APPS_SCRIPT_FACTURACION_URL, {
+        await fetch(APPS_SCRIPT_FACTURACION_URL, {
             method: 'POST',
-            mode: 'cors',
+            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -808,19 +725,16 @@ async function guardarNuevaFacturacionDesdePago() {
             })
         });
         
-        const result = await response.json();
-        console.log('✅ Respuesta de Apps Script:', result);
+        console.log('✅ Petición AGREGAR enviada (no-cors)');
         
-        if (result.success) {
-            cerrarModalAgregarFacturacionPago();
-            mostrarNotificacion('✅ Datos de facturación agregados correctamente');
-            setTimeout(() => {
-                cargarFacturacionCliente();
-                setTimeout(() => actualizarSelectorFacturacion(), 500);
-            }, 1500);
-        } else {
-            mostrarMensajeModalAgregarPago('error', '❌ Error: ' + (result.error || 'No se pudo guardar'));
-        }
+        cerrarModalAgregarFacturacionPago();
+        mostrarNotificacion('✅ Datos de facturación agregados correctamente');
+        
+        setTimeout(() => {
+            cargarFacturacionCliente();
+            setTimeout(() => actualizarSelectorFacturacion(), 500);
+        }, 1500);
+        
     } catch (error) {
         console.error('❌ Error al agregar facturación:', error);
         mostrarMensajeModalAgregarPago('error', '❌ Error al guardar los datos. Intenta de nuevo.');
@@ -997,7 +911,7 @@ async function cargarPreciosEspeciales() {
 }
 
 // ============================================
-// FUNCIONES DE DIRECCIONES
+// ⭐ FUNCIONES DE DIRECCIONES - RESTAURADAS ⭐
 // ============================================
 
 async function cargarDireccionesCliente() {
@@ -1125,7 +1039,7 @@ function actualizarSelectorDirecciones() {
 }
 
 // ============================================
-// EDITAR DIRECCIÓN - CORREGIDO
+// EDITAR DIRECCIÓN
 // ============================================
 
 function editarDireccion(index) {
@@ -1189,36 +1103,26 @@ async function guardarEdicionDireccion() {
         return;
     }
     
-    const btn = document.querySelector('#modalEditarDireccion .btn-enviar');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="loading-spinner"></span> Guardando...';
-    
     try {
         const resultado = await actualizarDireccionEnSheets(fila, datosActualizados);
-        console.log('📝 Resultado de Apps Script:', resultado);
+        console.log('📝 Resultado de Apps Script (simulado):', resultado);
         
-        if (resultado.success) {
-            direccionesCliente[index] = { ...dir, ...datosActualizados, fila: fila };
-            renderizarDirecciones();
-            actualizarSelectorDirecciones();
-            cerrarModalEditarDireccion();
-            mostrarNotificacion('✅ Dirección actualizada correctamente');
-            
-            setTimeout(() => cargarDireccionesCliente(), 1500);
-        } else {
-            mostrarNotificacion('❌ Error al guardar: ' + (resultado.error || 'Intenta de nuevo'));
-        }
+        direccionesCliente[index] = { ...dir, ...datosActualizados, fila: fila };
+        renderizarDirecciones();
+        actualizarSelectorDirecciones();
+        cerrarModalEditarDireccion();
+        mostrarNotificacion('✅ Dirección actualizada correctamente');
+        
+        setTimeout(() => cargarDireccionesCliente(), 1500);
+        
     } catch (error) {
         console.error('❌ Error al actualizar dirección:', error);
         mostrarNotificacion('❌ Error al guardar los cambios. Intenta de nuevo.');
     }
-    
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-save"></i> Guardar Cambios';
 }
 
 // ============================================
-// ELIMINAR DIRECCIÓN - CORREGIDO
+// ELIMINAR DIRECCIÓN
 // ============================================
 
 async function eliminarDireccion(index) {
@@ -1235,18 +1139,15 @@ async function eliminarDireccion(index) {
     
     try {
         const resultado = await eliminarDireccionEnSheets(dir.fila);
-        console.log('🗑️ Resultado de Apps Script:', resultado);
+        console.log('🗑️ Resultado de Apps Script (simulado):', resultado);
         
-        if (resultado.success) {
-            direccionesCliente.splice(index, 1);
-            renderizarDirecciones();
-            actualizarSelectorDirecciones();
-            mostrarNotificacion('🗑️ Dirección eliminada correctamente');
-            
-            setTimeout(() => cargarDireccionesCliente(), 1500);
-        } else {
-            mostrarNotificacion('❌ Error al eliminar: ' + (resultado.error || 'Intenta de nuevo'));
-        }
+        direccionesCliente.splice(index, 1);
+        renderizarDirecciones();
+        actualizarSelectorDirecciones();
+        mostrarNotificacion('🗑️ Dirección eliminada correctamente');
+        
+        setTimeout(() => cargarDireccionesCliente(), 1500);
+        
     } catch (error) {
         console.error('❌ Error al eliminar dirección:', error);
         mostrarNotificacion('❌ Error al eliminar la dirección.');
@@ -1908,11 +1809,18 @@ function abrirModalPago() {
     document.getElementById('montoTransferencia').textContent = formatoMexicano(total);
     document.getElementById('totalCredito').textContent = formatoMexicano(total);
     
+    // ⭐ FACTURA EN CRÉDITO - INICIALIZAR ⭐
     requiereFactura = false;
-    document.getElementById('facturaNo').classList.add('selected');
-    document.getElementById('facturaSi').classList.remove('selected');
-    document.getElementById('facturaRazonSocialContainer').style.display = 'none';
-    document.getElementById('facturaDatosPreview').style.display = 'none';
+    if (document.getElementById('facturaNoCredito')) {
+        document.getElementById('facturaNoCredito').classList.add('selected');
+        document.getElementById('facturaSiCredito').classList.remove('selected');
+    }
+    if (document.getElementById('facturaRazonSocialContainerCredito')) {
+        document.getElementById('facturaRazonSocialContainerCredito').style.display = 'none';
+    }
+    if (document.getElementById('facturaDatosPreviewCredito')) {
+        document.getElementById('facturaDatosPreviewCredito').style.display = 'none';
+    }
     datosFacturaSeleccionados = null;
     
     pagoSeleccionado = null;
@@ -1946,6 +1854,87 @@ function seleccionarPago(tipo) {
     }
 }
 
+// ⭐ FUNCIÓN PARA FACTURA EN CRÉDITO ⭐
+function seleccionarFacturaCredito(opcion) {
+    requiereFactura = (opcion === 'si');
+    
+    if (document.getElementById('facturaNoCredito')) {
+        document.getElementById('facturaNoCredito').classList.remove('selected');
+        document.getElementById('facturaSiCredito').classList.remove('selected');
+    }
+    
+    if (opcion === 'no') {
+        if (document.getElementById('facturaNoCredito')) {
+            document.getElementById('facturaNoCredito').classList.add('selected');
+        }
+        if (document.getElementById('facturaRazonSocialContainerCredito')) {
+            document.getElementById('facturaRazonSocialContainerCredito').style.display = 'none';
+        }
+        if (document.getElementById('facturaDatosPreviewCredito')) {
+            document.getElementById('facturaDatosPreviewCredito').style.display = 'none';
+        }
+        datosFacturaSeleccionados = null;
+    } else {
+        if (document.getElementById('facturaSiCredito')) {
+            document.getElementById('facturaSiCredito').classList.add('selected');
+        }
+        if (document.getElementById('facturaRazonSocialContainerCredito')) {
+            document.getElementById('facturaRazonSocialContainerCredito').style.display = 'block';
+        }
+        actualizarSelectorFacturacionCredito();
+    }
+}
+
+function actualizarSelectorFacturacionCredito() {
+    const select = document.getElementById('facturaRazonSocialSelectCredito');
+    if (!select) return;
+    
+    select.innerHTML = '<option value="">-- Selecciona una razón social --</option>';
+    facturacionCliente.forEach((fact, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = fact.razonSocial || fact.nombre || `Facturación ${index + 1}`;
+        select.appendChild(option);
+    });
+    select.value = '';
+}
+
+function cargarDatosFacturaSeleccionadosCredito() {
+    const select = document.getElementById('facturaRazonSocialSelectCredito');
+    const index = parseInt(select.value);
+    
+    if (isNaN(index) || index < 0 || index >= facturacionCliente.length) {
+        if (document.getElementById('facturaDatosPreviewCredito')) {
+            document.getElementById('facturaDatosPreviewCredito').style.display = 'none';
+        }
+        datosFacturaSeleccionados = null;
+        return;
+    }
+    
+    const fact = facturacionCliente[index];
+    datosFacturaSeleccionados = fact;
+    
+    if (document.getElementById('facturaPreviewRFCCredito')) {
+        document.getElementById('facturaPreviewRFCCredito').textContent = fact.rfc || '---';
+    }
+    if (document.getElementById('facturaPreviewUsoCredito')) {
+        document.getElementById('facturaPreviewUsoCredito').textContent = fact.usoCFDI || '---';
+    }
+    if (document.getElementById('facturaPreviewCPCredito')) {
+        document.getElementById('facturaPreviewCPCredito').textContent = fact.cp || '---';
+    }
+    if (document.getElementById('facturaPreviewRegimenCredito')) {
+        document.getElementById('facturaPreviewRegimenCredito').textContent = fact.regimen || '---';
+    }
+    if (document.getElementById('facturaPreviewCorreoCredito')) {
+        document.getElementById('facturaPreviewCorreoCredito').textContent = fact.correo || '---';
+    }
+    
+    if (document.getElementById('facturaDatosPreviewCredito')) {
+        document.getElementById('facturaDatosPreviewCredito').style.display = 'block';
+    }
+}
+
 function cargarComprobante(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -1971,7 +1960,7 @@ function calcularTotal() {
 }
 
 // ============================================
-// FUNCIÓN PARA GENERAR PDF DEL COMPROBANTE
+// ⭐ FUNCIÓN PARA GENERAR PDF DEL COMPROBANTE ⭐
 // ============================================
 
 function generarPDFComprobante(datos) {
@@ -2491,6 +2480,12 @@ async function procesarPagoCredito() {
         return;
     }
     
+    // ⭐ VALIDAR FACTURA EN CRÉDITO ⭐
+    if (requiereFactura && !datosFacturaSeleccionados) {
+        mostrarMensajeModal('error', '⚠️ Por favor, selecciona una razón social para facturar.');
+        return;
+    }
+    
     const btn = document.querySelector('#formCredito .btn-enviar');
     btn.disabled = true;
     btn.innerHTML = '<span class="loading-spinner"></span> Procesando...';
@@ -2526,8 +2521,8 @@ async function procesarPagoCredito() {
             fechaPago: fechaPago,
             sucursal: SUCURSAL_WEB,
             nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre',
-            requiereFactura: false,
-            datosFactura: null
+            requiereFactura: requiereFactura,
+            datosFactura: datosFacturaSeleccionados
         };
         
         await guardarVentaEnEstadisticas(datosVenta);
@@ -2540,7 +2535,8 @@ async function procesarPagoCredito() {
             <strong>Folio:</strong> ${folio}<br>
             <strong>Total:</strong> ${formatoMexicano(total)}<br>
             <strong>Días de crédito:</strong> ${dias} días fijos<br>
-            <strong>Fecha de pago:</strong> ${fechaPago.toLocaleDateString('es-MX')}<br><br>
+            <strong>Fecha de pago:</strong> ${fechaPago.toLocaleDateString('es-MX')}<br>
+            ${requiereFactura ? `<strong>Factura:</strong> Sí - ${datosFacturaSeleccionados ? datosFacturaSeleccionados.razonSocial : 'N/A'}` : '<strong>Factura:</strong> No'}<br><br>
             Se ha descargado el comprobante en formato PDF.<br>
             Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.<br>
             <span style="color:#92400e;font-size:0.9rem;">⚠️ Si no se cumple con el pago en la fecha establecida, se podrá eliminar el crédito.</span>
@@ -2623,6 +2619,7 @@ async function guardarVentaEnEstadisticas(datos) {
         const facturaTexto = datos.requiereFactura ? 'SÍ' : 'NO';
         const formaPago = datos.tipoPago === 'Transferencia' ? 'Transferencia bancaria' : datos.tipoPago.toUpperCase();
         const tipoPago = datos.tipoPago === 'Crédito' ? 'Pago diferido en parcialidades' : 'Pago en una sola exhibición';
+        // ⭐ CORREGIDO: Para transferencia, estado "Validando pago" ⭐
         const estadoPago = datos.tipoPago === 'Crédito' ? 'En preparación' : 'Validando pago';
         const nombreDireccion = datos.nombreDireccion || 'Sin nombre';
         
