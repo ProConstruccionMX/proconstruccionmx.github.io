@@ -56,22 +56,38 @@ let productosMasComprados = [];
 
 // ============================================
 // ⭐ FUNCIÓN PARA PARSEAR FECHAS CORRECTAMENTE ⭐
-// CORREGIDA PARA MANEJAR "23/07/2026, 20:59:27"
+// CORREGIDA PARA MANEJAR OBJETOS Date Y STRINGS
 // ============================================
 
 function parseFechaGoogleSheets(fechaStr) {
+    // Si es null o undefined
     if (!fechaStr) return null;
     
-    // Limpiar espacios
-    fechaStr = fechaStr.trim();
+    // Si ya es un objeto Date y es válido
+    if (fechaStr instanceof Date) {
+        if (!isNaN(fechaStr.getTime())) {
+            return fechaStr;
+        }
+        return null;
+    }
     
-    // Si ya es un objeto Date, retornarlo
-    if (fechaStr instanceof Date) return fechaStr;
+    // Si es un número (timestamp)
+    if (typeof fechaStr === 'number') {
+        const fecha = new Date(fechaStr);
+        if (!isNaN(fecha.getTime())) {
+            return fecha;
+        }
+        return null;
+    }
+    
+    // Asegurar que sea string para las siguientes operaciones
+    const fechaString = String(fechaStr).trim();
+    if (!fechaString) return null;
     
     // Intentar parsear formato: "23/07/2026, 20:59:27"
     // Formato: DD/MM/YYYY, HH:MM:SS
     const regex = /^(\d{1,2})\/(\d{1,2})\/(\d{4}),\s*(\d{1,2}):(\d{2}):(\d{2})$/;
-    const match = fechaStr.match(regex);
+    const match = fechaString.match(regex);
     
     if (match) {
         const dia = parseInt(match[1]);
@@ -82,7 +98,6 @@ function parseFechaGoogleSheets(fechaStr) {
         const segundo = parseInt(match[6]);
         
         const fecha = new Date(anio, mes, dia, hora, minuto, segundo);
-        // Verificar que la fecha sea válida
         if (!isNaN(fecha.getTime())) {
             return fecha;
         }
@@ -90,7 +105,7 @@ function parseFechaGoogleSheets(fechaStr) {
     
     // Intentar parsear formato: "DD/MM/YYYY" (sin hora)
     const regexFecha = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
-    const matchFecha = fechaStr.match(regexFecha);
+    const matchFecha = fechaString.match(regexFecha);
     if (matchFecha) {
         const dia = parseInt(matchFecha[1]);
         const mes = parseInt(matchFecha[2]) - 1;
@@ -101,16 +116,25 @@ function parseFechaGoogleSheets(fechaStr) {
         }
     }
     
-    // Intentar parsear con Date nativo (para otros formatos)
-    const fecha = new Date(fechaStr);
+    // Intentar parsear con Date nativo
+    const fecha = new Date(fechaString);
     if (!isNaN(fecha.getTime())) {
         return fecha;
     }
     
-    // Si todo falla, intentar con formato ISO
-    const fechaISO = new Date(fechaStr.replace(/\//g, '-'));
+    // Intentar con formato ISO (reemplazar / por -)
+    const fechaISO = new Date(fechaString.replace(/\//g, '-'));
     if (!isNaN(fechaISO.getTime())) {
         return fechaISO;
+    }
+    
+    // Si es un string que parece ser un timestamp
+    const timestamp = parseFloat(fechaString);
+    if (!isNaN(timestamp)) {
+        const fechaTimestamp = new Date(timestamp);
+        if (!isNaN(fechaTimestamp.getTime())) {
+            return fechaTimestamp;
+        }
     }
     
     console.warn('⚠️ No se pudo parsear la fecha:', fechaStr);
@@ -121,35 +145,47 @@ function formatearFecha(fechaStr) {
     const fecha = parseFechaGoogleSheets(fechaStr);
     if (!fecha) return 'Fecha no disponible';
     
-    return fecha.toLocaleDateString('es-MX', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-    });
+    if (fecha instanceof Date && !isNaN(fecha.getTime())) {
+        return fecha.toLocaleDateString('es-MX', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        });
+    }
+    
+    return 'Fecha no disponible';
 }
 
 function formatearFechaCompleta(fechaStr) {
     const fecha = parseFechaGoogleSheets(fechaStr);
     if (!fecha) return 'Fecha no disponible';
     
-    return fecha.toLocaleDateString('es-MX', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric'
-    });
+    if (fecha instanceof Date && !isNaN(fecha.getTime())) {
+        return fecha.toLocaleDateString('es-MX', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric'
+        });
+    }
+    
+    return 'Fecha no disponible';
 }
 
 function formatearFechaHora(fechaStr) {
     const fecha = parseFechaGoogleSheets(fechaStr);
     if (!fecha) return 'Fecha no disponible';
     
-    return fecha.toLocaleString('es-MX', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    if (fecha instanceof Date && !isNaN(fecha.getTime())) {
+        return fecha.toLocaleString('es-MX', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+    
+    return 'Fecha no disponible';
 }
 
 // ============================================
@@ -2941,7 +2977,7 @@ async function enviarCorreoVentaWeb(datos) {
 }
 
 // ============================================
-// ⭐ NUEVAS FUNCIONES PARA "MIS COMPRAS" ⭐
+// ⭐ FUNCIONES PARA "MIS COMPRAS" ⭐
 // ============================================
 
 async function cargarHistorialCompras() {
@@ -2969,16 +3005,17 @@ async function cargarHistorialCompras() {
             const values = rowsClientes[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[2] || '').trim();
             const idVenta = String(values[1] || '').trim();
-            const fecha = String(values[0] || '').trim();
+            const fecha = values[0]; // Puede ser string o Date
             const total = parseFloat(values[4]) || 0;
             const estado = String(values[12] || '').trim();
             
             if (codigo === codigoCliente && idVenta) {
                 idsVenta.push(idVenta);
+                const fechaObj = parseFechaGoogleSheets(fecha);
                 ventasMap.set(idVenta, {
                     idVenta: idVenta,
                     fecha: fecha,
-                    fechaObj: parseFechaGoogleSheets(fecha),
+                    fechaObj: fechaObj,
                     total: total,
                     estado: estado || 'Validando pago',
                     codigoCliente: codigo
