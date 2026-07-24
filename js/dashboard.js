@@ -63,12 +63,44 @@ function parseFechaGoogleSheets(fechaStr) {
     // Si es null o undefined
     if (!fechaStr) return null;
     
-    // Si ya es un objeto Date y es válido
-    if (fechaStr instanceof Date) {
-        if (!isNaN(fechaStr.getTime())) {
+    // Función auxiliar para verificar si es un objeto Date válido
+    function esDateValido(obj) {
+        if (obj instanceof Date) {
+            return !isNaN(obj.getTime());
+        }
+        // Verificar si tiene métodos de Date (para objetos Date de Google Apps Script)
+        if (typeof obj === 'object' && obj !== null) {
+            if (typeof obj.getTime === 'function' && typeof obj.getFullYear === 'function') {
+                try {
+                    return !isNaN(obj.getTime());
+                } catch (e) {
+                    return false;
+                }
+            }
+        }
+        return false;
+    }
+    
+    // Si es un objeto con métodos de Date (incluyendo Date de Google Apps Script)
+    if (typeof fechaStr === 'object' && fechaStr !== null) {
+        if (typeof fechaStr.getTime === 'function') {
+            try {
+                const time = fechaStr.getTime();
+                if (!isNaN(time)) {
+                    // Crear un Date nativo a partir del timestamp
+                    const fecha = new Date(time);
+                    if (!isNaN(fecha.getTime())) {
+                        return fecha;
+                    }
+                }
+            } catch (e) {
+                // Si falla, continuar
+            }
+        }
+        // Si ya es un Date válido
+        if (fechaStr instanceof Date && !isNaN(fechaStr.getTime())) {
             return fechaStr;
         }
-        return null;
     }
     
     // Si es un número (timestamp)
@@ -85,13 +117,12 @@ function parseFechaGoogleSheets(fechaStr) {
     if (!fechaString) return null;
     
     // Intentar parsear formato: "23/07/2026, 20:59:27"
-    // Formato: DD/MM/YYYY, HH:MM:SS
     const regex = /^(\d{1,2})\/(\d{1,2})\/(\d{4}),\s*(\d{1,2}):(\d{2}):(\d{2})$/;
     const match = fechaString.match(regex);
     
     if (match) {
         const dia = parseInt(match[1]);
-        const mes = parseInt(match[2]) - 1; // Mes en JS es 0-11
+        const mes = parseInt(match[2]) - 1;
         const anio = parseInt(match[3]);
         const hora = parseInt(match[4]);
         const minuto = parseInt(match[5]);
@@ -103,7 +134,7 @@ function parseFechaGoogleSheets(fechaStr) {
         }
     }
     
-    // Intentar parsear formato: "DD/MM/YYYY" (sin hora)
+    // Intentar parsear formato: "DD/MM/YYYY"
     const regexFecha = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
     const matchFecha = fechaString.match(regexFecha);
     if (matchFecha) {
@@ -122,18 +153,39 @@ function parseFechaGoogleSheets(fechaStr) {
         return fecha;
     }
     
-    // Intentar con formato ISO (reemplazar / por -)
+    // Intentar con formato ISO
     const fechaISO = new Date(fechaString.replace(/\//g, '-'));
     if (!isNaN(fechaISO.getTime())) {
         return fechaISO;
     }
     
-    // Si es un string que parece ser un timestamp
+    // Intentar parsear como timestamp
     const timestamp = parseFloat(fechaString);
     if (!isNaN(timestamp)) {
         const fechaTimestamp = new Date(timestamp);
         if (!isNaN(fechaTimestamp.getTime())) {
             return fechaTimestamp;
+        }
+    }
+    
+    // Si el string contiene "Date(", extraer los valores
+    if (fechaString.includes('Date(')) {
+        try {
+            const matchDate = fechaString.match(/Date\((\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\)/);
+            if (matchDate) {
+                const anio = parseInt(matchDate[1]);
+                const mes = parseInt(matchDate[2]);
+                const dia = parseInt(matchDate[3]);
+                const hora = parseInt(matchDate[4]) || 0;
+                const minuto = parseInt(matchDate[5]) || 0;
+                const segundo = parseInt(matchDate[6]) || 0;
+                const fecha = new Date(anio, mes, dia, hora, minuto, segundo);
+                if (!isNaN(fecha.getTime())) {
+                    return fecha;
+                }
+            }
+        } catch (e) {
+            // Si falla, continuar
         }
     }
     
@@ -3005,7 +3057,11 @@ async function cargarHistorialCompras() {
             const values = rowsClientes[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[2] || '').trim();
             const idVenta = String(values[1] || '').trim();
-            const fecha = values[0]; // Puede ser string o Date
+            // Extraer fecha correctamente - puede ser string o objeto con propiedad v
+            let fecha = values[0];
+            if (fecha && typeof fecha === 'object' && fecha.v !== undefined) {
+                fecha = fecha.v;
+            }
             const total = parseFloat(values[4]) || 0;
             const estado = String(values[12] || '').trim();
             
