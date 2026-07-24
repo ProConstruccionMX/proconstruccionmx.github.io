@@ -114,9 +114,10 @@ async function agregarDireccionEnSheets(direccion) {
     }
 }
 
+// ⭐ CORREGIDO: Enviar la fila REAL sin sumar 1 ⭐
 async function actualizarDireccionEnSheets(fila, datos) {
     try {
-        const filaEnviar = fila + 1;
+        const filaEnviar = fila;
         console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         console.log('📝 Datos:', datos);
         
@@ -1807,18 +1808,11 @@ function abrirModalPago() {
     document.getElementById('montoTransferencia').textContent = formatoMexicano(total);
     document.getElementById('totalCredito').textContent = formatoMexicano(total);
     
-    // ⭐ FACTURA EN CRÉDITO - INICIALIZAR ⭐
     requiereFactura = false;
-    if (document.getElementById('facturaNoCredito')) {
-        document.getElementById('facturaNoCredito').classList.add('selected');
-        document.getElementById('facturaSiCredito').classList.remove('selected');
-    }
-    if (document.getElementById('facturaRazonSocialContainerCredito')) {
-        document.getElementById('facturaRazonSocialContainerCredito').style.display = 'none';
-    }
-    if (document.getElementById('facturaDatosPreviewCredito')) {
-        document.getElementById('facturaDatosPreviewCredito').style.display = 'none';
-    }
+    document.getElementById('facturaNo').classList.add('selected');
+    document.getElementById('facturaSi').classList.remove('selected');
+    document.getElementById('facturaRazonSocialContainer').style.display = 'none';
+    document.getElementById('facturaDatosPreview').style.display = 'none';
     datosFacturaSeleccionados = null;
     
     pagoSeleccionado = null;
@@ -1852,87 +1846,6 @@ function seleccionarPago(tipo) {
     }
 }
 
-// ⭐ FUNCIÓN PARA FACTURA EN CRÉDITO ⭐
-function seleccionarFacturaCredito(opcion) {
-    requiereFactura = (opcion === 'si');
-    
-    if (document.getElementById('facturaNoCredito')) {
-        document.getElementById('facturaNoCredito').classList.remove('selected');
-        document.getElementById('facturaSiCredito').classList.remove('selected');
-    }
-    
-    if (opcion === 'no') {
-        if (document.getElementById('facturaNoCredito')) {
-            document.getElementById('facturaNoCredito').classList.add('selected');
-        }
-        if (document.getElementById('facturaRazonSocialContainerCredito')) {
-            document.getElementById('facturaRazonSocialContainerCredito').style.display = 'none';
-        }
-        if (document.getElementById('facturaDatosPreviewCredito')) {
-            document.getElementById('facturaDatosPreviewCredito').style.display = 'none';
-        }
-        datosFacturaSeleccionados = null;
-    } else {
-        if (document.getElementById('facturaSiCredito')) {
-            document.getElementById('facturaSiCredito').classList.add('selected');
-        }
-        if (document.getElementById('facturaRazonSocialContainerCredito')) {
-            document.getElementById('facturaRazonSocialContainerCredito').style.display = 'block';
-        }
-        actualizarSelectorFacturacionCredito();
-    }
-}
-
-function actualizarSelectorFacturacionCredito() {
-    const select = document.getElementById('facturaRazonSocialSelectCredito');
-    if (!select) return;
-    
-    select.innerHTML = '<option value="">-- Selecciona una razón social --</option>';
-    facturacionCliente.forEach((fact, index) => {
-        const option = document.createElement('option');
-        option.value = index;
-        option.textContent = fact.razonSocial || fact.nombre || `Facturación ${index + 1}`;
-        select.appendChild(option);
-    });
-    select.value = '';
-}
-
-function cargarDatosFacturaSeleccionadosCredito() {
-    const select = document.getElementById('facturaRazonSocialSelectCredito');
-    const index = parseInt(select.value);
-    
-    if (isNaN(index) || index < 0 || index >= facturacionCliente.length) {
-        if (document.getElementById('facturaDatosPreviewCredito')) {
-            document.getElementById('facturaDatosPreviewCredito').style.display = 'none';
-        }
-        datosFacturaSeleccionados = null;
-        return;
-    }
-    
-    const fact = facturacionCliente[index];
-    datosFacturaSeleccionados = fact;
-    
-    if (document.getElementById('facturaPreviewRFCCredito')) {
-        document.getElementById('facturaPreviewRFCCredito').textContent = fact.rfc || '---';
-    }
-    if (document.getElementById('facturaPreviewUsoCredito')) {
-        document.getElementById('facturaPreviewUsoCredito').textContent = fact.usoCFDI || '---';
-    }
-    if (document.getElementById('facturaPreviewCPCredito')) {
-        document.getElementById('facturaPreviewCPCredito').textContent = fact.cp || '---';
-    }
-    if (document.getElementById('facturaPreviewRegimenCredito')) {
-        document.getElementById('facturaPreviewRegimenCredito').textContent = fact.regimen || '---';
-    }
-    if (document.getElementById('facturaPreviewCorreoCredito')) {
-        document.getElementById('facturaPreviewCorreoCredito').textContent = fact.correo || '---';
-    }
-    
-    if (document.getElementById('facturaDatosPreviewCredito')) {
-        document.getElementById('facturaDatosPreviewCredito').style.display = 'block';
-    }
-}
-
 function cargarComprobante(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -1958,7 +1871,7 @@ function calcularTotal() {
 }
 
 // ============================================
-// ⭐ FUNCIÓN PARA GENERAR PDF DEL COMPROBANTE ⭐
+// FUNCIÓN PARA GENERAR PDF DEL COMPROBANTE
 // ============================================
 
 function generarPDFComprobante(datos) {
@@ -2047,7 +1960,7 @@ function generarPDFComprobante(datos) {
         // 7. Método de pago
         let metodoPagoHTML = `<p><strong>Método de pago:</strong> ${datos.tipoPago.toUpperCase()}</p>`;
 
-        // 8. ⭐ LOGO - Usar URL de Imgur ⭐
+        // 8. Logo - Usar URL de Imgur
         const logoUrl = 'https://i.imgur.com/1T3PCYR.png';
 
         // 9. Generar HTML completo
@@ -2478,12 +2391,6 @@ async function procesarPagoCredito() {
         return;
     }
     
-    // ⭐ VALIDAR FACTURA EN CRÉDITO ⭐
-    if (requiereFactura && !datosFacturaSeleccionados) {
-        mostrarMensajeModal('error', '⚠️ Por favor, selecciona una razón social para facturar.');
-        return;
-    }
-    
     const btn = document.querySelector('#formCredito .btn-enviar');
     btn.disabled = true;
     btn.innerHTML = '<span class="loading-spinner"></span> Procesando...';
@@ -2519,8 +2426,8 @@ async function procesarPagoCredito() {
             fechaPago: fechaPago,
             sucursal: SUCURSAL_WEB,
             nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre',
-            requiereFactura: requiereFactura,
-            datosFactura: datosFacturaSeleccionados
+            requiereFactura: false,
+            datosFactura: null
         };
         
         await guardarVentaEnEstadisticas(datosVenta);
@@ -2533,8 +2440,7 @@ async function procesarPagoCredito() {
             <strong>Folio:</strong> ${folio}<br>
             <strong>Total:</strong> ${formatoMexicano(total)}<br>
             <strong>Días de crédito:</strong> ${dias} días fijos<br>
-            <strong>Fecha de pago:</strong> ${fechaPago.toLocaleDateString('es-MX')}<br>
-            ${requiereFactura ? `<strong>Factura:</strong> Sí - ${datosFacturaSeleccionados ? datosFacturaSeleccionados.razonSocial : 'N/A'}` : '<strong>Factura:</strong> No'}<br><br>
+            <strong>Fecha de pago:</strong> ${fechaPago.toLocaleDateString('es-MX')}<br><br>
             Se ha descargado el comprobante en formato PDF.<br>
             Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.<br>
             <span style="color:#92400e;font-size:0.9rem;">⚠️ Si no se cumple con el pago en la fecha establecida, se podrá eliminar el crédito.</span>
@@ -2617,7 +2523,6 @@ async function guardarVentaEnEstadisticas(datos) {
         const facturaTexto = datos.requiereFactura ? 'SÍ' : 'NO';
         const formaPago = datos.tipoPago === 'Transferencia' ? 'Transferencia bancaria' : datos.tipoPago.toUpperCase();
         const tipoPago = datos.tipoPago === 'Crédito' ? 'Pago diferido en parcialidades' : 'Pago en una sola exhibición';
-        // ⭐ CORREGIDO: Para transferencia, estado "Validando pago" ⭐
         const estadoPago = datos.tipoPago === 'Crédito' ? 'En preparación' : 'Validando pago';
         const nombreDireccion = datos.nombreDireccion || 'Sin nombre';
         
