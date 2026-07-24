@@ -2578,6 +2578,7 @@ function abrirModalPago() {
     document.getElementById('facturaDatosPreview').style.display = 'none';
     datosFacturaSeleccionados = null;
     
+    // En crédito, usar el mismo bloque de factura
     if (document.getElementById('facturaNoCredito')) {
         document.getElementById('facturaNoCredito').classList.add('selected');
         document.getElementById('facturaSiCredito').classList.remove('selected');
@@ -2610,6 +2611,14 @@ function cerrarModalPago() {
     comprobanteTipo = null;
     document.getElementById('fileName').textContent = 'Ningún archivo seleccionado';
     infoCreditoCalculado = null;
+    
+    // Limpiar variables de crédito
+    window._infoCredito = null;
+    window._esCreditoParcial = false;
+    window._montoPago = 0;
+    window._montoCredito = 0;
+    window._puedeUsarCredito = false;
+    window._montoExcedente = 0;
 }
 
 function seleccionarPago(tipo) {
@@ -2623,6 +2632,7 @@ function seleccionarPago(tipo) {
     // Ocultar formulario de transferencia en crédito por defecto
     const formTransferencia = document.getElementById('formTransferencia');
     const formCredito = document.getElementById('formCredito');
+    const facturaContainer = document.getElementById('facturaContainer');
     
     if (tipo === 'transferencia') {
         document.getElementById('btnTransferencia').classList.add('selected');
@@ -2633,10 +2643,13 @@ function seleccionarPago(tipo) {
         const total = calcularTotal();
         document.getElementById('montoTransferencia').textContent = formatoMexicano(total);
         
+        // Mostrar el bloque de factura en transferencia
+        if (facturaContainer) facturaContainer.style.display = 'block';
+        
         // Habilitar/deshabilitar botón según campos
         validarCamposTransferencia();
         
-        // Restaurar botón de crédito si estaba visible
+        // Restaurar botón de crédito
         const btnConfirmarCredito = document.querySelector('#formCredito .btn-enviar');
         if (btnConfirmarCredito) {
             btnConfirmarCredito.style.display = 'none';
@@ -2646,6 +2659,9 @@ function seleccionarPago(tipo) {
         document.getElementById('btnCredito').classList.add('selected');
         if (formCredito) formCredito.style.display = 'block';
         if (formTransferencia) formTransferencia.style.display = 'none';
+        
+        // Mostrar el bloque de factura en crédito (solo una vez)
+        if (facturaContainer) facturaContainer.style.display = 'block';
         
         // Crédito: Mostrar información
         const infoCredito = window._infoCredito || infoCreditoCalculado;
@@ -2678,13 +2694,15 @@ function seleccionarPago(tipo) {
             document.getElementById('modalMensaje').style.display = 'block';
             
             // Mostrar campos de transferencia dentro del crédito
-            const formTransferenciaCredito = document.getElementById('formTransferencia');
-            if (formTransferenciaCredito) {
-                formTransferenciaCredito.style.display = 'block';
+            if (formTransferencia) {
+                formTransferencia.style.display = 'block';
                 document.getElementById('montoTransferencia').textContent = formatoMexicano(montoExcedente);
             }
             
-            // Configurar el botón "Pagar Excedente y Finalizar"
+            // Ocultar el bloque de factura duplicado (ya está visible)
+            // No hacemos nada, solo usamos el que ya está visible
+            
+            // Configurar el botón "Pagar Excedente y Finalizar" - SOLO ESTE BOTÓN
             if (btnConfirmarCompra) {
                 btnConfirmarCompra.style.display = 'block';
                 btnConfirmarCompra.innerHTML = '<i class="fas fa-university"></i> Pagar Excedente y Finalizar';
@@ -2692,6 +2710,7 @@ function seleccionarPago(tipo) {
                 btnConfirmarCompra.title = 'Completa el número de referencia y sube el comprobante';
                 btnConfirmarCompra.style.opacity = '0.5';
                 btnConfirmarCompra.style.cursor = 'not-allowed';
+                btnConfirmarCompra.className = 'btn-enviar';
             }
             
             // Validar campos para habilitar el botón
@@ -2703,9 +2722,8 @@ function seleccionarPago(tipo) {
             document.getElementById('modalMensaje').style.display = 'none';
             
             // Ocultar campos de transferencia
-            const formTransferenciaCredito = document.getElementById('formTransferencia');
-            if (formTransferenciaCredito) {
-                formTransferenciaCredito.style.display = 'none';
+            if (formTransferencia) {
+                formTransferencia.style.display = 'none';
             }
             
             // Configurar el botón "Confirmar Crédito"
@@ -2716,6 +2734,7 @@ function seleccionarPago(tipo) {
                 btnConfirmarCompra.title = '';
                 btnConfirmarCompra.style.opacity = '1';
                 btnConfirmarCompra.style.cursor = 'pointer';
+                btnConfirmarCompra.className = 'btn-enviar';
             }
         }
     }
@@ -2871,7 +2890,7 @@ function cargarComprobante(event) {
 
 // ⭐ AGREGAR EVENTO PARA VALIDAR REFERENCIA EN TIEMPO REAL ⭐
 document.addEventListener('DOMContentLoaded', function() {
-    // Evento para el campo de referencia en transferencia
+    // Evento para el campo de referencia
     const refTransferencia = document.getElementById('referenciaTransferencia');
     if (refTransferencia) {
         refTransferencia.addEventListener('input', function() {
@@ -2982,6 +3001,7 @@ function generarPDFComprobante(datos) {
 
         const logoUrl = 'https://i.imgur.com/1T3PCYR.png';
 
+        // Generar HTML para el PDF
         const html = `
 <!DOCTYPE html>
 <html>
@@ -3019,6 +3039,10 @@ function generarPDFComprobante(datos) {
     .footer .pro { color: #2a3990; }
     .footer .mx { color: #D4AF37; }
     @page { margin: 0; }
+    @media print {
+        body { margin: 0; padding: 0; }
+        .container { padding: 20px; }
+    }
 </style>
 </head>
 <body>
@@ -3104,16 +3128,26 @@ function generarPDFComprobante(datos) {
 </body>
 </html>`;
 
-        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        
-        const ventana = window.open(url, '_blank');
+        // Crear una ventana de impresión para generar PDF
+        const ventana = window.open('', '_blank', 'width=800,height=600');
         if (ventana) {
+            ventana.document.write(html);
+            ventana.document.close();
             ventana.focus();
+            
+            // Esperar a que se cargue y luego imprimir
             setTimeout(() => {
                 ventana.print();
-            }, 1000);
+            }, 500);
+            
+            // Cerrar la ventana después de imprimir (con retraso)
+            setTimeout(() => {
+                ventana.close();
+            }, 3000);
         } else {
+            // Fallback: descargar como HTML
+            const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
             link.download = `Comprobante_${datos.folio}.html`;
@@ -3121,12 +3155,14 @@ function generarPDFComprobante(datos) {
             link.click();
             document.body.removeChild(link);
             setTimeout(() => URL.revokeObjectURL(url), 1000);
+            mostrarNotificacion('⚠️ No se pudo abrir la ventana de impresión. Se descargó el archivo HTML.');
         }
         
         console.log('✅ PDF del comprobante generado');
         return true;
     } catch (error) {
         console.error('❌ Error al generar PDF:', error);
+        mostrarNotificacion('❌ Error al generar el comprobante. Intenta de nuevo.');
         return false;
     }
 }
@@ -3159,8 +3195,10 @@ async function procesarPagoTransferencia() {
     }
     
     const btn = document.querySelector('#formTransferencia .btn-enviar');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="loading-spinner"></span> Procesando...';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner"></span> Procesando...';
+    }
     
     try {
         const total = calcularTotal();
@@ -3200,6 +3238,8 @@ async function procesarPagoTransferencia() {
             anticipo: total
         };
         
+        console.log('📊 Datos de venta a guardar:', datosVenta);
+        
         await guardarVentaEnEstadisticas(datosVenta);
         await enviarCorreoVentaWeb(datosVenta);
         
@@ -3234,8 +3274,10 @@ async function procesarPagoTransferencia() {
         window._montoExcedente = 0;
         infoCreditoCalculado = null;
         
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Compra';
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Compra';
+        }
         
         setTimeout(() => {
             cerrarModalPago();
@@ -3245,8 +3287,10 @@ async function procesarPagoTransferencia() {
     } catch (error) {
         console.error('Error al procesar pago:', error);
         mostrarMensajeModal('error', '❌ Error al procesar el pago. Por favor, intenta de nuevo o contacta a tu asesor.');
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Compra';
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Compra';
+        }
     }
 }
 
@@ -3289,8 +3333,10 @@ async function procesarPagoCredito() {
     }
     
     const btn = document.querySelector('#formCredito .btn-enviar');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="loading-spinner"></span> Procesando...';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner"></span> Procesando...';
+    }
     
     try {
         const folio = generarFolio();
@@ -3386,6 +3432,8 @@ async function procesarPagoCredito() {
             comprobanteTipo: esCreditoParcial ? comprobanteTipo : null
         };
         
+        console.log('📊 Datos de venta a guardar (crédito):', datosVenta);
+        
         await guardarVentaEnEstadisticas(datosVenta);
         await enviarCorreoVentaWeb(datosVenta);
         
@@ -3433,8 +3481,10 @@ async function procesarPagoCredito() {
         window._montoExcedente = 0;
         infoCreditoCalculado = null;
         
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
+        }
         
         setTimeout(() => {
             cerrarModalPago();
@@ -3444,8 +3494,10 @@ async function procesarPagoCredito() {
     } catch (error) {
         console.error('Error al procesar crédito:', error);
         mostrarMensajeModal('error', '❌ Error al procesar el crédito. Por favor, intenta de nuevo o contacta a tu asesor.');
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
+        }
     }
 }
 
@@ -3459,6 +3511,7 @@ async function guardarVentaEnEstadisticas(datos) {
         console.log('📊 Tipo de pago:', datos.tipoPago);
         console.log('📊 Monto pago:', datos.montoPago);
         console.log('📊 Monto crédito:', datos.montoCredito);
+        console.log('📊 Productos:', datos.productos.length);
         
         const fechaFormateada = datos.fecha.toLocaleString('es-MX', {
             day: '2-digit',
@@ -3522,6 +3575,7 @@ async function guardarVentaEnEstadisticas(datos) {
                 datos.sucursal
             ];
             
+            console.log(`📝 Guardando producto: ${producto.nombre}, crédito: ${creditoPendiente}, pagado: ${montoPagado}`);
             await guardarFilaGoogleSheets(HOJA_EST_PRODUCTOS, filaProducto);
         }
         
@@ -3569,6 +3623,7 @@ async function guardarVentaEnEstadisticas(datos) {
             razonSocialFactura
         ];
         
+        console.log(`📝 Guardando cliente: ${datos.cliente.nombre}, total: ${datos.total}, crédito: ${creditoPendienteTotal}, pagado: ${montoPagadoTotal}`);
         await guardarFilaGoogleSheets(HOJA_EST_CLIENTES, filaCliente);
         
         console.log('✅ Venta guardada en estadísticas correctamente');
