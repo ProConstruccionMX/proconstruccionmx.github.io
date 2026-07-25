@@ -2619,6 +2619,7 @@ function seleccionarPago(tipo) {
     const formTransferencia = document.getElementById('formTransferencia');
     const formCredito = document.getElementById('formCredito');
     const btnConfirmarCredito = document.getElementById('btnConfirmarCredito');
+    const btnConfirmarTransferencia = document.getElementById('btnConfirmarTransferencia');
     
     if (tipo === 'transferencia') {
         document.getElementById('btnTransferencia').classList.add('selected');
@@ -2628,6 +2629,13 @@ function seleccionarPago(tipo) {
         // Transferencia: PAGAR EL TOTAL
         const total = calcularTotal();
         document.getElementById('montoTransferencia').textContent = formatoMexicano(total);
+        
+        // ⭐ OCULTAR botón de crédito y mostrar botón de transferencia ⭐
+        if (btnConfirmarCredito) btnConfirmarCredito.style.display = 'none';
+        if (btnConfirmarTransferencia) {
+            btnConfirmarTransferencia.style.display = 'block';
+            btnConfirmarTransferencia.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Compra';
+        }
         
         // Habilitar/deshabilitar botón según campos
         validarCamposTransferencia();
@@ -2672,13 +2680,14 @@ function seleccionarPago(tipo) {
             document.getElementById('modalMensaje').innerHTML = mensajeHTML;
             document.getElementById('modalMensaje').style.display = 'block';
             
-            // Mostrar campos de transferencia dentro del crédito
+            // ⭐ Mostrar campos de transferencia dentro del crédito ⭐
             if (formTransferencia) {
                 formTransferencia.style.display = 'block';
                 document.getElementById('montoTransferencia').textContent = formatoMexicano(montoExcedente);
             }
             
-            // ⭐ MOSTRAR "Pagar Excedente y Finalizar" (OCULTAR "Confirmar Crédito") ⭐
+            // ⭐ OCULTAR botón de transferencia y mostrar botón de crédito con "Pagar Excedente y Finalizar" ⭐
+            if (btnConfirmarTransferencia) btnConfirmarTransferencia.style.display = 'none';
             if (btnConfirmarCredito) {
                 btnConfirmarCredito.style.display = 'block';
                 btnConfirmarCredito.innerHTML = '<i class="fas fa-university"></i> Pagar Excedente y Finalizar';
@@ -2693,7 +2702,7 @@ function seleccionarPago(tipo) {
             validarCamposCreditoParcial();
             
         } else {
-            // ⭐ CRÉDITO TOTAL - OCULTAR campos de transferencia, mostrar "Confirmar Crédito" ⭐
+            // ⭐ CRÉDITO TOTAL - OCULTAR campos de transferencia y botón de transferencia, mostrar "Confirmar Crédito" ⭐
             document.getElementById('modalMensaje').innerHTML = '';
             document.getElementById('modalMensaje').style.display = 'none';
             
@@ -2702,7 +2711,8 @@ function seleccionarPago(tipo) {
                 formTransferencia.style.display = 'none';
             }
             
-            // ⭐ MOSTRAR "Confirmar Crédito" ⭐
+            // ⭐ OCULTAR botón de transferencia y mostrar "Confirmar Crédito" ⭐
+            if (btnConfirmarTransferencia) btnConfirmarTransferencia.style.display = 'none';
             if (btnConfirmarCredito) {
                 btnConfirmarCredito.style.display = 'block';
                 btnConfirmarCredito.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
@@ -3621,94 +3631,30 @@ async function enviarCorreoVentaWeb(datos) {
             `;
         }
         
-        const html = `
-            <!DOCTYPE html>
-            <html>
-            <head><meta charset="UTF-8"></head>
-            <body style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;">
-                <div style="background:#0A2540;padding:20px;text-align:center;border-radius:10px 10px 0 0;">
-                    <h1 style="color:white;margin:0;">ProConstrucción <span style="color:#F5A623;">MX</span></h1>
-                    <p style="color:#94a3b8;margin:5px 0 0 0;">🛒 Nueva compra desde el portal web</p>
-                </div>
-                <div style="background:white;padding:30px;border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,0.05);">
-                    <h2 style="color:#0A2540;">🧾 ${datos.folio}</h2>
-                    <p><strong>Fecha:</strong> ${datos.fecha.toLocaleString('es-MX')}</p>
-                    <p><strong>Método de pago:</strong> ${datos.tipoPago}</p>
-                    <p><strong>Factura:</strong> ${datos.requiereFactura ? 'SÍ' : 'NO'}</p>
-                    <p><strong>Estado:</strong> ${datos.estadoPago || 'Validando pago'}</p>
-                    
-                    ${datos.esCreditoParcial ? `
-                        <div style="background:#fef3c7;padding:10px;border-radius:8px;margin:10px 0;border:1px solid #fde68a;">
-                            <p style="margin:0;color:#92400e;font-weight:600;">⚠️ CRÉDITO PARCIAL</p>
-                            <p style="margin:0;color:#92400e;">Monto pagado (excedente): ${formatoMexicano(datos.montoPago)} | Monto a crédito: ${formatoMexicano(datos.montoCredito)}</p>
-                        </div>
-                    ` : ''}
-                    
-                    <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
-                    
-                    <h3 style="color:#0A2540;">👤 Datos del Cliente</h3>
-                    <p><strong>Nombre:</strong> ${datos.cliente.nombre}</p>
-                    <p><strong>Código:</strong> ${datos.cliente.codigo}</p>
-                    <p><strong>Correo:</strong> ${datos.cliente.correo}</p>
-                    <p><strong>Teléfono:</strong> ${datos.cliente.telefono || 'No especificado'}</p>
-                    <p><strong>Giro:</strong> ${datos.cliente.giro || 'No especificado'}</p>
-                    <p><strong>Descuento Base:</strong> ${datos.cliente.descuento}%</p>
-                    
-                    ${htmlDireccion}
-                    ${htmlFactura}
-                    
-                    <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
-                    
-                    <h3 style="color:#0A2540;">📦 Productos</h3>
-                    <table style="width:100%;border-collapse:collapse;">
-                        <thead>
-                            <tr style="background:#f8f9fa;">
-                                <th style="padding:10px;text-align:center;">Cant.</th>
-                                <th style="padding:10px;text-align:left;">Producto</th>
-                                <th style="padding:10px;text-align:right;">Precio</th>
-                                <th style="padding:10px;text-align:center;">Dto.%</th>
-                                <th style="padding:10px;text-align:right;">Importe</th>
-                            </tr>
-                        </thead>
-                        <tbody>${htmlProductos}</tbody>
-                    </table>
-                    
-                    <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
-                    
-                    <div style="text-align:right;">
-                        <p><strong>Subtotal sin descuento:</strong> ${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16))}</p>
-                        <p><strong>Descuento total:</strong> -${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16) - datos.total)}</p>
-                        <p><strong>Subtotal:</strong> ${formatoMexicano(datos.subtotal)}</p>
-                        <p><strong>IVA (16%):</strong> ${formatoMexicano(datos.iva)}</p>
-                        <p style="font-size:1.4rem;font-weight:700;color:#0A2540;"><strong>TOTAL:</strong> ${formatoMexicano(datos.total)}</p>
-                        ${datos.esCreditoParcial ? `
-                            <p style="color:#92400e;font-weight:600;">Monto pagado (excedente): ${formatoMexicano(datos.montoPago)}</p>
-                            <p style="color:#92400e;font-weight:600;">Monto a crédito: ${formatoMexicano(datos.montoCredito)}</p>
-                        ` : ''}
-                    </div>
-                    
-                    <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
-                    
-                    <h3 style="color:#0A2540;">💳 Información de Pago</h3>
-                    ${infoPago}
-                    
-                    <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
-                    
-                    <p style="text-align:center;color:#718096;font-size:0.8rem;">
-                        Este es un correo automático generado por el sistema de ProConstrucción MX.<br>
-                        © ${new Date().getFullYear()} ProConstrucción MX - Todos los derechos reservados
-                    </p>
-                </div>
-            </body>
-            </html>
+        // ⭐ CORREGIDO: El cuerpo del correo debe ser texto plano o HTML correctamente formado ⭐
+        const mensajeTexto = `
+NUEVA COMPRA WEB - ${datos.folio}
+
+Cliente: ${datos.cliente.nombre}
+Código: ${datos.cliente.codigo}
+Total: ${formatoMexicano(datos.total)}
+Método de pago: ${datos.tipoPago}
+
+Productos:
+${datos.productos.map(p => `- ${p.nombre} x${p.cantidad} = ${formatoMexicano(p.importe)}`).join('\n')}
+
+Dirección de envío:
+${datos.direccion ? `${datos.direccion.calle}, ${datos.direccion.colonia}, ${datos.direccion.alcaldia}, ${datos.direccion.estado}, CP ${datos.direccion.cp}` : 'No proporcionada'}
+
+Factura: ${datos.requiereFactura ? 'SÍ' : 'NO'}
         `;
         
-        // ⭐ CORREGIDO: Asegurar que el campo 'to_email' tenga un valor válido ⭐
         const templateParams = {
             to_email: emailDestino,
             from_name: datos.cliente.nombre,
             subject: asunto,
-            message: html,
+            message_html: html,
+            message: mensajeTexto,
             folio: datos.folio,
             cliente: datos.cliente.nombre,
             codigo: datos.cliente.codigo,
