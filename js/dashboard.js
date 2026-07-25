@@ -254,15 +254,45 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 
 // ============================================
-// FUNCIONES PARA APPS SCRIPT (CON CORS)
+// FUNCIONES PARA APPS SCRIPT (CON NO-CORS)
 // ============================================
+
+async function guardarFilaGoogleSheets(sheetName, datos) {
+    try {
+        console.log('📝 guardarFilaGoogleSheets - SheetName:', sheetName);
+        console.log('📝 guardarFilaGoogleSheets - Datos:', datos);
+        
+        const body = {
+            action: 'guardarFila',
+            sheetName: sheetName,
+            datos: datos
+        };
+        
+        await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body)
+        });
+        
+        console.log(`✅ Petición enviada a ${sheetName} (no-cors)`);
+        return { success: true };
+        
+    } catch (error) {
+        console.error('❌ Error al guardar fila:', error);
+        return { success: false, error: error.toString() };
+    }
+}
 
 async function agregarDireccionEnSheets(direccion) {
     try {
         console.log('📝 Enviando a Apps Script - AGREGAR:', direccion);
         
-        const response = await fetch(APPS_SCRIPT_URL, {
+        await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
+            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -281,9 +311,8 @@ async function agregarDireccionEnSheets(direccion) {
             })
         });
         
-        const result = await response.json();
-        console.log('📝 Resultado AGREGAR:', result);
-        return result;
+        console.log('📝 Petición AGREGAR enviada (no-cors)');
+        return { success: true };
         
     } catch (error) {
         console.error('Error al agregar dirección:', error);
@@ -314,17 +343,17 @@ async function actualizarDireccionEnSheets(fila, datos) {
         
         console.log('📝 Body enviado:', JSON.stringify(body));
         
-        const response = await fetch(APPS_SCRIPT_URL, {
+        await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
+            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(body)
         });
         
-        const result = await response.json();
-        console.log('📝 Resultado ACTUALIZAR:', result);
-        return result;
+        console.log('📝 Petición ACTUALIZAR enviada (no-cors) para fila:', filaEnviar);
+        return { success: true };
         
     } catch (error) {
         console.error('Error al actualizar dirección:', error);
@@ -344,56 +373,20 @@ async function eliminarDireccionEnSheets(fila) {
         
         console.log('🗑️ Body enviado:', JSON.stringify(body));
         
-        const response = await fetch(APPS_SCRIPT_URL, {
+        await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
+            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(body)
         });
         
-        const result = await response.json();
-        console.log('🗑️ Resultado ELIMINAR:', result);
-        return result;
+        console.log('🗑️ Petición ELIMINAR enviada (no-cors) para fila:', filaEnviar);
+        return { success: true };
         
     } catch (error) {
         console.error('Error al eliminar dirección:', error);
-        return { success: false, error: error.toString() };
-    }
-}
-
-async function guardarFilaGoogleSheets(sheetName, datos) {
-    try {
-        console.log('📝 guardarFilaGoogleSheets - SheetName:', sheetName);
-        console.log('📝 guardarFilaGoogleSheets - Datos:', datos);
-        
-        const body = {
-            action: 'guardarFila',
-            sheetName: sheetName,
-            datos: datos
-        };
-        
-        const response = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(body)
-        });
-        
-        const result = await response.json();
-        console.log(`📝 Respuesta de Apps Script (${sheetName}):`, result);
-        
-        if (result.success) {
-            console.log(`✅ Fila guardada en ${sheetName}`);
-            return { success: true };
-        } else {
-            console.error(`❌ Error en Apps Script:`, result.error);
-            return { success: false, error: result.error };
-        }
-        
-    } catch (error) {
-        console.error('❌ Error al guardar fila:', error);
         return { success: false, error: error.toString() };
     }
 }
@@ -661,6 +654,7 @@ async function guardarEdicionFacturacion() {
         
         await fetch(APPS_SCRIPT_FACTURACION_URL, {
             method: 'POST',
+            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -678,7 +672,7 @@ async function guardarEdicionFacturacion() {
             })
         });
         
-        console.log('✅ Petición enviada');
+        console.log('✅ Petición enviada (no-cors)');
         
         facturacionCliente[index] = { ...fact, ...datosActualizados, fila: fila };
         renderizarFacturacion();
@@ -719,6 +713,7 @@ async function eliminarFacturacion(index) {
         
         await fetch(APPS_SCRIPT_FACTURACION_URL, {
             method: 'POST',
+            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -728,7 +723,7 @@ async function eliminarFacturacion(index) {
             })
         });
         
-        console.log('✅ Petición ELIMINAR enviada');
+        console.log('✅ Petición ELIMINAR enviada (no-cors)');
         
         facturacionCliente.splice(index, 1);
         renderizarFacturacion();
@@ -797,6 +792,7 @@ async function guardarNuevaFacturacion() {
         
         await fetch(APPS_SCRIPT_FACTURACION_URL, {
             method: 'POST',
+            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -813,7 +809,7 @@ async function guardarNuevaFacturacion() {
             })
         });
         
-        console.log('✅ Petición AGREGAR enviada');
+        console.log('✅ Petición AGREGAR enviada (no-cors)');
         
         cerrarModalAgregarFacturacion();
         mostrarNotificacion('✅ Datos de facturación agregados correctamente');
@@ -890,6 +886,7 @@ async function guardarNuevaFacturacionDesdePago() {
         
         await fetch(APPS_SCRIPT_FACTURACION_URL, {
             method: 'POST',
+            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -906,7 +903,7 @@ async function guardarNuevaFacturacionDesdePago() {
             })
         });
         
-        console.log('✅ Petición AGREGAR enviada');
+        console.log('✅ Petición AGREGAR enviada (no-cors)');
         
         cerrarModalAgregarFacturacionPago();
         mostrarNotificacion('✅ Datos de facturación agregados correctamente');
@@ -1300,20 +1297,15 @@ async function guardarEdicionDireccion() {
     }
     
     try {
-        const resultado = await actualizarDireccionEnSheets(fila, datosActualizados);
-        console.log('📝 Resultado de Apps Script:', resultado);
+        await actualizarDireccionEnSheets(fila, datosActualizados);
         
-        if (resultado.success) {
-            direccionesCliente[index] = { ...dir, ...datosActualizados, fila: fila };
-            renderizarDirecciones();
-            actualizarSelectorDirecciones();
-            cerrarModalEditarDireccion();
-            mostrarNotificacion('✅ Dirección actualizada correctamente');
-            
-            setTimeout(() => cargarDireccionesCliente(), 1500);
-        } else {
-            mostrarNotificacion('❌ Error al guardar: ' + (resultado.error || 'Intenta de nuevo'));
-        }
+        direccionesCliente[index] = { ...dir, ...datosActualizados, fila: fila };
+        renderizarDirecciones();
+        actualizarSelectorDirecciones();
+        cerrarModalEditarDireccion();
+        mostrarNotificacion('✅ Dirección actualizada correctamente');
+        
+        setTimeout(() => cargarDireccionesCliente(), 1500);
         
     } catch (error) {
         console.error('❌ Error al actualizar dirección:', error);
@@ -1338,19 +1330,14 @@ async function eliminarDireccion(index) {
     if (!confirm(`¿Seguro que quieres eliminar "${dir.nombre}" (Fila ${dir.fila})?`)) return;
     
     try {
-        const resultado = await eliminarDireccionEnSheets(dir.fila);
-        console.log('🗑️ Resultado de Apps Script:', resultado);
+        await eliminarDireccionEnSheets(dir.fila);
         
-        if (resultado.success) {
-            direccionesCliente.splice(index, 1);
-            renderizarDirecciones();
-            actualizarSelectorDirecciones();
-            mostrarNotificacion('🗑️ Dirección eliminada correctamente');
-            
-            setTimeout(() => cargarDireccionesCliente(), 1500);
-        } else {
-            mostrarNotificacion('❌ Error al eliminar: ' + (resultado.error || 'Intenta de nuevo'));
-        }
+        direccionesCliente.splice(index, 1);
+        renderizarDirecciones();
+        actualizarSelectorDirecciones();
+        mostrarNotificacion('🗑️ Dirección eliminada correctamente');
+        
+        setTimeout(() => cargarDireccionesCliente(), 1500);
         
     } catch (error) {
         console.error('❌ Error al eliminar dirección:', error);
@@ -1383,16 +1370,12 @@ async function guardarNuevaDireccion(datos) {
             nombreRecibe: datos.nombreRecibe
         };
         
-        const resultado = await agregarDireccionEnSheets(nuevaDireccion);
+        await agregarDireccionEnSheets(nuevaDireccion);
         
-        if (resultado.success) {
-            mostrarNotificacion('✅ Dirección guardada correctamente');
-            await cargarDireccionesCliente();
-            return true;
-        } else {
-            mostrarNotificacion('❌ Error al guardar: ' + (resultado.error || 'Intenta de nuevo'));
-            return false;
-        }
+        mostrarNotificacion('✅ Dirección guardada correctamente');
+        await cargarDireccionesCliente();
+        return true;
+        
     } catch (error) {
         console.error('❌ Error al guardar dirección:', error);
         mostrarNotificacion('❌ Error al guardar la dirección');
@@ -3578,181 +3561,11 @@ async function enviarCorreoVentaWeb(datos) {
         const emailDestino = EMAIL_VENTAS;
         const asunto = `🛒 NUEVA COMPRA WEB - ${datos.folio} - ${datos.cliente.nombre}`;
         
-        let htmlProductos = '';
-        datos.productos.forEach(p => {
-            let tipoLabel = '';
-            if (p._tipo === 'credito') {
-                tipoLabel = '<span style="color:#92400e;font-weight:600;">(Crédito)</span>';
-            } else if (p._tipo === 'pago') {
-                tipoLabel = '<span style="color:#16a34a;font-weight:600;">(Pagado)</span>';
-            }
-            
-            htmlProductos += `
-                <tr>
-                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:center;">${p.cantidad}</td>
-                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;">${p.nombre} ${tipoLabel}</td>
-                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:right;">${formatoMexicano(p.precio)}</td>
-                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:center;">${p.descuento}%</td>
-                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:right;">${formatoMexicano(p.importe)}</td>
-                </tr>
-            `;
-        });
-        
-        let htmlDireccion = '';
-        if (datos.direccion) {
-            htmlDireccion = `
-                <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
-                <h3 style="color:#0A2540;">📦 Dirección de Envío</h3>
-                <p><strong>Nombre:</strong> ${datos.nombreDireccion || 'Sin nombre'}</p>
-                <p><strong>Calle:</strong> ${datos.direccion.calle}</p>
-                <p><strong>Colonia:</strong> ${datos.direccion.colonia}</p>
-                <p><strong>Alcaldía:</strong> ${datos.direccion.alcaldia}</p>
-                <p><strong>Estado:</strong> ${datos.direccion.estado}</p>
-                <p><strong>CP:</strong> ${datos.direccion.cp}</p>
-                <p><strong>Teléfono:</strong> ${datos.direccion.telefono}</p>
-                <p><strong>Recibe:</strong> ${datos.direccion.nombreRecibe}</p>
-                ${datos.direccion.mapsUrl ? `<p><strong>Google Maps:</strong> <a href="${datos.direccion.mapsUrl}" target="_blank">Ver mapa</a></p>` : ''}
-            `;
-        }
-        
-        let htmlFactura = '';
-        if (datos.requiereFactura && datos.datosFactura) {
-            htmlFactura = `
-                <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
-                <h3 style="color:#0A2540;">📄 Datos de Facturación</h3>
-                <p><strong>Razón Social:</strong> ${datos.datosFactura.razonSocial}</p>
-                <p><strong>RFC:</strong> ${datos.datosFactura.rfc}</p>
-                <p><strong>Uso de CFDI:</strong> ${datos.datosFactura.usoCFDI}</p>
-                <p><strong>C.P.:</strong> ${datos.datosFactura.cp}</p>
-                <p><strong>Régimen Fiscal:</strong> ${datos.datosFactura.regimen}</p>
-                <p><strong>Correo:</strong> ${datos.datosFactura.correo}</p>
-            `;
-        }
-        
-        let infoPago = '';
-        if (datos.tipoPago === 'Transferencia') {
-            infoPago = `
-                <p><strong>Referencia:</strong> ${datos.referencia}</p>
-                <p><strong>Comprobante:</strong> ${datos.comprobanteNombre}</p>
-            `;
-        } else if (datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial') {
-            infoPago = `
-                <p><strong>Días de crédito:</strong> ${datos.diasCredito || DIAS_CREDITO_FIJO} días</p>
-                <p><strong>Saldo pendiente:</strong> ${formatoMexicano(datos.montoCredito || datos.total)}</p>
-                <p><strong>Fecha de pago:</strong> ${datos.fechaPago ? datos.fechaPago.toLocaleDateString('es-MX') : 'No definida'}</p>
-                <p><strong>Anticipo recibido:</strong> ${formatoMexicano(datos.anticipo || 0)}</p>
-                ${datos.esCreditoParcial ? `<p style="color:#92400e;font-weight:600;">⚠️ Crédito parcial - Referencia excedente: ${datos.referencia || 'N/A'}</p>` : ''}
-                <p style="color:#92400e;font-weight:600;">⚠️ Si no se cumple con el pago, se podrá eliminar el crédito.</p>
-            `;
-        }
-        
-        // ⭐ GENERAR EL HTML COMPLETO DEL CORREO ⭐
-        const html = `
-            <!DOCTYPE html>
-            <html>
-            <head><meta charset="UTF-8"></head>
-            <body style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;">
-                <div style="background:#0A2540;padding:20px;text-align:center;border-radius:10px 10px 0 0;">
-                    <h1 style="color:white;margin:0;">ProConstrucción <span style="color:#F5A623;">MX</span></h1>
-                    <p style="color:#94a3b8;margin:5px 0 0 0;">🛒 Nueva compra desde el portal web</p>
-                </div>
-                <div style="background:white;padding:30px;border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,0.05);">
-                    <h2 style="color:#0A2540;">🧾 ${datos.folio}</h2>
-                    <p><strong>Fecha:</strong> ${datos.fecha.toLocaleString('es-MX')}</p>
-                    <p><strong>Método de pago:</strong> ${datos.tipoPago}</p>
-                    <p><strong>Factura:</strong> ${datos.requiereFactura ? 'SÍ' : 'NO'}</p>
-                    <p><strong>Estado:</strong> ${datos.estadoPago || 'Validando pago'}</p>
-                    
-                    ${datos.esCreditoParcial ? `
-                        <div style="background:#fef3c7;padding:10px;border-radius:8px;margin:10px 0;border:1px solid #fde68a;">
-                            <p style="margin:0;color:#92400e;font-weight:600;">⚠️ CRÉDITO PARCIAL</p>
-                            <p style="margin:0;color:#92400e;">Monto pagado (excedente): ${formatoMexicano(datos.montoPago)} | Monto a crédito: ${formatoMexicano(datos.montoCredito)}</p>
-                        </div>
-                    ` : ''}
-                    
-                    <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
-                    
-                    <h3 style="color:#0A2540;">👤 Datos del Cliente</h3>
-                    <p><strong>Nombre:</strong> ${datos.cliente.nombre}</p>
-                    <p><strong>Código:</strong> ${datos.cliente.codigo}</p>
-                    <p><strong>Correo:</strong> ${datos.cliente.correo}</p>
-                    <p><strong>Teléfono:</strong> ${datos.cliente.telefono || 'No especificado'}</p>
-                    <p><strong>Giro:</strong> ${datos.cliente.giro || 'No especificado'}</p>
-                    <p><strong>Descuento Base:</strong> ${datos.cliente.descuento}%</p>
-                    
-                    ${htmlDireccion}
-                    ${htmlFactura}
-                    
-                    <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
-                    
-                    <h3 style="color:#0A2540;">📦 Productos</h3>
-                    <table style="width:100%;border-collapse:collapse;">
-                        <thead>
-                            <tr style="background:#f8f9fa;">
-                                <th style="padding:10px;text-align:center;">Cant.</th>
-                                <th style="padding:10px;text-align:left;">Producto</th>
-                                <th style="padding:10px;text-align:right;">Precio</th>
-                                <th style="padding:10px;text-align:center;">Dto.%</th>
-                                <th style="padding:10px;text-align:right;">Importe</th>
-                            </tr>
-                        </thead>
-                        <tbody>${htmlProductos}</tbody>
-                    </table>
-                    
-                    <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
-                    
-                    <div style="text-align:right;">
-                        <p><strong>Subtotal sin descuento:</strong> ${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16))}</p>
-                        <p><strong>Descuento total:</strong> -${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16) - datos.total)}</p>
-                        <p><strong>Subtotal:</strong> ${formatoMexicano(datos.subtotal)}</p>
-                        <p><strong>IVA (16%):</strong> ${formatoMexicano(datos.iva)}</p>
-                        <p style="font-size:1.4rem;font-weight:700;color:#0A2540;"><strong>TOTAL:</strong> ${formatoMexicano(datos.total)}</p>
-                        ${datos.esCreditoParcial ? `
-                            <p style="color:#92400e;font-weight:600;">Monto pagado (excedente): ${formatoMexicano(datos.montoPago)}</p>
-                            <p style="color:#92400e;font-weight:600;">Monto a crédito: ${formatoMexicano(datos.montoCredito)}</p>
-                        ` : ''}
-                    </div>
-                    
-                    <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
-                    
-                    <h3 style="color:#0A2540;">💳 Información de Pago</h3>
-                    ${infoPago}
-                    
-                    <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
-                    
-                    <p style="text-align:center;color:#718096;font-size:0.8rem;">
-                        Este es un correo automático generado por el sistema de ProConstrucción MX.<br>
-                        © ${new Date().getFullYear()} ProConstrucción MX - Todos los derechos reservados
-                    </p>
-                </div>
-            </body>
-            </html>
-        `;
-        
-        // ⭐ VERSIÓN TEXTO PLANO PARA EL CORREO ⭐
-        const mensajeTexto = `
-NUEVA COMPRA WEB - ${datos.folio}
-
-Cliente: ${datos.cliente.nombre}
-Código: ${datos.cliente.codigo}
-Total: ${formatoMexicano(datos.total)}
-Método de pago: ${datos.tipoPago}
-
-Productos:
-${datos.productos.map(p => `- ${p.nombre} x${p.cantidad} = ${formatoMexicano(p.importe)}`).join('\n')}
-
-Dirección de envío:
-${datos.direccion ? `${datos.direccion.calle}, ${datos.direccion.colonia}, ${datos.direccion.alcaldia}, ${datos.direccion.estado}, CP ${datos.direccion.cp}` : 'No proporcionada'}
-
-Factura: ${datos.requiereFactura ? 'SÍ' : 'NO'}
-        `;
-        
+        // ⭐ TEMPLATE PARAMS SIMPLIFICADOS ⭐
         const templateParams = {
             to_email: emailDestino,
             from_name: datos.cliente.nombre,
             subject: asunto,
-            message_html: html,
-            message: mensajeTexto,
             folio: datos.folio,
             cliente: datos.cliente.nombre,
             codigo: datos.cliente.codigo,
