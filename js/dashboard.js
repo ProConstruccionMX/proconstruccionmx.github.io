@@ -2922,7 +2922,8 @@ function generarPDFComprobante(datos) {
 
         const logoUrl = 'https://i.imgur.com/1T3PCYR.png';
 
-        const html = `
+        // ⭐ GENERAR HTML PARA EL PDF ⭐
+        const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -3048,21 +3049,23 @@ function generarPDFComprobante(datos) {
 </body>
 </html>`;
 
+        // ⭐ ABRIR VENTANA PARA IMPRIMIR (GENERA PDF) ⭐
         const ventana = window.open('', '_blank', 'width=800,height=600');
         if (ventana) {
-            ventana.document.write(html);
+            ventana.document.write(htmlContent);
             ventana.document.close();
             ventana.focus();
             
             setTimeout(() => {
                 ventana.print();
-            }, 500);
+            }, 1000);
             
             setTimeout(() => {
                 ventana.close();
-            }, 3000);
+            }, 5000);
         } else {
-            const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+            // Fallback: descargar como HTML
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
@@ -3558,14 +3561,26 @@ async function enviarCorreoVentaWeb(datos) {
     try {
         console.log('📧 Enviando correo a ventas@proconstruccionmx.com...');
         
-        const emailDestino = EMAIL_VENTAS;
-        const asunto = `🛒 NUEVA COMPRA WEB - ${datos.folio} - ${datos.cliente.nombre}`;
-        
-        // ⭐ TEMPLATE PARAMS SIMPLIFICADOS ⭐
+        // ⭐ CAMPO 'email' EN LUGAR DE 'to_email' (coincide con tu template) ⭐
         const templateParams = {
-            to_email: emailDestino,
+            email: 'ventas@proconstruccionmx.com',
             from_name: datos.cliente.nombre,
-            subject: asunto,
+            subject: `🛒 NUEVA COMPRA WEB - ${datos.folio} - ${datos.cliente.nombre}`,
+            message: `
+NUEVA COMPRA WEB - ${datos.folio}
+
+Cliente: ${datos.cliente.nombre}
+Código: ${datos.cliente.codigo}
+Total: ${formatoMexicano(datos.total)}
+Método de pago: ${datos.tipoPago}
+Factura: ${datos.requiereFactura ? 'SÍ' : 'NO'}
+
+Productos:
+${datos.productos.map(p => `- ${p.nombre} x${p.cantidad} = ${formatoMexicano(p.importe)}`).join('\n')}
+
+Dirección de envío:
+${datos.direccion ? `Calle: ${datos.direccion.calle}\nColonia: ${datos.direccion.colonia}\nAlcaldía: ${datos.direccion.alcaldia}\nEstado: ${datos.direccion.estado}\nCP: ${datos.direccion.cp}\nTeléfono: ${datos.direccion.telefono}\nRecibe: ${datos.direccion.nombreRecibe}` : 'No proporcionada'}
+            `,
             folio: datos.folio,
             cliente: datos.cliente.nombre,
             codigo: datos.cliente.codigo,
