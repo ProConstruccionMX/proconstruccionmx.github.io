@@ -807,6 +807,19 @@
             vertical-align: middle;
             margin-right: 8px;
         }
+
+        /* ⭐ ESTILOS PARA CRÉDITOS PENDIENTES ⭐ */
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.8rem;
+            border-radius: 50px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
     </style>
 </head>
 <body>
@@ -944,6 +957,7 @@
             <p>Aquí puedes ver todas tus compras realizadas y su estado actual.</p>
         </div>
 
+        <!-- ÓRDENES RECIENTES -->
         <div class="cart-section" style="margin-bottom:2rem;">
             <div id="ordenesContent">
                 <div class="empty-state">
@@ -954,6 +968,22 @@
             </div>
         </div>
 
+        <!-- ⭐ CRÉDITOS PENDIENTES ⭐ -->
+        <div class="cart-section" style="margin-bottom:2rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:0.5rem;">
+                <h2 style="margin:0; color:var(--primary-dark);"><i class="fas fa-hand-holding-usd"></i> Créditos Pendientes</h2>
+                <span style="font-size:0.85rem; color:var(--text-gray);" id="totalCreditoPendiente">Total: $0.00</span>
+            </div>
+            <div id="creditosPendientesContent">
+                <div class="empty-state">
+                    <i class="fas fa-check-circle" style="color:#16a34a;"></i>
+                    <h4>Sin créditos pendientes</h4>
+                    <p>No tienes compras a crédito pendientes de liquidar.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- HISTORIAL DE COMPRAS -->
         <div class="cart-section" style="margin-bottom:2rem;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
                 <h2 style="margin:0; color:var(--primary-dark);"><i class="fas fa-history"></i> Historial de Compras</h2>
@@ -988,6 +1018,7 @@
             </div>
         </div>
 
+        <!-- ESTADÍSTICAS -->
         <div class="cart-section">
             <div id="estadisticasContent">
                 <div class="empty-state">
