@@ -1260,7 +1260,7 @@
         </div>
     </div>
 
-    <!-- ===== MODAL DE PAGO - CORREGIDO (UN SOLO BLOQUE DE FACTURA) ===== -->
+    <!-- ===== MODAL DE PAGO ===== -->
     <div class="modal-overlay" id="modalPago">
         <div class="modal">
             <h2>💳 Realizar Compra</h2>
@@ -1350,7 +1350,7 @@
                     <input type="hidden" id="diasCredito" value="20">
                 </div>
                 <!-- ⭐ BOTÓN QUE SE REEMPLAZA POR "Pagar Excedente y Finalizar" cuando hay crédito parcial ⭐ -->
-                <button class="btn-enviar" id="btnConfirmarCredito" onclick="procesarPagoCredito()">
+                <button class="btn-enviar" id="btnConfirmarCredito" onclick="procesarPagoCredito()" style="display:none;">
                     <i class="fas fa-check"></i> Confirmar Crédito
                 </button>
             </div>
