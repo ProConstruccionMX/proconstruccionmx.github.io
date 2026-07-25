@@ -62,6 +62,10 @@ let clienteLimiteCreditoMonto = 0;
 // ⭐ VARIABLE PARA ALMACENAR INFO DE CRÉDITO ⭐
 let infoCreditoCalculado = null;
 
+// ⭐ VARIABLES PARA CRÉDITOS PENDIENTES ⭐
+let creditosPendientes = [];
+let creditoSeleccionadoParaPago = null;
+
 // ============================================
 // ⭐ FUNCIÓN PARA PARSEAR FECHAS CORRECTAMENTE ⭐
 // ============================================
@@ -3561,26 +3565,142 @@ async function enviarCorreoVentaWeb(datos) {
     try {
         console.log('📧 Enviando correo a ventas@proconstruccionmx.com...');
         
-        // ⭐ CAMPO 'email' EN LUGAR DE 'to_email' (coincide con tu template) ⭐
+        // Generar HTML del correo
+        let htmlProductos = '';
+        datos.productos.forEach(p => {
+            let tipoLabel = '';
+            if (p._tipo === 'credito') {
+                tipoLabel = '<span style="color:#92400e;font-weight:600;">(Crédito)</span>';
+            } else if (p._tipo === 'pago') {
+                tipoLabel = '<span style="color:#16a34a;font-weight:600;">(Pagado)</span>';
+            }
+            
+            htmlProductos += `
+                <tr>
+                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:center;">${p.cantidad}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;">${p.nombre} ${tipoLabel}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:right;">${formatoMexicano(p.precio)}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:center;">${p.descuento}%</td>
+                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:right;">${formatoMexicano(p.importe)}</td>
+                </tr>
+            `;
+        });
+
+        let htmlDireccion = '';
+        if (datos.direccion) {
+            htmlDireccion = `
+                <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
+                <h3 style="color:#0A2540;">📦 Dirección de Envío</h3>
+                <p><strong>Nombre:</strong> ${datos.nombreDireccion || 'Sin nombre'}</p>
+                <p><strong>Calle:</strong> ${datos.direccion.calle}</p>
+                <p><strong>Colonia:</strong> ${datos.direccion.colonia}</p>
+                <p><strong>Alcaldía:</strong> ${datos.direccion.alcaldia}</p>
+                <p><strong>Estado:</strong> ${datos.direccion.estado}</p>
+                <p><strong>CP:</strong> ${datos.direccion.cp}</p>
+                <p><strong>Teléfono:</strong> ${datos.direccion.telefono}</p>
+                <p><strong>Recibe:</strong> ${datos.direccion.nombreRecibe}</p>
+                ${datos.direccion.mapsUrl ? `<p><strong>Google Maps:</strong> <a href="${datos.direccion.mapsUrl}" target="_blank">Ver mapa</a></p>` : ''}
+            `;
+        }
+
+        let infoPago = '';
+        if (datos.tipoPago === 'Transferencia') {
+            infoPago = `
+                <p><strong>Referencia:</strong> ${datos.referencia}</p>
+                <p><strong>Comprobante:</strong> ${datos.comprobanteNombre}</p>
+            `;
+        } else if (datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial') {
+            infoPago = `
+                <p><strong>Días de crédito:</strong> ${datos.diasCredito || DIAS_CREDITO_FIJO} días</p>
+                <p><strong>Saldo pendiente:</strong> ${formatoMexicano(datos.montoCredito || datos.total)}</p>
+                <p><strong>Fecha de pago:</strong> ${datos.fechaPago ? datos.fechaPago.toLocaleDateString('es-MX') : 'No definida'}</p>
+                <p><strong>Anticipo recibido:</strong> ${formatoMexicano(datos.anticipo || 0)}</p>
+                ${datos.esCreditoParcial ? `<p style="color:#92400e;font-weight:600;">⚠️ Crédito parcial - Referencia excedente: ${datos.referencia || 'N/A'}</p>` : ''}
+            `;
+        }
+
+        const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;">
+    <div style="background:#0A2540;padding:20px;text-align:center;border-radius:10px 10px 0 0;">
+        <h1 style="color:white;margin:0;">ProConstrucción <span style="color:#F5A623;">MX</span></h1>
+        <p style="color:#94a3b8;margin:5px 0 0 0;">🛒 Nueva compra desde el portal web</p>
+    </div>
+    <div style="background:white;padding:30px;border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+        <h2 style="color:#0A2540;">🧾 ${datos.folio}</h2>
+        <p><strong>Fecha:</strong> ${datos.fecha.toLocaleString('es-MX')}</p>
+        <p><strong>Método de pago:</strong> ${datos.tipoPago}</p>
+        <p><strong>Factura:</strong> ${datos.requiereFactura ? 'SÍ' : 'NO'}</p>
+        <p><strong>Estado:</strong> ${datos.estadoPago || 'Validando pago'}</p>
+        
+        ${datos.esCreditoParcial ? `
+            <div style="background:#fef3c7;padding:10px;border-radius:8px;margin:10px 0;border:1px solid #fde68a;">
+                <p style="margin:0;color:#92400e;font-weight:600;">⚠️ CRÉDITO PARCIAL</p>
+                <p style="margin:0;color:#92400e;">Monto pagado (excedente): ${formatoMexicano(datos.montoPago)} | Monto a crédito: ${formatoMexicano(datos.montoCredito)}</p>
+            </div>
+        ` : ''}
+        
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
+        
+        <h3 style="color:#0A2540;">👤 Datos del Cliente</h3>
+        <p><strong>Nombre:</strong> ${datos.cliente.nombre}</p>
+        <p><strong>Código:</strong> ${datos.cliente.codigo}</p>
+        <p><strong>Correo:</strong> ${datos.cliente.correo}</p>
+        <p><strong>Teléfono:</strong> ${datos.cliente.telefono || 'No especificado'}</p>
+        <p><strong>Giro:</strong> ${datos.cliente.giro || 'No especificado'}</p>
+        <p><strong>Descuento Base:</strong> ${datos.cliente.descuento}%</p>
+        
+        ${htmlDireccion}
+        
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
+        
+        <h3 style="color:#0A2540;">📦 Productos</h3>
+        <table style="width:100%;border-collapse:collapse;">
+            <thead>
+                <tr style="background:#f8f9fa;">
+                    <th style="padding:10px;text-align:center;">Cant.</th>
+                    <th style="padding:10px;text-align:left;">Producto</th>
+                    <th style="padding:10px;text-align:right;">Precio</th>
+                    <th style="padding:10px;text-align:center;">Dto.%</th>
+                    <th style="padding:10px;text-align:right;">Importe</th>
+                </tr>
+            </thead>
+            <tbody>${htmlProductos}</tbody>
+        </table>
+        
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
+        
+        <div style="text-align:right;">
+            <p><strong>Subtotal sin descuento:</strong> ${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16))}</p>
+            <p><strong>Descuento total:</strong> -${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16) - datos.total)}</p>
+            <p><strong>Subtotal:</strong> ${formatoMexicano(datos.subtotal)}</p>
+            <p><strong>IVA (16%):</strong> ${formatoMexicano(datos.iva)}</p>
+            <p style="font-size:1.4rem;font-weight:700;color:#0A2540;"><strong>TOTAL:</strong> ${formatoMexicano(datos.total)}</p>
+        </div>
+        
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
+        
+        <h3 style="color:#0A2540;">💳 Información de Pago</h3>
+        ${infoPago}
+        
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
+        
+        <p style="text-align:center;color:#718096;font-size:0.8rem;">
+            Este es un correo automático generado por el sistema de ProConstrucción MX.<br>
+            © ${new Date().getFullYear()} ProConstrucción MX - Todos los derechos reservados
+        </p>
+    </div>
+</body>
+</html>`;
+
+        // ⭐ TEMPLATE PARAMS - Usar 'email' para coincidir con tu template ⭐
         const templateParams = {
             email: 'ventas@proconstruccionmx.com',
-            from_name: datos.cliente.nombre,
+            from_name: 'ProConstrucción MX',
             subject: `🛒 NUEVA COMPRA WEB - ${datos.folio} - ${datos.cliente.nombre}`,
-            message: `
-NUEVA COMPRA WEB - ${datos.folio}
-
-Cliente: ${datos.cliente.nombre}
-Código: ${datos.cliente.codigo}
-Total: ${formatoMexicano(datos.total)}
-Método de pago: ${datos.tipoPago}
-Factura: ${datos.requiereFactura ? 'SÍ' : 'NO'}
-
-Productos:
-${datos.productos.map(p => `- ${p.nombre} x${p.cantidad} = ${formatoMexicano(p.importe)}`).join('\n')}
-
-Dirección de envío:
-${datos.direccion ? `Calle: ${datos.direccion.calle}\nColonia: ${datos.direccion.colonia}\nAlcaldía: ${datos.direccion.alcaldia}\nEstado: ${datos.direccion.estado}\nCP: ${datos.direccion.cp}\nTeléfono: ${datos.direccion.telefono}\nRecibe: ${datos.direccion.nombreRecibe}` : 'No proporcionada'}
-            `,
+            message: htmlContent,
             folio: datos.folio,
             cliente: datos.cliente.nombre,
             codigo: datos.cliente.codigo,
@@ -3589,24 +3709,24 @@ ${datos.direccion ? `Calle: ${datos.direccion.calle}\nColonia: ${datos.direccion
             tipo_pago: datos.tipoPago,
             factura: datos.requiereFactura ? 'SÍ' : 'NO'
         };
-        
+
         console.log('📧 TemplateParams enviados:', templateParams);
-        
+
         if (typeof emailjs === 'undefined') {
             console.error('❌ emailjs no está definido.');
             return { success: false, error: 'emailjs no disponible' };
         }
-        
+
         const response = await emailjs.send(
             'service_o2zvkzo',
             'template_usum2d8',
             templateParams,
             '_gOxtGSQmrhTdoRuX'
         );
-        
+
         console.log('✅ Correo enviado a ventas:', response);
         return { success: true };
-        
+
     } catch (error) {
         console.error('❌ Error al enviar correo:', error);
         return { success: false, error: error.toString() };
@@ -3647,6 +3767,9 @@ async function cargarHistorialCompras() {
             }
             const total = parseFloat(values[4]) || 0;
             const estado = String(values[12] || '').trim();
+            const formaPago = String(values[9] || '').trim();
+            const creditoPendiente = parseFloat(values[5]) || 0;
+            const montoPagado = parseFloat(values[6]) || 0;
             
             if (codigo === codigoCliente && idVenta) {
                 idsVenta.push(idVenta);
@@ -3657,7 +3780,11 @@ async function cargarHistorialCompras() {
                     fechaObj: fechaObj,
                     total: total,
                     estado: estado || 'Validando pago',
-                    codigoCliente: codigo
+                    codigoCliente: codigo,
+                    tipoPago: formaPago,
+                    saldoPendiente: creditoPendiente,
+                    montoPagado: montoPagado,
+                    anticipo: montoPagado
                 });
             }
         }
@@ -3760,6 +3887,7 @@ async function cargarHistorialCompras() {
         renderizarOrdenes();
         renderizarHistorialCompras();
         renderizarEstadisticasProductos();
+        cargarCreditosPendientes();
         
     } catch (error) {
         console.error('❌ Error al cargar historial de compras:', error);
@@ -4210,6 +4338,335 @@ function filtrarHistorial() {
     const ano = anoSelect ? anoSelect.value : 'todos';
     const mes = mesSelect ? mesSelect.value : 'todos';
     renderizarHistorialCompras(ano, mes);
+}
+
+// ============================================
+// ⭐ FUNCIONES PARA CRÉDITOS PENDIENTES ⭐
+// ============================================
+
+function cargarCreditosPendientes() {
+    console.log('📋 Cargando créditos pendientes...');
+    
+    const container = document.getElementById('creditosPendientesContent');
+    if (!container) return;
+    
+    // Filtrar ventas que son crédito y tienen saldo pendiente > 0
+    creditosPendientes = historialVentas.filter(v => {
+        const tipoPago = v.tipoPago || '';
+        const saldoPendiente = v.saldoPendiente || v.total || 0;
+        // Verificar si es crédito (debe venir de la hoja)
+        return (tipoPago === 'Crédito' || tipoPago === 'Crédito Parcial') && saldoPendiente > 0.01;
+    });
+    
+    console.log(`📊 Créditos pendientes encontrados: ${creditosPendientes.length}`);
+    
+    if (creditosPendientes.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-check-circle" style="color:#16a34a;"></i>
+                <h4>Sin créditos pendientes</h4>
+                <p>No tienes compras a crédito pendientes de liquidar.</p>
+            </div>
+        `;
+        document.getElementById('totalCreditoPendiente').textContent = 'Total: $0.00';
+        return;
+    }
+    
+    let totalPendiente = 0;
+    let html = `<div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">`;
+    
+    creditosPendientes.forEach((venta, index) => {
+        const saldoPendiente = venta.saldoPendiente || venta.total || 0;
+        totalPendiente += saldoPendiente;
+        
+        const fecha = venta.fechaObj || parseFechaGoogleSheets(venta.fecha);
+        const fechaFormateada = fecha ? fecha.toLocaleDateString('es-MX', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        }) : 'Fecha no disponible';
+        
+        const fechaPago = venta.fechaPago ? new Date(venta.fechaPago) : null;
+        const fechaPagoFormateada = fechaPago ? fechaPago.toLocaleDateString('es-MX') : 'No definida';
+        
+        html += `
+            <div style="background:white; border-radius:12px; padding:1.2rem; border:1px solid #fef3c7; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
+                    <div>
+                        <span style="font-weight:700; color:var(--primary-dark); font-size:1rem;">${venta.idVenta}</span>
+                        <span style="font-size:0.75rem; color:var(--text-gray); margin-left:0.5rem;">${fechaFormateada}</span>
+                        <div style="font-size:0.8rem; color:var(--text-gray); margin-top:0.2rem;">
+                            <span class="badge badge-warning">${venta.tipoPago || 'Crédito'}</span>
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-weight:700; color:#92400e; font-size:1.1rem;">
+                            ${formatoMexicano(saldoPendiente)}
+                        </div>
+                        <div style="font-size:0.7rem; color:var(--text-gray);">Pago límite: ${fechaPagoFormateada}</div>
+                    </div>
+                </div>
+                <div style="margin-top:0.5rem; padding-top:0.5rem; border-top:1px solid #f3f4f6;">
+                    <div style="font-size:0.8rem; color:var(--text-gray);">
+                        <strong>Productos:</strong> ${venta.productos ? venta.productos.length : 0}
+                    </div>
+                    <div style="font-size:0.8rem; color:var(--text-gray);">
+                        <strong>Total:</strong> ${formatoMexicano(venta.total || 0)}
+                        ${venta.anticipo ? ` | <strong>Pagado:</strong> ${formatoMexicano(venta.anticipo)}` : ''}
+                    </div>
+                </div>
+                <button class="btn-primary" style="width:100%; margin-top:0.8rem; padding:0.5rem; font-size:0.85rem;" 
+                        onclick="abrirModalPagoCreditoPendiente('${venta.idVenta}')">
+                    <i class="fas fa-university"></i> Liquidar con Transferencia
+                </button>
+            </div>
+        `;
+    });
+    
+    html += `</div>`;
+    container.innerHTML = html;
+    document.getElementById('totalCreditoPendiente').textContent = `Total: ${formatoMexicano(totalPendiente)}`;
+}
+
+// ⭐ ABRIR MODAL PARA PAGAR CRÉDITO PENDIENTE ⭐
+function abrirModalPagoCreditoPendiente(idVenta) {
+    const venta = creditosPendientes.find(v => v.idVenta === idVenta);
+    if (!venta) {
+        mostrarNotificacion('❌ No se encontró la venta');
+        return;
+    }
+    
+    creditoSeleccionadoParaPago = venta;
+    const saldoPendiente = venta.saldoPendiente || venta.total || 0;
+    
+    // Crear modal dinámico
+    const modalHtml = `
+        <div id="modalPagoCredito" class="modal-overlay active" onclick="if(event.target===this) cerrarModalPagoCredito()">
+            <div class="modal" style="max-width:500px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                    <h2 style="color:var(--primary-dark); margin:0;">💳 Liquidar Crédito</h2>
+                    <button onclick="cerrarModalPagoCredito()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-gray);">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div id="modalPagoCreditoMensaje" style="display:none;"></div>
+                
+                <div style="background:#fef3c7; padding:1rem; border-radius:12px; margin-bottom:1rem; border:1px solid #fde68a;">
+                    <p style="margin:0; font-weight:600; color:#92400e;">🧾 ${venta.idVenta}</p>
+                    <p style="margin:0.3rem 0 0 0; font-size:0.9rem; color:#92400e;">
+                        <strong>Saldo pendiente:</strong> ${formatoMexicano(saldoPendiente)}
+                    </p>
+                </div>
+                
+                <div class="datos-bancarios">
+                    <p><strong>PROCONSTRUCCIONMX SAS DE CV</strong></p>
+                    <p><strong>BANCO:</strong> BBVA</p>
+                    <p><strong>NÚMERO DE CUENTA:</strong> 0127744064</p>
+                    <p><strong>CUENTA CLABE:</strong> 012180001277440643</p>
+                </div>
+                
+                <div class="form-group">
+                    <label>Monto a transferir: <strong id="montoTransferenciaCredito">${formatoMexicano(saldoPendiente)}</strong></label>
+                </div>
+                <div class="form-group">
+                    <label>Número de referencia o folio de transferencia <span style="color:red;">*</span></label>
+                    <input type="text" id="referenciaTransferenciaCredito" placeholder="Ej: 1234567890">
+                </div>
+                <div class="form-group">
+                    <label>Subir comprobante de transferencia <span style="color:red;">*</span></label>
+                    <div class="file-upload" onclick="document.getElementById('comprobanteFileCredito').click()">
+                        <i class="fas fa-cloud-upload-alt" style="font-size:2rem; color: var(--accent-orange);"></i>
+                        <p>Haz clic para seleccionar tu comprobante</p>
+                        <p class="file-name" id="fileNameCredito">Ningún archivo seleccionado</p>
+                        <input type="file" id="comprobanteFileCredito" accept="*/*" onchange="cargarComprobanteCredito(event)">
+                    </div>
+                </div>
+                
+                <button class="btn-enviar" id="btnConfirmarPagoCredito" onclick="procesarPagoCreditoPendiente()" disabled>
+                    <i class="fas fa-paper-plane"></i> Confirmar Pago
+                </button>
+                <button class="btn-cerrar-modal" onclick="cerrarModalPagoCredito()">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Eliminar modal existente
+    const existing = document.getElementById('modalPagoCredito');
+    if (existing) existing.remove();
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Evento para validar campos
+    document.getElementById('referenciaTransferenciaCredito').addEventListener('input', validarCamposCreditoPendiente);
+}
+
+// ⭐ CARGAR COMPROBANTE PARA CRÉDITO PENDIENTE ⭐
+let comprobanteCreditoBase64 = null;
+let comprobanteCreditoNombre = null;
+
+function cargarComprobanteCredito(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        comprobanteCreditoBase64 = e.target.result.split(',')[1];
+        comprobanteCreditoNombre = file.name;
+        document.getElementById('fileNameCredito').textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+        validarCamposCreditoPendiente();
+    };
+    reader.readAsDataURL(file);
+}
+
+function validarCamposCreditoPendiente() {
+    const referencia = document.getElementById('referenciaTransferenciaCredito').value.trim();
+    const archivo = document.getElementById('fileNameCredito').textContent;
+    const btn = document.getElementById('btnConfirmarPagoCredito');
+    
+    if (btn) {
+        if (referencia && archivo && archivo !== 'Ningún archivo seleccionado') {
+            btn.disabled = false;
+            btn.title = '';
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+        } else {
+            btn.disabled = true;
+            btn.title = 'Completa el número de referencia y sube el comprobante';
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+        }
+    }
+}
+
+function cerrarModalPagoCredito() {
+    const modal = document.getElementById('modalPagoCredito');
+    if (modal) modal.remove();
+    comprobanteCreditoBase64 = null;
+    comprobanteCreditoNombre = null;
+    creditoSeleccionadoParaPago = null;
+}
+
+function mostrarMensajeModalPagoCredito(tipo, mensaje) {
+    const div = document.getElementById('modalPagoCreditoMensaje');
+    if (div) {
+        div.className = tipo === 'exito' ? 'mensaje-exito' : 'mensaje-error';
+        div.innerHTML = mensaje;
+        div.style.display = 'block';
+    }
+}
+
+// ⭐ PROCESAR PAGO DE CRÉDITO PENDIENTE ⭐
+async function procesarPagoCreditoPendiente() {
+    const referencia = document.getElementById('referenciaTransferenciaCredito').value.trim();
+    
+    if (!referencia) {
+        mostrarMensajeModalPagoCredito('error', '⚠️ El número de referencia o folio de transferencia es obligatorio.');
+        return;
+    }
+    
+    if (!comprobanteCreditoBase64) {
+        mostrarMensajeModalPagoCredito('error', '⚠️ Por favor, sube el comprobante de transferencia.');
+        return;
+    }
+    
+    if (!creditoSeleccionadoParaPago) {
+        mostrarMensajeModalPagoCredito('error', '❌ No se encontró la venta seleccionada.');
+        return;
+    }
+    
+    const btn = document.getElementById('btnConfirmarPagoCredito');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner"></span> Procesando...';
+    }
+    
+    try {
+        const venta = creditoSeleccionadoParaPago;
+        const saldoPendiente = venta.saldoPendiente || venta.total || 0;
+        const totalOriginal = venta.total || 0;
+        const anticipoAnterior = venta.anticipo || 0;
+        
+        // Crear datos de la venta para el correo y estadísticas
+        const folio = `PAGO-${venta.idVenta}`;
+        const fecha = new Date();
+        
+        // Productos de la venta original
+        const productosParaVenta = venta.productos ? venta.productos.map(p => ({
+            ...p,
+            _tipo: 'pago'
+        })) : [];
+        
+        const datosVenta = {
+            folio: folio,
+            fecha: fecha,
+            cliente: clienteData,
+            direccion: null,
+            productos: productosParaVenta,
+            total: saldoPendiente,
+            subtotal: saldoPendiente / 1.16,
+            iva: saldoPendiente - (saldoPendiente / 1.16),
+            tipoPago: 'Transferencia (Liquidación Crédito)',
+            referencia: referencia,
+            comprobante: comprobanteCreditoBase64,
+            comprobanteNombre: comprobanteCreditoNombre,
+            comprobanteTipo: 'image/*',
+            sucursal: SUCURSAL_WEB,
+            nombreDireccion: 'Liquidación de crédito',
+            requiereFactura: false,
+            datosFactura: null,
+            montoPago: saldoPendiente,
+            montoCredito: 0,
+            estadoPago: 'Liquidado',
+            esCreditoParcial: false,
+            diasCredito: 0,
+            fechaPago: null,
+            saldoPendiente: 0,
+            anticipo: saldoPendiente,
+            esLiquidacionCredito: true,
+            idVentaOriginal: venta.idVenta,
+            creditoOriginal: saldoPendiente
+        };
+        
+        console.log('📊 Liquidando crédito:', datosVenta);
+        
+        // Guardar en estadísticas
+        await guardarVentaEnEstadisticas(datosVenta);
+        
+        // Enviar correo
+        await enviarCorreoVentaWeb(datosVenta);
+        
+        // Mostrar mensaje de éxito
+        mostrarMensajeModalPagoCredito('exito', `
+            ✅ ¡Pago registrado con éxito!<br>
+            <strong>Venta original:</strong> ${venta.idVenta}<br>
+            <strong>Monto liquidado:</strong> ${formatoMexicano(saldoPendiente)}<br>
+            <strong>Referencia:</strong> ${referencia}<br><br>
+            Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.
+        `);
+        
+        // Deshabilitar botón
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '✅ Pago registrado';
+        }
+        
+        // Recargar créditos pendientes después de un momento
+        setTimeout(() => {
+            cerrarModalPagoCredito();
+            cargarHistorialCompras();
+        }, 5000);
+        
+    } catch (error) {
+        console.error('Error al procesar pago:', error);
+        mostrarMensajeModalPagoCredito('error', '❌ Error al procesar el pago. Por favor, intenta de nuevo.');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Pago';
+        }
+    }
 }
 
 // ============================================
