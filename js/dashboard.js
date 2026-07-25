@@ -2114,7 +2114,7 @@ function vaciarCarrito() {
 }
 
 // ============================================
-// RENDERIZAR CARRITO - SIN MENSAJES DE CRÉDITO
+// RENDERIZAR CARRITO
 // ============================================
 
 function renderizarCarrito() {
@@ -2494,7 +2494,7 @@ function mostrarMensajeModalDireccion(tipo, mensaje) {
 }
 
 // ============================================
-// FUNCIONES DE PAGO - ACTUALIZADAS
+// FUNCIONES DE PAGO - CORREGIDAS
 // ============================================
 
 function abrirModalPago() {
@@ -2570,7 +2570,7 @@ function abrirModalPago() {
         }
     }
     
-    // ⭐ INICIALIZAR FACTURA - UN SOLO BLOQUE ⭐
+    // ⭐ INICIALIZAR FACTURA ⭐
     requiereFactura = false;
     document.getElementById('facturaNo').classList.add('selected');
     document.getElementById('facturaSi').classList.remove('selected');
@@ -2914,7 +2914,6 @@ function generarPDFComprobante(datos) {
 
         const logoUrl = 'https://i.imgur.com/1T3PCYR.png';
 
-        // Generar HTML para el PDF
         const html = `
 <!DOCTYPE html>
 <html>
@@ -3041,7 +3040,6 @@ function generarPDFComprobante(datos) {
 </body>
 </html>`;
 
-        // Crear una ventana de impresión para generar PDF
         const ventana = window.open('', '_blank', 'width=800,height=600');
         if (ventana) {
             ventana.document.write(html);
@@ -3545,7 +3543,7 @@ async function guardarVentaEnEstadisticas(datos) {
 }
 
 // ============================================
-// FUNCIÓN PARA ENVIAR CORREO A VENTAS
+// FUNCIÓN PARA ENVIAR CORREO A VENTAS - CORREGIDA
 // ============================================
 
 async function enviarCorreoVentaWeb(datos) {
@@ -3705,6 +3703,7 @@ async function enviarCorreoVentaWeb(datos) {
             </html>
         `;
         
+        // ⭐ CORREGIDO: Asegurar que el campo 'to_email' tenga un valor válido ⭐
         const templateParams = {
             to_email: emailDestino,
             from_name: datos.cliente.nombre,
