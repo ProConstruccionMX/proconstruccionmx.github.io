@@ -2494,7 +2494,7 @@ function mostrarMensajeModalDireccion(tipo, mensaje) {
 }
 
 // ============================================
-// FUNCIONES DE PAGO - CORREGIDAS
+// FUNCIONES DE PAGO - ACTUALIZADAS
 // ============================================
 
 function abrirModalPago() {
@@ -2616,7 +2616,6 @@ function seleccionarPago(tipo) {
     document.getElementById('modalMensaje').innerHTML = '';
     document.getElementById('modalMensaje').style.display = 'none';
     
-    // Ocultar formulario de transferencia en crédito por defecto
     const formTransferencia = document.getElementById('formTransferencia');
     const formCredito = document.getElementById('formCredito');
     const btnConfirmarCredito = document.getElementById('btnConfirmarCredito');
@@ -2650,7 +2649,7 @@ function seleccionarPago(tipo) {
         const montoExcedente = window._montoExcedente || 0;
         
         if (esCreditoParcial && infoCredito && infoCredito.excedeLimite) {
-            // ⭐ CRÉDITO PARCIAL - OCULTAR "Confirmar Crédito" y mostrar "Pagar Excedente y Finalizar" ⭐
+            // ⭐ CRÉDITO PARCIAL - Mostrar campos de transferencia y botón "Pagar Excedente y Finalizar" ⭐
             
             // Mostrar mensaje de excedente
             const mensajeHTML = `
@@ -2679,7 +2678,7 @@ function seleccionarPago(tipo) {
                 document.getElementById('montoTransferencia').textContent = formatoMexicano(montoExcedente);
             }
             
-            // ⭐ OCULTAR "Confirmar Crédito" y mostrar "Pagar Excedente y Finalizar" ⭐
+            // ⭐ MOSTRAR "Pagar Excedente y Finalizar" (OCULTAR "Confirmar Crédito") ⭐
             if (btnConfirmarCredito) {
                 btnConfirmarCredito.style.display = 'block';
                 btnConfirmarCredito.innerHTML = '<i class="fas fa-university"></i> Pagar Excedente y Finalizar';
@@ -2694,16 +2693,16 @@ function seleccionarPago(tipo) {
             validarCamposCreditoParcial();
             
         } else {
-            // ⭐ CRÉDITO TOTAL - Mostrar "Confirmar Crédito" ⭐
+            // ⭐ CRÉDITO TOTAL - OCULTAR campos de transferencia, mostrar "Confirmar Crédito" ⭐
             document.getElementById('modalMensaje').innerHTML = '';
             document.getElementById('modalMensaje').style.display = 'none';
             
-            // Ocultar campos de transferencia
+            // ⭐ OCULTAR campos de transferencia cuando NO excede el límite ⭐
             if (formTransferencia) {
                 formTransferencia.style.display = 'none';
             }
             
-            // Mostrar "Confirmar Crédito"
+            // ⭐ MOSTRAR "Confirmar Crédito" ⭐
             if (btnConfirmarCredito) {
                 btnConfirmarCredito.style.display = 'block';
                 btnConfirmarCredito.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
