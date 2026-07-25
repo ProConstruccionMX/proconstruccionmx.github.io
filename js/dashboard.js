@@ -2258,8 +2258,6 @@ function renderizarCarrito() {
         `;
     }
     
-    // ⭐ NO MOSTRAMOS NADA DE CRÉDITO EN EL CARRITO ⭐
-    
     cartContent.innerHTML = html;
     cartTotales.style.display = 'block';
     
@@ -2621,6 +2619,7 @@ function seleccionarPago(tipo) {
     // Ocultar formulario de transferencia en crédito por defecto
     const formTransferencia = document.getElementById('formTransferencia');
     const formCredito = document.getElementById('formCredito');
+    const btnConfirmarCredito = document.getElementById('btnConfirmarCredito');
     
     if (tipo === 'transferencia') {
         document.getElementById('btnTransferencia').classList.add('selected');
@@ -2633,12 +2632,6 @@ function seleccionarPago(tipo) {
         
         // Habilitar/deshabilitar botón según campos
         validarCamposTransferencia();
-        
-        // Ocultar botón de crédito si estaba visible
-        const btnConfirmarCredito = document.querySelector('#formCredito .btn-enviar');
-        if (btnConfirmarCredito) {
-            btnConfirmarCredito.style.display = 'none';
-        }
         
         // Asegurar que el bloque de factura esté visible
         document.getElementById('facturaContainer').style.display = 'block';
@@ -2656,11 +2649,10 @@ function seleccionarPago(tipo) {
         const esCreditoParcial = window._esCreditoParcial || false;
         const montoExcedente = window._montoExcedente || 0;
         
-        // Ocultar el botón de confirmar compra por defecto
-        const btnConfirmarCompra = document.querySelector('#formCredito .btn-enviar');
-        
         if (esCreditoParcial && infoCredito && infoCredito.excedeLimite) {
-            // Crédito con excedente - mostrar campos de transferencia DENTRO del crédito
+            // ⭐ CRÉDITO PARCIAL - OCULTAR "Confirmar Crédito" y mostrar "Pagar Excedente y Finalizar" ⭐
+            
+            // Mostrar mensaje de excedente
             const mensajeHTML = `
                 <div style="background: #fef3c7; padding: 1rem; border-radius: 12px; margin-bottom: 1rem; border: 1px solid #fde68a;">
                     <p style="margin: 0; font-weight: 600; color: #92400e;">
@@ -2687,22 +2679,22 @@ function seleccionarPago(tipo) {
                 document.getElementById('montoTransferencia').textContent = formatoMexicano(montoExcedente);
             }
             
-            // ⭐ OCULTAR el botón "Confirmar Crédito" y mostrar "Pagar Excedente y Finalizar" ⭐
-            if (btnConfirmarCompra) {
-                btnConfirmarCompra.style.display = 'block';
-                btnConfirmarCompra.innerHTML = '<i class="fas fa-university"></i> Pagar Excedente y Finalizar';
-                btnConfirmarCompra.disabled = true;
-                btnConfirmarCompra.title = 'Completa el número de referencia y sube el comprobante';
-                btnConfirmarCompra.style.opacity = '0.5';
-                btnConfirmarCompra.style.cursor = 'not-allowed';
-                btnConfirmarCompra.className = 'btn-enviar';
+            // ⭐ OCULTAR "Confirmar Crédito" y mostrar "Pagar Excedente y Finalizar" ⭐
+            if (btnConfirmarCredito) {
+                btnConfirmarCredito.style.display = 'block';
+                btnConfirmarCredito.innerHTML = '<i class="fas fa-university"></i> Pagar Excedente y Finalizar';
+                btnConfirmarCredito.disabled = true;
+                btnConfirmarCredito.title = 'Completa el número de referencia y sube el comprobante';
+                btnConfirmarCredito.style.opacity = '0.5';
+                btnConfirmarCredito.style.cursor = 'not-allowed';
+                btnConfirmarCredito.className = 'btn-enviar';
             }
             
             // Validar campos para habilitar el botón
             validarCamposCreditoParcial();
             
         } else {
-            // Crédito total (sin excedente)
+            // ⭐ CRÉDITO TOTAL - Mostrar "Confirmar Crédito" ⭐
             document.getElementById('modalMensaje').innerHTML = '';
             document.getElementById('modalMensaje').style.display = 'none';
             
@@ -2711,15 +2703,15 @@ function seleccionarPago(tipo) {
                 formTransferencia.style.display = 'none';
             }
             
-            // Mostrar el botón "Confirmar Crédito"
-            if (btnConfirmarCompra) {
-                btnConfirmarCompra.style.display = 'block';
-                btnConfirmarCompra.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
-                btnConfirmarCompra.disabled = false;
-                btnConfirmarCompra.title = '';
-                btnConfirmarCompra.style.opacity = '1';
-                btnConfirmarCompra.style.cursor = 'pointer';
-                btnConfirmarCompra.className = 'btn-enviar';
+            // Mostrar "Confirmar Crédito"
+            if (btnConfirmarCredito) {
+                btnConfirmarCredito.style.display = 'block';
+                btnConfirmarCredito.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
+                btnConfirmarCredito.disabled = false;
+                btnConfirmarCredito.title = '';
+                btnConfirmarCredito.style.opacity = '1';
+                btnConfirmarCredito.style.cursor = 'pointer';
+                btnConfirmarCredito.className = 'btn-enviar';
             }
         }
     }
@@ -2729,7 +2721,7 @@ function seleccionarPago(tipo) {
 function validarCamposTransferencia() {
     const referencia = document.getElementById('referenciaTransferencia').value.trim();
     const archivo = document.getElementById('fileName').textContent;
-    const btnConfirmar = document.querySelector('#formTransferencia .btn-enviar');
+    const btnConfirmar = document.getElementById('btnConfirmarTransferencia');
     
     if (btnConfirmar) {
         if (referencia && archivo && archivo !== 'Ningún archivo seleccionado') {
@@ -2750,7 +2742,7 @@ function validarCamposTransferencia() {
 function validarCamposCreditoParcial() {
     const referencia = document.getElementById('referenciaTransferencia').value.trim();
     const archivo = document.getElementById('fileName').textContent;
-    const btnConfirmar = document.querySelector('#formCredito .btn-enviar');
+    const btnConfirmar = document.getElementById('btnConfirmarCredito');
     
     if (btnConfirmar) {
         if (referencia && archivo && archivo !== 'Ningún archivo seleccionado') {
@@ -2767,7 +2759,7 @@ function validarCamposCreditoParcial() {
     }
 }
 
-// ⭐ FUNCIÓN PARA SELECCIONAR FACTURA EN AMBOS MÉTODOS ⭐
+// ⭐ FUNCIÓN PARA SELECCIONAR FACTURA ⭐
 function seleccionarFactura(opcion) {
     requiereFactura = (opcion === 'si');
     
@@ -2813,7 +2805,6 @@ function cargarComprobante(event) {
 
 // ⭐ AGREGAR EVENTO PARA VALIDAR REFERENCIA EN TIEMPO REAL ⭐
 document.addEventListener('DOMContentLoaded', function() {
-    // Evento para el campo de referencia
     const refTransferencia = document.getElementById('referenciaTransferencia');
     if (refTransferencia) {
         refTransferencia.addEventListener('input', function() {
@@ -3114,7 +3105,7 @@ async function procesarPagoTransferencia() {
         return;
     }
     
-    const btn = document.querySelector('#formTransferencia .btn-enviar');
+    const btn = document.getElementById('btnConfirmarTransferencia');
     if (btn) {
         btn.disabled = true;
         btn.innerHTML = '<span class="loading-spinner"></span> Procesando...';
@@ -3158,7 +3149,7 @@ async function procesarPagoTransferencia() {
             anticipo: total
         };
         
-        console.log('📊 Datos de venta a guardar:', datosVenta);
+        console.log('📊 Datos de venta a guardar (Transferencia):', datosVenta);
         
         await guardarVentaEnEstadisticas(datosVenta);
         await enviarCorreoVentaWeb(datosVenta);
@@ -3252,7 +3243,7 @@ async function procesarPagoCredito() {
         }
     }
     
-    const btn = document.querySelector('#formCredito .btn-enviar');
+    const btn = document.getElementById('btnConfirmarCredito');
     if (btn) {
         btn.disabled = true;
         btn.innerHTML = '<span class="loading-spinner"></span> Procesando...';
@@ -3352,7 +3343,7 @@ async function procesarPagoCredito() {
             comprobanteTipo: esCreditoParcial ? comprobanteTipo : null
         };
         
-        console.log('📊 Datos de venta a guardar (crédito):', datosVenta);
+        console.log('📊 Datos de venta a guardar (Crédito):', datosVenta);
         
         await guardarVentaEnEstadisticas(datosVenta);
         await enviarCorreoVentaWeb(datosVenta);
