@@ -1210,14 +1210,14 @@ function productoCumpleMinimoPiezas(producto, cantidad) {
     return cantidad >= producto.minimoPiezas;
 }
 
-// Obtener mensaje de error para el producto
-function getMensajeErrorProducto(producto, cantidad) {
+// Obtener mensaje de advertencia para el producto (no bloquea, solo advierte)
+function getMensajeAdvertenciaProducto(producto, cantidad) {
     if (producto.activo !== 'SI') {
         return `❌ El producto "${producto.nombre}" no está disponible actualmente.`;
     }
     
     if (producto.condicionPeso === 'SI' && producto.minimoPiezas > 0 && cantidad < producto.minimoPiezas) {
-        return `⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas para poder comprarlo.`;
+        return `⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas para completar la compra. Actualmente tienes ${cantidad}.`;
     }
     
     return null;
@@ -1560,17 +1560,29 @@ function buscarProductos() {
             etiquetaPeso = `<span class="tag-peso">⚖️ ${producto.peso} kg/unidad</span>`;
         }
         
-        // Calcular descuento para mostrar
+        // Calcular descuento para mostrar (con cantidad 1)
         const descuentoAplicado = calcularDescuentoProducto(producto, 1);
         let etiquetaDescuento = '';
         if (descuentoAplicado > 0) {
             etiquetaDescuento = `<span class="tag-pxv" style="background:#dbeafe;color:#1e40af;">${descuentoAplicado}% dto.</span>`;
         }
         
+        // Mostrar si es PXV
+        let etiquetaPXV = '';
+        if (producto.pxv === 'PXV') {
+            etiquetaPXV = `<span class="tag-pxv">📦 Precio por Volumen</span>`;
+            if (producto.descuentoVolumenP > 0) {
+                etiquetaPXV += ` <span class="tag-pxv" style="background:#fef3c7;color:#92400e;">+${producto.descuentoVolumenP}% (3t)</span>`;
+            }
+            if (producto.descuentoVolumenQ > 0) {
+                etiquetaPXV += ` <span class="tag-pxv" style="background:#fef3c7;color:#92400e;">+${producto.descuentoVolumenQ}% (5t)</span>`;
+            }
+        }
+        
         html += `
             <div class="product-card">
                 <span class="clave">${producto.clave}</span>
-                ${producto.pxv === 'PXV' ? '<span class="tag-pxv">📦 Precio por Volumen</span>' : ''}
+                ${etiquetaPXV}
                 ${etiquetaPeso}
                 ${etiquetaMinimo}
                 ${etiquetaDescuento}
@@ -1629,31 +1641,33 @@ function agregarAlCarrito(clave) {
         return;
     }
     
-    // ⭐ VALIDACIÓN 1: Producto activo (columna V)
+    // ⭐ VALIDACIÓN 1: Producto activo (columna V) - BLOQUEA
     if (producto.activo !== 'SI') {
         mostrarNotificacion(`❌ El producto "${producto.nombre}" no está disponible actualmente.`);
         return;
     }
     
-    // ⭐ VALIDACIÓN 2: Mínimo de piezas (columna T y U)
-    const cantidadActual = 1; // Siempre se agrega de 1 en 1
-    if (producto.condicionPeso === 'SI' && producto.minimoPiezas > 0 && cantidadActual < producto.minimoPiezas) {
-        mostrarNotificacion(`⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas para poder comprarlo.`);
-        return;
-    }
-    
     // Buscar si ya existe en el carrito
     const existente = carrito.find(item => item.clave === clave);
+    let nuevaCantidad = 1;
     
     if (existente) {
-        // Verificar que la nueva cantidad no exceda el mínimo si aplica
-        const nuevaCantidad = existente.cantidad + 1;
-        if (producto.condicionPeso === 'SI' && producto.minimoPiezas > 0 && nuevaCantidad < producto.minimoPiezas) {
-            mostrarNotificacion(`⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas. Actualmente tienes ${existente.cantidad}.`);
-            return;
-        }
+        nuevaCantidad = existente.cantidad + 1;
+    }
+    
+    // ⭐ VALIDACIÓN 2: Mínimo de piezas (columna T y U) - SOLO ADVIERTE, NO BLOQUEA
+    let mensajeAdvertencia = null;
+    if (producto.condicionPeso === 'SI' && producto.minimoPiezas > 0 && nuevaCantidad < producto.minimoPiezas) {
+        mensajeAdvertencia = `⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas para completar la compra. Actualmente tienes ${nuevaCantidad}.`;
+    }
+    
+    // Agregar o actualizar en el carrito
+    if (existente) {
         existente.cantidad = nuevaCantidad;
-        actualizarItemCarrito(existente);
+        // Recalcular descuento con la nueva cantidad
+        const descuento = calcularDescuentoProducto(producto, nuevaCantidad);
+        existente.descuento = descuento;
+        existente.importe = existente.precio * nuevaCantidad * (1 - descuento / 100);
     } else {
         const precioFinal = obtenerPrecioFinal(producto);
         const descuento = calcularDescuentoProducto(producto, 1);
@@ -1671,12 +1685,18 @@ function agregarAlCarrito(clave) {
             personalizado: precioFinal.personalizado,
             condicionPeso: producto.condicionPeso,
             peso: producto.peso,
-            minimoPiezas: producto.minimoPiezas // Guardar el mínimo para referencia
+            minimoPiezas: producto.minimoPiezas
         });
     }
     
     renderizarCarrito();
-    mostrarNotificacion('✅ Producto agregado al carrito');
+    
+    // Mostrar advertencia si aplica (después de renderizar)
+    if (mensajeAdvertencia) {
+        mostrarNotificacion(mensajeAdvertencia);
+    } else {
+        mostrarNotificacion('✅ Producto agregado al carrito');
+    }
 }
 
 function actualizarItemCarrito(item) {
@@ -1689,7 +1709,7 @@ function actualizarItemCarrito(item) {
 }
 
 // ============================================
-// ⭐ FUNCIÓN ACTUALIZADA: CAMBIAR CANTIDAD CON VALIDACIÓN ⭐
+// ⭐ FUNCIÓN ACTUALIZADA: CAMBIAR CANTIDAD ⭐
 // ============================================
 
 function cambiarCantidad(clave, nuevaCantidad) {
@@ -1701,16 +1721,20 @@ function cambiarCantidad(clave, nuevaCantidad) {
         return;
     }
     
-    // ⭐ Validar mínimo de piezas
+    // ⭐ Validar mínimo de piezas - SOLO ADVIERTE, NO BLOQUEA
     const producto = productosGlobales.find(p => p.clave === clave);
+    let mensajeAdvertencia = null;
     if (producto && producto.condicionPeso === 'SI' && producto.minimoPiezas > 0 && nuevaCantidad < producto.minimoPiezas) {
-        mostrarNotificacion(`⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas.`);
-        return;
+        mensajeAdvertencia = `⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas para completar la compra. Actualmente tienes ${nuevaCantidad}.`;
     }
     
     item.cantidad = nuevaCantidad;
     actualizarItemCarrito(item);
     renderizarCarrito();
+    
+    if (mensajeAdvertencia) {
+        mostrarNotificacion(mensajeAdvertencia);
+    }
 }
 
 function eliminarDelCarrito(clave) {
@@ -1790,7 +1814,15 @@ function renderizarCarrito() {
         // Mostrar mínimo de piezas si aplica
         let minInfo = '';
         if (item.condicionPeso === 'SI' && item.minimoPiezas > 0) {
-            minInfo = `<br><small style="color:var(--text-gray);">📦 Mínimo: ${item.minimoPiezas} piezas</small>`;
+            const cumpleMinimo = item.cantidad >= item.minimoPiezas;
+            minInfo = `<br><small style="color:${cumpleMinimo ? '#16a34a' : '#92400e'};">📦 Mínimo: ${item.minimoPiezas} piezas ${cumpleMinimo ? '✅' : '⚠️'}</small>`;
+        }
+        
+        // Mostrar descuento PXV si aplica
+        let pxvInfo = '';
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        if (producto && producto.pxv === 'PXV' && item.descuento > 0) {
+            pxvInfo = `<br><small style="color:#1e40af;">📦 PXV: ${item.descuento}% dto.</small>`;
         }
         
         html += `
@@ -1800,6 +1832,7 @@ function renderizarCarrito() {
                     ${item.personalizado ? '<span class="precio-personalizado">⭐ Personalizado</span>' : ''}
                     ${pesoInfo}
                     ${minInfo}
+                    ${pxvInfo}
                     <br><small style="color:var(--text-gray);">${item.clave}</small>
                 </td>
                 <td>${formatoMexicano(item.precio)}</td>
