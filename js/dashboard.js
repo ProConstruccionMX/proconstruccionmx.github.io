@@ -1127,7 +1127,7 @@ async function cargarPreciosEspeciales() {
 }
 
 // ============================================
-// ⭐ FUNCIÓN ACTUALIZADA: CALCULAR DESCUENTO CON REGLAS PXV ⭐
+// ⭐ FUNCIÓN CORREGIDA: CALCULAR DESCUENTO CON REGLAS PXV ⭐
 // ============================================
 
 function calcularDescuentoProducto(producto, cantidad) {
@@ -1138,18 +1138,20 @@ function calcularDescuentoProducto(producto, cantidad) {
     );
     
     if (precioEspecial) {
-        return 0; // El precio especial tiene su propio precio
+        return 0; // El precio especial tiene su propio precio, no se aplica descuento adicional
     }
     
     // 1. Calcular descuento base según NA o giro del cliente
     let descuentoBase = 0;
     
+    // Si tiene NA (descuento fijo)
     if (producto.na !== '' && producto.na !== '-') {
         const naNumero = parseFloat(producto.na);
         if (!isNaN(naNumero)) {
             descuentoBase = naNumero;
         }
     } else {
+        // Descuento por giro del cliente
         const giro = clienteData.giro || 'Público en general';
         const mapGiro = {
             'Público en general': producto.descuentoPublico,
@@ -1168,7 +1170,7 @@ function calcularDescuentoProducto(producto, cantidad) {
         return descuentoBase;
     }
     
-    // 3. Es PXV - Calcular descuento por volumen
+    // 3. Es PXV - Calcular descuento por volumen (se SUMA al descuento base)
     let descuentoVolumen = 0;
     
     // Verificar si hay descuento para 5 toneladas (columna Q) - 250 piezas aprox
@@ -1180,9 +1182,39 @@ function calcularDescuentoProducto(producto, cantidad) {
         descuentoVolumen = producto.descuentoVolumenP;
     }
     
-    // 4. Sumar el descuento base + descuento por volumen
+    // 4. SUMAR el descuento base + descuento por volumen
     // Si el descuentoVolumen es 0, solo se aplica el base
     return descuentoBase + descuentoVolumen;
+}
+
+// ============================================
+// ⭐ FUNCIÓN PARA OBTENER EL PRECIO FINAL CON DESCUENTO ⭐
+// ============================================
+
+function obtenerPrecioConDescuento(producto, cantidad) {
+    const precioEspecial = preciosEspecialesGlobales.find(p => 
+        p.codigoCliente === clienteData.codigo && 
+        p.claveProducto === producto.clave
+    );
+    
+    // Si tiene precio especial, usarlo directamente
+    if (precioEspecial) {
+        return {
+            precio: precioEspecial.precioPersonalizado,
+            descuento: 0,
+            personalizado: true
+        };
+    }
+    
+    // Calcular el descuento total
+    const descuentoTotal = calcularDescuentoProducto(producto, cantidad);
+    const precioFinal = producto.precio * (1 - descuentoTotal / 100);
+    
+    return {
+        precio: precioFinal,
+        descuento: descuentoTotal,
+        personalizado: false
+    };
 }
 
 // ============================================
@@ -1210,14 +1242,14 @@ function productoCumpleMinimoPiezas(producto, cantidad) {
     return cantidad >= producto.minimoPiezas;
 }
 
-// Obtener mensaje de advertencia para el producto (no bloquea, solo advierte)
-function getMensajeAdvertenciaProducto(producto, cantidad) {
+// Obtener mensaje de error para el producto (BLOQUEA la compra si no cumple)
+function getMensajeErrorProducto(producto, cantidad) {
     if (producto.activo !== 'SI') {
         return `❌ El producto "${producto.nombre}" no está disponible actualmente.`;
     }
     
     if (producto.condicionPeso === 'SI' && producto.minimoPiezas > 0 && cantidad < producto.minimoPiezas) {
-        return `⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas para completar la compra. Actualmente tienes ${cantidad}.`;
+        return `⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas para poder comprarlo. Actualmente tienes ${cantidad}.`;
     }
     
     return null;
@@ -1544,9 +1576,11 @@ function buscarProductos() {
     
     let html = `<div class="product-grid">`;
     resultados.forEach(producto => {
-        const precioFinal = obtenerPrecioFinal(producto);
-        const tienePersonalizado = precioFinal.personalizado;
-        const precioMostrar = precioFinal.precio;
+        // Calcular precio con descuento para 1 unidad
+        const precioConDescuento = obtenerPrecioConDescuento(producto, 1);
+        const tienePersonalizado = precioConDescuento.personalizado;
+        const precioMostrar = precioConDescuento.precio;
+        const descuentoAplicado = precioConDescuento.descuento;
         
         // ⭐ Mostrar etiqueta de mínimo de piezas si aplica
         let etiquetaMinimo = '';
@@ -1560,8 +1594,7 @@ function buscarProductos() {
             etiquetaPeso = `<span class="tag-peso">⚖️ ${producto.peso} kg/unidad</span>`;
         }
         
-        // Calcular descuento para mostrar (con cantidad 1)
-        const descuentoAplicado = calcularDescuentoProducto(producto, 1);
+        // Mostrar descuento aplicado
         let etiquetaDescuento = '';
         if (descuentoAplicado > 0) {
             etiquetaDescuento = `<span class="tag-pxv" style="background:#dbeafe;color:#1e40af;">${descuentoAplicado}% dto.</span>`;
@@ -1579,6 +1612,12 @@ function buscarProductos() {
             }
         }
         
+        // Mostrar precio original con tachado si hay descuento
+        let precioOriginalHTML = '';
+        if (descuentoAplicado > 0) {
+            precioOriginalHTML = `<span style="text-decoration:line-through;color:#999;font-size:0.8rem;">${formatoMexicano(producto.precio)}</span>`;
+        }
+        
         html += `
             <div class="product-card">
                 <span class="clave">${producto.clave}</span>
@@ -1588,7 +1627,10 @@ function buscarProductos() {
                 ${etiquetaDescuento}
                 <h4>${producto.nombre}</h4>
                 <p class="descripcion">${producto.descripcion || 'Sin descripción'}</p>
-                <p class="precio">${formatoMexicano(precioMostrar)}</p>
+                <p class="precio">
+                    ${precioOriginalHTML}<br>
+                    ${formatoMexicano(precioMostrar)}
+                </p>
                 ${tienePersonalizado ? '<span class="precio-personalizado">⭐ Precio Personalizado</span>' : ''}
                 <button class="btn-agregar" onclick="agregarAlCarrito('${producto.clave}')">
                     <i class="fas fa-plus"></i> Agregar
@@ -1655,57 +1697,56 @@ function agregarAlCarrito(clave) {
         nuevaCantidad = existente.cantidad + 1;
     }
     
-    // ⭐ VALIDACIÓN 2: Mínimo de piezas (columna T y U) - SOLO ADVIERTE, NO BLOQUEA
-    let mensajeAdvertencia = null;
+    // ⭐ VALIDACIÓN 2: Mínimo de piezas (columna T y U) - BLOQUEA si no cumple
     if (producto.condicionPeso === 'SI' && producto.minimoPiezas > 0 && nuevaCantidad < producto.minimoPiezas) {
-        mensajeAdvertencia = `⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas para completar la compra. Actualmente tienes ${nuevaCantidad}.`;
+        mostrarNotificacion(`⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas para poder comprarlo. Actualmente tienes ${nuevaCantidad - 1}.`);
+        return;
     }
+    
+    // Calcular precio con descuento para la nueva cantidad
+    const precioInfo = obtenerPrecioConDescuento(producto, nuevaCantidad);
     
     // Agregar o actualizar en el carrito
     if (existente) {
         existente.cantidad = nuevaCantidad;
-        // Recalcular descuento con la nueva cantidad
-        const descuento = calcularDescuentoProducto(producto, nuevaCantidad);
-        existente.descuento = descuento;
-        existente.importe = existente.precio * nuevaCantidad * (1 - descuento / 100);
+        existente.descuento = precioInfo.descuento;
+        existente.importe = precioInfo.precio * nuevaCantidad;
+        // Actualizar el precio unitario con descuento
+        existente.precioUnitarioConDescuento = precioInfo.precio;
     } else {
-        const precioFinal = obtenerPrecioFinal(producto);
-        const descuento = calcularDescuentoProducto(producto, 1);
-        const precioConDescuento = precioFinal.precio * (1 - descuento / 100);
-        
         carrito.push({
             clave: producto.clave,
             nombre: producto.nombre,
             descripcion: producto.descripcion,
-            precio: precioFinal.precio,
+            precio: producto.precio, // Precio original sin descuento
+            precioUnitarioConDescuento: precioInfo.precio, // Precio con descuento aplicado
             precioCompra: producto.precioCompra,
             cantidad: 1,
-            descuento: descuento,
-            importe: precioConDescuento,
-            personalizado: precioFinal.personalizado,
+            descuento: precioInfo.descuento,
+            importe: precioInfo.precio,
+            personalizado: precioInfo.personalizado,
             condicionPeso: producto.condicionPeso,
             peso: producto.peso,
-            minimoPiezas: producto.minimoPiezas
+            minimoPiezas: producto.minimoPiezas,
+            pxv: producto.pxv,
+            descuentoVolumenP: producto.descuentoVolumenP,
+            descuentoVolumenQ: producto.descuentoVolumenQ
         });
     }
     
     renderizarCarrito();
-    
-    // Mostrar advertencia si aplica (después de renderizar)
-    if (mensajeAdvertencia) {
-        mostrarNotificacion(mensajeAdvertencia);
-    } else {
-        mostrarNotificacion('✅ Producto agregado al carrito');
-    }
+    mostrarNotificacion('✅ Producto agregado al carrito');
 }
 
 function actualizarItemCarrito(item) {
     const producto = productosGlobales.find(p => p.clave === item.clave);
     if (!producto) return;
     
-    const descuento = calcularDescuentoProducto(producto, item.cantidad);
-    item.descuento = descuento;
-    item.importe = item.precio * item.cantidad * (1 - descuento / 100);
+    // Recalcular descuento con la nueva cantidad
+    const precioInfo = obtenerPrecioConDescuento(producto, item.cantidad);
+    item.descuento = precioInfo.descuento;
+    item.precioUnitarioConDescuento = precioInfo.precio;
+    item.importe = precioInfo.precio * item.cantidad;
 }
 
 // ============================================
@@ -1721,20 +1762,16 @@ function cambiarCantidad(clave, nuevaCantidad) {
         return;
     }
     
-    // ⭐ Validar mínimo de piezas - SOLO ADVIERTE, NO BLOQUEA
+    // ⭐ Validar mínimo de piezas - BLOQUEA si no cumple
     const producto = productosGlobales.find(p => p.clave === clave);
-    let mensajeAdvertencia = null;
     if (producto && producto.condicionPeso === 'SI' && producto.minimoPiezas > 0 && nuevaCantidad < producto.minimoPiezas) {
-        mensajeAdvertencia = `⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas para completar la compra. Actualmente tienes ${nuevaCantidad}.`;
+        mostrarNotificacion(`⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas para poder comprarlo.`);
+        return;
     }
     
     item.cantidad = nuevaCantidad;
     actualizarItemCarrito(item);
     renderizarCarrito();
-    
-    if (mensajeAdvertencia) {
-        mostrarNotificacion(mensajeAdvertencia);
-    }
 }
 
 function eliminarDelCarrito(clave) {
@@ -1775,13 +1812,18 @@ function renderizarCarrito() {
     }
     
     const verificarPeso = verificarPesoMinimo();
+    // Verificar mínimos de piezas en todo el carrito
+    const hayMinimoIncumplido = carrito.some(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        return producto && producto.condicionPeso === 'SI' && producto.minimoPiezas > 0 && item.cantidad < producto.minimoPiezas;
+    });
     
     let html = `
         <table class="cart-table">
             <thead>
                 <tr>
                     <th>Producto</th>
-                    <th>Precio</th>
+                    <th>Precio Unit.</th>
                     <th>Cantidad</th>
                     <th>Descuento</th>
                     <th>Importe</th>
@@ -1796,9 +1838,10 @@ function renderizarCarrito() {
     let subtotal = 0;
     
     carrito.forEach(item => {
+        const precioUnitario = item.precioUnitarioConDescuento || item.precio;
         const importeBase = item.precio * item.cantidad;
-        const descuentoItem = importeBase * (item.descuento / 100);
-        const importeFinal = importeBase - descuentoItem;
+        const importeFinal = precioUnitario * item.cantidad;
+        const descuentoItem = importeBase - importeFinal;
         
         subtotalSinDescuento += importeBase;
         descuentoTotal += descuentoItem;
@@ -1815,7 +1858,7 @@ function renderizarCarrito() {
         let minInfo = '';
         if (item.condicionPeso === 'SI' && item.minimoPiezas > 0) {
             const cumpleMinimo = item.cantidad >= item.minimoPiezas;
-            minInfo = `<br><small style="color:${cumpleMinimo ? '#16a34a' : '#92400e'};">📦 Mínimo: ${item.minimoPiezas} piezas ${cumpleMinimo ? '✅' : '⚠️'}</small>`;
+            minInfo = `<br><small style="color:${cumpleMinimo ? '#16a34a' : '#dc2626'};font-weight:${cumpleMinimo ? 'normal' : 'bold'};">📦 Mínimo: ${item.minimoPiezas} piezas ${cumpleMinimo ? '✅' : '❌'}</small>`;
         }
         
         // Mostrar descuento PXV si aplica
@@ -1823,6 +1866,12 @@ function renderizarCarrito() {
         const producto = productosGlobales.find(p => p.clave === item.clave);
         if (producto && producto.pxv === 'PXV' && item.descuento > 0) {
             pxvInfo = `<br><small style="color:#1e40af;">📦 PXV: ${item.descuento}% dto.</small>`;
+        }
+        
+        // Mostrar precio original con tachado si hay descuento
+        let precioMostrar = formatoMexicano(precioUnitario);
+        if (item.descuento > 0) {
+            precioMostrar = `<span style="text-decoration:line-through;color:#999;font-size:0.7rem;">${formatoMexicano(item.precio)}</span><br>${formatoMexicano(precioUnitario)}`;
         }
         
         html += `
@@ -1835,7 +1884,7 @@ function renderizarCarrito() {
                     ${pxvInfo}
                     <br><small style="color:var(--text-gray);">${item.clave}</small>
                 </td>
-                <td>${formatoMexicano(item.precio)}</td>
+                <td>${precioMostrar}</td>
                 <td>
                     <input type="number" class="cantidad-input" 
                            value="${item.cantidad}" min="1" 
@@ -1859,6 +1908,23 @@ function renderizarCarrito() {
             </tbody>
         </table>
     `;
+    
+    // ⭐ Mostrar advertencia de mínimo de piezas si hay incumplimiento
+    if (hayMinimoIncumplido) {
+        html += `
+            <div style="margin-top: 1rem; padding: 1rem; border-radius: 12px; background: #fee2e2; border: 2px solid #fecaca;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 1.5rem;">❌</span>
+                    <span style="font-weight: 700; color: #dc2626; font-size: 1.1rem;">
+                        No se puede realizar la compra
+                    </span>
+                </div>
+                <p style="margin: 0.5rem 0 0 0; color: #dc2626;">
+                    Hay productos que no alcanzan el mínimo de piezas requerido. Aumenta la cantidad para poder comprar.
+                </p>
+            </div>
+        `;
+    }
     
     if (verificarPeso.productosConPeso > 0) {
         let detalleProductos = '';
@@ -1919,7 +1985,13 @@ function renderizarCarrito() {
     document.getElementById('iva').textContent = formatoMexicano(iva);
     document.getElementById('total').textContent = formatoMexicano(total);
     
-    if (verificarPeso.productosConPeso > 0 && !verificarPeso.cumple) {
+    // ⭐ BLOQUEAR compra si hay mínimo de piezas incumplido
+    if (hayMinimoIncumplido) {
+        btnComprar.disabled = true;
+        btnComprar.title = '❌ Hay productos que no alcanzan el mínimo de piezas requerido.';
+        btnComprar.style.opacity = '0.5';
+        btnComprar.style.cursor = 'not-allowed';
+    } else if (verificarPeso.productosConPeso > 0 && !verificarPeso.cumple) {
         btnComprar.disabled = true;
         btnComprar.title = '⚠️ Debes completar el peso mínimo de 1 tonelada (1000 kg) para productos con peso.';
         btnComprar.style.opacity = '0.5';
@@ -2001,6 +2073,17 @@ function verificarPesoMinimo() {
 function abrirModalDireccion() {
     if (carrito.length === 0) {
         mostrarNotificacion('⚠️ El carrito está vacío');
+        return;
+    }
+    
+    // ⭐ Verificar mínimos de piezas antes de continuar
+    const hayMinimoIncumplido = carrito.some(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        return producto && producto.condicionPeso === 'SI' && producto.minimoPiezas > 0 && item.cantidad < producto.minimoPiezas;
+    });
+    
+    if (hayMinimoIncumplido) {
+        mostrarNotificacion('❌ Hay productos que no alcanzan el mínimo de piezas requerido. Aumenta la cantidad para poder comprar.');
         return;
     }
     
@@ -2484,9 +2567,8 @@ document.addEventListener('DOMContentLoaded', function() {
 function calcularTotal() {
     let subtotal = 0;
     carrito.forEach(item => {
-        const importeBase = item.precio * item.cantidad;
-        const descuentoItem = importeBase * (item.descuento / 100);
-        subtotal += importeBase - descuentoItem;
+        const precioUnitario = item.precioUnitarioConDescuento || item.precio;
+        subtotal += precioUnitario * item.cantidad;
     });
     return subtotal + (subtotal * 0.16);
 }
@@ -2515,9 +2597,10 @@ function generarPDFComprobante(datos) {
 
         let tablaProductos = '';
         datos.productos.forEach(producto => {
-            let precioInfo = formatoMexicano(producto.precio);
+            const precioUnitario = producto.precioUnitarioConDescuento || producto.precio;
+            let precioInfo = formatoMexicano(precioUnitario);
             if (producto.personalizado) {
-                precioInfo = `${formatoMexicano(producto.precio)} <span class="precio-personalizado">PERSONALIZADO</span>`;
+                precioInfo = `${formatoMexicano(precioUnitario)} <span class="precio-personalizado">PERSONALIZADO</span>`;
             }
             
             tablaProductos += `
@@ -2945,8 +3028,9 @@ async function procesarPagoCredito() {
                     nombre: item.nombre,
                     cantidad: item.cantidad,
                     precio: item.precio,
+                    precioUnitarioConDescuento: item.precioUnitarioConDescuento || item.precio,
                     descuento: item.descuento,
-                    importe: item.precio * item.cantidad * (1 - item.descuento / 100),
+                    importe: (item.precioUnitarioConDescuento || item.precio) * item.cantidad,
                     precioCompra: item.precioCompra || 0,
                     personalizado: item.personalizado || false,
                     _tipo: 'pago'
@@ -2961,8 +3045,9 @@ async function procesarPagoCredito() {
                     nombre: item.nombre,
                     cantidad: item.cantidad,
                     precio: item.precio,
+                    precioUnitarioConDescuento: item.precioUnitarioConDescuento || item.precio,
                     descuento: item.descuento,
-                    importe: item.precio * item.cantidad * (1 - item.descuento / 100),
+                    importe: (item.precioUnitarioConDescuento || item.precio) * item.cantidad,
                     precioCompra: item.precioCompra || 0,
                     personalizado: item.personalizado || false,
                     _tipo: 'credito'
@@ -3218,6 +3303,7 @@ async function enviarCorreoVentaWeb(datos) {
         // Generar HTML del correo
         let htmlProductos = '';
         datos.productos.forEach(p => {
+            const precioUnitario = p.precioUnitarioConDescuento || p.precio;
             let tipoLabel = '';
             if (p._tipo === 'credito') {
                 tipoLabel = '<span style="color:#92400e;font-weight:600;">(Crédito)</span>';
@@ -3229,7 +3315,7 @@ async function enviarCorreoVentaWeb(datos) {
                 <tr>
                     <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:center;">${p.cantidad}</td>
                     <td style="padding:8px;border-bottom:1px solid #e0e0e0;">${p.nombre} ${tipoLabel}</td>
-                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:right;">${formatoMexicano(p.precio)}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:right;">${formatoMexicano(precioUnitario)}</td>
                     <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:center;">${p.descuento}%</td>
                     <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:right;">${formatoMexicano(p.importe)}</td>
                 </tr>
@@ -4354,10 +4440,8 @@ function verificarCreditoDisponible() {
     productosSinPeso.forEach(item => {
         const producto = productosGlobales.find(p => p.clave === item.clave);
         if (producto) {
-            const precioFinal = obtenerPrecioFinal(producto);
-            const descuento = calcularDescuentoProducto(producto, item.cantidad);
-            const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
-            montoSinPeso += importe;
+            const precioUnitario = item.precioUnitarioConDescuento || item.precio;
+            montoSinPeso += precioUnitario * item.cantidad;
         }
     });
     
@@ -4365,10 +4449,8 @@ function verificarCreditoDisponible() {
     productosConPeso.forEach(item => {
         const producto = productosGlobales.find(p => p.clave === item.clave);
         if (producto) {
-            const precioFinal = obtenerPrecioFinal(producto);
-            const descuento = calcularDescuentoProducto(producto, item.cantidad);
-            const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
-            montoConPeso += importe;
+            const precioUnitario = item.precioUnitarioConDescuento || item.precio;
+            montoConPeso += precioUnitario * item.cantidad;
         }
     });
     
@@ -4451,9 +4533,8 @@ function verificarCreditoDisponible() {
                 if (!producto) continue;
                 
                 const pesoItem = producto.peso * item.cantidad;
-                const precioFinal = obtenerPrecioFinal(producto);
-                const descuento = calcularDescuentoProducto(producto, item.cantidad);
-                const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                const precioUnitario = item.precioUnitarioConDescuento || item.precio;
+                const importe = precioUnitario * item.cantidad;
                 
                 if (pesoAcumulado + pesoItem <= pesoExcedente) {
                     productosPago.push(item);
@@ -4466,7 +4547,7 @@ function verificarCreditoDisponible() {
                         const cantidadCredito = item.cantidad - cantidadPago;
                         
                         if (cantidadPago > 0) {
-                            const importePago = precioFinal.precio * cantidadPago * (1 - descuento / 100);
+                            const importePago = precioUnitario * cantidadPago;
                             productosPago.push({
                                 ...item,
                                 cantidad: cantidadPago,
@@ -4476,7 +4557,7 @@ function verificarCreditoDisponible() {
                         }
                         
                         if (cantidadCredito > 0) {
-                            const importeCredito = precioFinal.precio * cantidadCredito * (1 - descuento / 100);
+                            const importeCredito = precioUnitario * cantidadCredito;
                             productosCredito.push({
                                 ...item,
                                 cantidad: cantidadCredito,
@@ -4495,9 +4576,8 @@ function verificarCreditoDisponible() {
                     const producto = productosGlobales.find(p => p.clave === item.clave);
                     if (!producto) continue;
                     
-                    const precioFinal = obtenerPrecioFinal(producto);
-                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
-                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                    const precioUnitario = item.precioUnitarioConDescuento || item.precio;
+                    const importe = precioUnitario * item.cantidad;
                     
                     const yaProcesado = productosPago.some(p => p.clave === item.clave) || 
                                        productosCredito.some(p => p.clave === item.clave);
@@ -4553,20 +4633,14 @@ function verificarCreditoDisponible() {
             let montoCredito = 0;
             
             const productosOrdenados = [...productosSinPeso].sort((a, b) => {
-                const prodA = productosGlobales.find(p => p.clave === a.clave);
-                const prodB = productosGlobales.find(p => p.clave === b.clave);
-                const precioA = prodA ? prodA.precio * a.cantidad : 0;
-                const precioB = prodB ? prodB.precio * b.cantidad : 0;
-                return precioB - precioA;
+                const precioA = a.precioUnitarioConDescuento || a.precio;
+                const precioB = b.precioUnitarioConDescuento || b.precio;
+                return (precioB * b.cantidad) - (precioA * a.cantidad);
             });
             
             for (const item of productosOrdenados) {
-                const producto = productosGlobales.find(p => p.clave === item.clave);
-                if (!producto) continue;
-                
-                const precioFinal = obtenerPrecioFinal(producto);
-                const descuento = calcularDescuentoProducto(producto, item.cantidad);
-                const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                const precioUnitario = item.precioUnitarioConDescuento || item.precio;
+                const importe = precioUnitario * item.cantidad;
                 
                 if (montoAcumulado + importe <= montoExcedente) {
                     productosPago.push(item);
@@ -4575,11 +4649,11 @@ function verificarCreditoDisponible() {
                 } else {
                     const montoRestante = montoExcedente - montoAcumulado;
                     if (montoRestante > 0 && importe > 0) {
-                        const cantidadPago = montoRestante / (precioFinal.precio * (1 - descuento / 100));
+                        const cantidadPago = montoRestante / precioUnitario;
                         const cantidadCredito = item.cantidad - cantidadPago;
                         
                         if (cantidadPago > 0) {
-                            const importePago = precioFinal.precio * cantidadPago * (1 - descuento / 100);
+                            const importePago = precioUnitario * cantidadPago;
                             productosPago.push({
                                 ...item,
                                 cantidad: cantidadPago,
@@ -4589,7 +4663,7 @@ function verificarCreditoDisponible() {
                         }
                         
                         if (cantidadCredito > 0) {
-                            const importeCredito = precioFinal.precio * cantidadCredito * (1 - descuento / 100);
+                            const importeCredito = precioUnitario * cantidadCredito;
                             productosCredito.push({
                                 ...item,
                                 cantidad: cantidadCredito,
@@ -4605,12 +4679,8 @@ function verificarCreditoDisponible() {
             for (const item of productosSinPeso) {
                 if (!productosPago.some(p => p.clave === item.clave && p._parcial === true) && 
                     !productosPago.some(p => p.clave === item.clave && p._parcial !== true)) {
-                    const producto = productosGlobales.find(p => p.clave === item.clave);
-                    if (!producto) continue;
-                    
-                    const precioFinal = obtenerPrecioFinal(producto);
-                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
-                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                    const precioUnitario = item.precioUnitarioConDescuento || item.precio;
+                    const importe = precioUnitario * item.cantidad;
                     
                     const yaProcesado = productosPago.some(p => p.clave === item.clave) || 
                                        productosCredito.some(p => p.clave === item.clave);
@@ -4680,9 +4750,8 @@ function verificarCreditoDisponible() {
                     if (!producto) continue;
                     
                     const pesoItem = producto.peso * item.cantidad;
-                    const precioFinal = obtenerPrecioFinal(producto);
-                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
-                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                    const precioUnitario = item.precioUnitarioConDescuento || item.precio;
+                    const importe = precioUnitario * item.cantidad;
                     
                     if (pesoAcumulado + pesoItem <= pesoExcedenteTotal) {
                         productosPago.push(item);
@@ -4695,7 +4764,7 @@ function verificarCreditoDisponible() {
                             const cantidadCredito = item.cantidad - cantidadPago;
                             
                             if (cantidadPago > 0) {
-                                const importePago = precioFinal.precio * cantidadPago * (1 - descuento / 100);
+                                const importePago = precioUnitario * cantidadPago;
                                 productosPago.push({
                                     ...item,
                                     cantidad: cantidadPago,
@@ -4705,7 +4774,7 @@ function verificarCreditoDisponible() {
                             }
                             
                             if (cantidadCredito > 0) {
-                                const importeCredito = precioFinal.precio * cantidadCredito * (1 - descuento / 100);
+                                const importeCredito = precioUnitario * cantidadCredito;
                                 productosCredito.push({
                                     ...item,
                                     cantidad: cantidadCredito,
@@ -4724,23 +4793,17 @@ function verificarCreditoDisponible() {
                 let montoAcumulado = 0;
                 
                 const prodSinPesoOrdenados = [...productosSinPeso].sort((a, b) => {
-                    const prodA = productosGlobales.find(p => p.clave === a.clave);
-                    const prodB = productosGlobales.find(p => p.clave === b.clave);
-                    const precioA = prodA ? prodA.precio * a.cantidad : 0;
-                    const precioB = prodB ? prodB.precio * b.cantidad : 0;
-                    return precioB - precioA;
+                    const precioA = a.precioUnitarioConDescuento || a.precio;
+                    const precioB = b.precioUnitarioConDescuento || b.precio;
+                    return (precioB * b.cantidad) - (precioA * a.cantidad);
                 });
                 
                 for (const item of prodSinPesoOrdenados) {
                     if (productosPago.some(p => p.clave === item.clave) || 
                         productosCredito.some(p => p.clave === item.clave)) continue;
                     
-                    const producto = productosGlobales.find(p => p.clave === item.clave);
-                    if (!producto) continue;
-                    
-                    const precioFinal = obtenerPrecioFinal(producto);
-                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
-                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                    const precioUnitario = item.precioUnitarioConDescuento || item.precio;
+                    const importe = precioUnitario * item.cantidad;
                     
                     if (montoAcumulado + importe <= montoExcedenteTotal) {
                         productosPago.push(item);
@@ -4749,11 +4812,11 @@ function verificarCreditoDisponible() {
                     } else {
                         const montoRestante = montoExcedenteTotal - montoAcumulado;
                         if (montoRestante > 0 && importe > 0) {
-                            const cantidadPago = montoRestante / (precioFinal.precio * (1 - descuento / 100));
+                            const cantidadPago = montoRestante / precioUnitario;
                             const cantidadCredito = item.cantidad - cantidadPago;
                             
                             if (cantidadPago > 0) {
-                                const importePago = precioFinal.precio * cantidadPago * (1 - descuento / 100);
+                                const importePago = precioUnitario * cantidadPago;
                                 productosPago.push({
                                     ...item,
                                     cantidad: cantidadPago,
@@ -4763,7 +4826,7 @@ function verificarCreditoDisponible() {
                             }
                             
                             if (cantidadCredito > 0) {
-                                const importeCredito = precioFinal.precio * cantidadCredito * (1 - descuento / 100);
+                                const importeCredito = precioUnitario * cantidadCredito;
                                 productosCredito.push({
                                     ...item,
                                     cantidad: cantidadCredito,
@@ -4782,12 +4845,8 @@ function verificarCreditoDisponible() {
                     !productosPago.some(p => p.clave === item.clave && p._parcial !== true) &&
                     !productosCredito.some(p => p.clave === item.clave && p._parcial === true) &&
                     !productosCredito.some(p => p.clave === item.clave && p._parcial !== true)) {
-                    const producto = productosGlobales.find(p => p.clave === item.clave);
-                    if (!producto) continue;
-                    
-                    const precioFinal = obtenerPrecioFinal(producto);
-                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
-                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                    const precioUnitario = item.precioUnitarioConDescuento || item.precio;
+                    const importe = precioUnitario * item.cantidad;
                     
                     productosCredito.push(item);
                     montoCredito += importe;
