@@ -258,7 +258,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 
 // ============================================
-// FUNCIONES PARA APPS SCRIPT (CON NO-CORS)
+// FUNCIONES PARA APPS SCRIPT
 // ============================================
 
 async function guardarFilaGoogleSheets(sheetName, datos) {
@@ -954,10 +954,14 @@ async function cargarDatosCliente(email) {
                 const creditoHabilitadoRaw = String(values[13] || '').trim().toUpperCase();
                 const creditoHabilitado = creditoHabilitadoRaw === 'SI' || creditoHabilitadoRaw === 'TRUE' || creditoHabilitadoRaw === 'VERDADERO';
                 
+                // ⭐ IMPORTANTE: Guardar el GIRO correctamente (columna C, índice 2)
+                const giro = String(values[2] || '').trim();
+                console.log('🏢 GIRO DEL CLIENTE:', giro);
+                
                 clienteData = {
                     codigo: String(values[0] || '').trim(),
                     nombre: String(values[1] || '').trim(),
-                    giro: String(values[2] || '').trim(),
+                    giro: giro,
                     correo: correo,
                     telefono: String(values[4] || '').trim(),
                     descuento: parseFloat(values[5]) || 0,
@@ -979,6 +983,7 @@ async function cargarDatosCliente(email) {
                 console.log('💳 CRÉDITO HABILITADO:', clienteCreditoHabilitado);
                 console.log('⚖️ LÍMITE CRÉDITO PESO:', clienteLimiteCreditoPeso, 'kg');
                 console.log('💰 LÍMITE CRÉDITO MONTO:', clienteLimiteCreditoMonto);
+                console.log('🏢 GIRO:', clienteData.giro);
                 
                 break;
             }
@@ -1131,17 +1136,17 @@ async function cargarPreciosEspeciales() {
 // ============================================
 
 function calcularDescuentoProducto(producto, cantidad) {
-    // Verificar precio especial (personalizado)
+    // 1. Verificar precio especial (personalizado)
     const precioEspecial = preciosEspecialesGlobales.find(p => 
         p.codigoCliente === clienteData.codigo && 
         p.claveProducto === producto.clave
     );
     
     if (precioEspecial) {
-        return 0; // El precio especial tiene su propio precio, no se aplica descuento adicional
+        return 0; // El precio especial ya tiene su precio fijo
     }
     
-    // 1. Calcular descuento base según NA o giro del cliente
+    // 2. Calcular descuento base según NA o giro del cliente
     let descuentoBase = 0;
     
     // Si tiene NA (descuento fijo)
@@ -1149,10 +1154,13 @@ function calcularDescuentoProducto(producto, cantidad) {
         const naNumero = parseFloat(producto.na);
         if (!isNaN(naNumero)) {
             descuentoBase = naNumero;
+            console.log(`📊 [${producto.nombre}] Descuento NA fijo: ${descuentoBase}%`);
         }
     } else {
         // Descuento por giro del cliente
         const giro = clienteData.giro || 'Público en general';
+        console.log(`🏢 Giro del cliente: "${giro}"`);
+        
         const mapGiro = {
             'Público en general': producto.descuentoPublico,
             'Público': producto.descuentoPublico,
@@ -1162,29 +1170,38 @@ function calcularDescuentoProducto(producto, cantidad) {
             'Constructora': producto.descuentoConstructora,
             'Distribuidor': producto.descuentoDistribuidor
         };
+        
         descuentoBase = mapGiro[giro] || 0;
+        console.log(`📊 [${producto.nombre}] Descuento por giro (${giro}): ${descuentoBase}%`);
     }
     
-    // 2. Si NO es PXV, solo aplica el descuento base
+    // 3. Si NO es PXV, solo aplica el descuento base
     if (producto.pxv !== 'PXV') {
+        console.log(`📊 [${producto.nombre}] NO es PXV, descuento final: ${descuentoBase}%`);
         return descuentoBase;
     }
     
-    // 3. Es PXV - Calcular descuento por volumen (se SUMA al descuento base)
+    // 4. Es PXV - Calcular descuento por volumen (se SUMA al descuento base)
     let descuentoVolumen = 0;
     
     // Verificar si hay descuento para 5 toneladas (columna Q) - 250 piezas aprox
     if (producto.descuentoVolumenQ > 0 && cantidad >= 250) {
         descuentoVolumen = producto.descuentoVolumenQ;
+        console.log(`📊 [${producto.nombre}] PXV +${descuentoVolumen}% por 5 toneladas (${cantidad} unidades)`);
     } 
     // Verificar si hay descuento para 3 toneladas (columna P) - 150 piezas aprox
     else if (producto.descuentoVolumenP > 0 && cantidad >= 150) {
         descuentoVolumen = producto.descuentoVolumenP;
+        console.log(`📊 [${producto.nombre}] PXV +${descuentoVolumen}% por 3 toneladas (${cantidad} unidades)`);
+    } else {
+        console.log(`📊 [${producto.nombre}] PXV sin descuento de volumen aplicable (${cantidad} unidades)`);
     }
     
-    // 4. SUMAR el descuento base + descuento por volumen
-    // Si el descuentoVolumen es 0, solo se aplica el base
-    return descuentoBase + descuentoVolumen;
+    // 5. SUMAR el descuento base + descuento por volumen
+    const descuentoFinal = descuentoBase + descuentoVolumen;
+    console.log(`📊 [${producto.nombre}] Descuento FINAL: ${descuentoBase}% + ${descuentoVolumen}% = ${descuentoFinal}%`);
+    
+    return descuentoFinal;
 }
 
 // ============================================
@@ -1192,13 +1209,15 @@ function calcularDescuentoProducto(producto, cantidad) {
 // ============================================
 
 function obtenerPrecioConDescuento(producto, cantidad) {
+    // Verificar precio especial (personalizado)
     const precioEspecial = preciosEspecialesGlobales.find(p => 
         p.codigoCliente === clienteData.codigo && 
         p.claveProducto === producto.clave
     );
     
-    // Si tiene precio especial, usarlo directamente
+    // Si tiene precio especial, usarlo directamente (sin descuento adicional)
     if (precioEspecial) {
+        console.log(`⭐ [${producto.nombre}] Precio especial: $${precioEspecial.precioPersonalizado}`);
         return {
             precio: precioEspecial.precioPersonalizado,
             descuento: 0,
@@ -1209,6 +1228,8 @@ function obtenerPrecioConDescuento(producto, cantidad) {
     // Calcular el descuento total
     const descuentoTotal = calcularDescuentoProducto(producto, cantidad);
     const precioFinal = producto.precio * (1 - descuentoTotal / 100);
+    
+    console.log(`💰 [${producto.nombre}] Precio original: $${producto.precio}, Descuento: ${descuentoTotal}%, Precio final: $${precioFinal.toFixed(2)}`);
     
     return {
         precio: precioFinal,
@@ -1242,14 +1263,14 @@ function productoCumpleMinimoPiezas(producto, cantidad) {
     return cantidad >= producto.minimoPiezas;
 }
 
-// Obtener mensaje de error para el producto (BLOQUEA la compra si no cumple)
-function getMensajeErrorProducto(producto, cantidad) {
+// Obtener mensaje de advertencia para el producto (solo advierte, no bloquea)
+function getMensajeAdvertenciaProducto(producto, cantidad) {
     if (producto.activo !== 'SI') {
         return `❌ El producto "${producto.nombre}" no está disponible actualmente.`;
     }
     
     if (producto.condicionPeso === 'SI' && producto.minimoPiezas > 0 && cantidad < producto.minimoPiezas) {
-        return `⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas para poder comprarlo. Actualmente tienes ${cantidad}.`;
+        return `⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas para completar la compra. Actualmente tienes ${cantidad}.`;
     }
     
     return null;
@@ -1615,7 +1636,7 @@ function buscarProductos() {
         // Mostrar precio original con tachado si hay descuento
         let precioOriginalHTML = '';
         if (descuentoAplicado > 0) {
-            precioOriginalHTML = `<span style="text-decoration:line-through;color:#999;font-size:0.8rem;">${formatoMexicano(producto.precio)}</span>`;
+            precioOriginalHTML = `<span style="text-decoration:line-through;color:#999;font-size:0.8rem;">${formatoMexicano(producto.precio)}</span><br>`;
         }
         
         html += `
@@ -1628,7 +1649,7 @@ function buscarProductos() {
                 <h4>${producto.nombre}</h4>
                 <p class="descripcion">${producto.descripcion || 'Sin descripción'}</p>
                 <p class="precio">
-                    ${precioOriginalHTML}<br>
+                    ${precioOriginalHTML}
                     ${formatoMexicano(precioMostrar)}
                 </p>
                 ${tienePersonalizado ? '<span class="precio-personalizado">⭐ Precio Personalizado</span>' : ''}
@@ -1673,7 +1694,7 @@ function obtenerPrecioFinal(producto) {
 }
 
 // ============================================
-// ⭐ FUNCIÓN ACTUALIZADA: AGREGAR AL CARRITO CON VALIDACIONES ⭐
+// ⭐ FUNCIÓN ACTUALIZADA: AGREGAR AL CARRITO (PERMITE AGREGAR CON MÍNIMO) ⭐
 // ============================================
 
 function agregarAlCarrito(clave) {
@@ -1697,10 +1718,10 @@ function agregarAlCarrito(clave) {
         nuevaCantidad = existente.cantidad + 1;
     }
     
-    // ⭐ VALIDACIÓN 2: Mínimo de piezas (columna T y U) - BLOQUEA si no cumple
+    // ⭐ VALIDACIÓN 2: Mínimo de piezas - SOLO ADVIERTE, NO BLOQUEA
+    let mensajeAdvertencia = null;
     if (producto.condicionPeso === 'SI' && producto.minimoPiezas > 0 && nuevaCantidad < producto.minimoPiezas) {
-        mostrarNotificacion(`⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas para poder comprarlo. Actualmente tienes ${nuevaCantidad - 1}.`);
-        return;
+        mensajeAdvertencia = `⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas para completar la compra. Actualmente tienes ${nuevaCantidad}.`;
     }
     
     // Calcular precio con descuento para la nueva cantidad
@@ -1710,16 +1731,15 @@ function agregarAlCarrito(clave) {
     if (existente) {
         existente.cantidad = nuevaCantidad;
         existente.descuento = precioInfo.descuento;
-        existente.importe = precioInfo.precio * nuevaCantidad;
-        // Actualizar el precio unitario con descuento
         existente.precioUnitarioConDescuento = precioInfo.precio;
+        existente.importe = precioInfo.precio * nuevaCantidad;
     } else {
         carrito.push({
             clave: producto.clave,
             nombre: producto.nombre,
             descripcion: producto.descripcion,
-            precio: producto.precio, // Precio original sin descuento
-            precioUnitarioConDescuento: precioInfo.precio, // Precio con descuento aplicado
+            precio: producto.precio,
+            precioUnitarioConDescuento: precioInfo.precio,
             precioCompra: producto.precioCompra,
             cantidad: 1,
             descuento: precioInfo.descuento,
@@ -1735,7 +1755,13 @@ function agregarAlCarrito(clave) {
     }
     
     renderizarCarrito();
-    mostrarNotificacion('✅ Producto agregado al carrito');
+    
+    // Mostrar advertencia si aplica (después de renderizar)
+    if (mensajeAdvertencia) {
+        mostrarNotificacion(mensajeAdvertencia);
+    } else {
+        mostrarNotificacion('✅ Producto agregado al carrito');
+    }
 }
 
 function actualizarItemCarrito(item) {
@@ -1750,7 +1776,7 @@ function actualizarItemCarrito(item) {
 }
 
 // ============================================
-// ⭐ FUNCIÓN ACTUALIZADA: CAMBIAR CANTIDAD ⭐
+// ⭐ FUNCIÓN ACTUALIZADA: CAMBIAR CANTIDAD (PERMITE CAMBIAR CON MÍNIMO) ⭐
 // ============================================
 
 function cambiarCantidad(clave, nuevaCantidad) {
@@ -1762,16 +1788,20 @@ function cambiarCantidad(clave, nuevaCantidad) {
         return;
     }
     
-    // ⭐ Validar mínimo de piezas - BLOQUEA si no cumple
+    // ⭐ Validar mínimo de piezas - SOLO ADVIERTE, NO BLOQUEA
     const producto = productosGlobales.find(p => p.clave === clave);
+    let mensajeAdvertencia = null;
     if (producto && producto.condicionPeso === 'SI' && producto.minimoPiezas > 0 && nuevaCantidad < producto.minimoPiezas) {
-        mostrarNotificacion(`⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas para poder comprarlo.`);
-        return;
+        mensajeAdvertencia = `⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas para completar la compra. Actualmente tienes ${nuevaCantidad}.`;
     }
     
     item.cantidad = nuevaCantidad;
     actualizarItemCarrito(item);
     renderizarCarrito();
+    
+    if (mensajeAdvertencia) {
+        mostrarNotificacion(mensajeAdvertencia);
+    }
 }
 
 function eliminarDelCarrito(clave) {
@@ -1812,7 +1842,7 @@ function renderizarCarrito() {
     }
     
     const verificarPeso = verificarPesoMinimo();
-    // Verificar mínimos de piezas en todo el carrito
+    // Verificar mínimos de piezas en todo el carrito (solo para mostrar advertencia)
     const hayMinimoIncumplido = carrito.some(item => {
         const producto = productosGlobales.find(p => p.clave === item.clave);
         return producto && producto.condicionPeso === 'SI' && producto.minimoPiezas > 0 && item.cantidad < producto.minimoPiezas;
@@ -1858,7 +1888,7 @@ function renderizarCarrito() {
         let minInfo = '';
         if (item.condicionPeso === 'SI' && item.minimoPiezas > 0) {
             const cumpleMinimo = item.cantidad >= item.minimoPiezas;
-            minInfo = `<br><small style="color:${cumpleMinimo ? '#16a34a' : '#dc2626'};font-weight:${cumpleMinimo ? 'normal' : 'bold'};">📦 Mínimo: ${item.minimoPiezas} piezas ${cumpleMinimo ? '✅' : '❌'}</small>`;
+            minInfo = `<br><small style="color:${cumpleMinimo ? '#16a34a' : '#92400e'};font-weight:${cumpleMinimo ? 'normal' : 'bold'};">📦 Mínimo: ${item.minimoPiezas} piezas ${cumpleMinimo ? '✅' : '⚠️'}</small>`;
         }
         
         // Mostrar descuento PXV si aplica
@@ -1909,18 +1939,18 @@ function renderizarCarrito() {
         </table>
     `;
     
-    // ⭐ Mostrar advertencia de mínimo de piezas si hay incumplimiento
+    // ⭐ Mostrar advertencia de mínimo de piezas si hay incumplimiento (SOLO ADVERTENCIA)
     if (hayMinimoIncumplido) {
         html += `
-            <div style="margin-top: 1rem; padding: 1rem; border-radius: 12px; background: #fee2e2; border: 2px solid #fecaca;">
+            <div style="margin-top: 1rem; padding: 1rem; border-radius: 12px; background: #fef3c7; border: 2px solid #fde68a;">
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <span style="font-size: 1.5rem;">❌</span>
-                    <span style="font-weight: 700; color: #dc2626; font-size: 1.1rem;">
-                        No se puede realizar la compra
+                    <span style="font-size: 1.5rem;">⚠️</span>
+                    <span style="font-weight: 700; color: #92400e; font-size: 1.1rem;">
+                        Advertencia de mínimo de piezas
                     </span>
                 </div>
-                <p style="margin: 0.5rem 0 0 0; color: #dc2626;">
-                    Hay productos que no alcanzan el mínimo de piezas requerido. Aumenta la cantidad para poder comprar.
+                <p style="margin: 0.5rem 0 0 0; color: #92400e;">
+                    Hay productos que no alcanzan el mínimo de piezas requerido. Aumenta la cantidad para completar la compra.
                 </p>
             </div>
         `;
@@ -1985,13 +2015,8 @@ function renderizarCarrito() {
     document.getElementById('iva').textContent = formatoMexicano(iva);
     document.getElementById('total').textContent = formatoMexicano(total);
     
-    // ⭐ BLOQUEAR compra si hay mínimo de piezas incumplido
-    if (hayMinimoIncumplido) {
-        btnComprar.disabled = true;
-        btnComprar.title = '❌ Hay productos que no alcanzan el mínimo de piezas requerido.';
-        btnComprar.style.opacity = '0.5';
-        btnComprar.style.cursor = 'not-allowed';
-    } else if (verificarPeso.productosConPeso > 0 && !verificarPeso.cumple) {
+    // ⭐ BLOQUEAR compra SOLO por peso mínimo, NO por mínimo de piezas
+    if (verificarPeso.productosConPeso > 0 && !verificarPeso.cumple) {
         btnComprar.disabled = true;
         btnComprar.title = '⚠️ Debes completar el peso mínimo de 1 tonelada (1000 kg) para productos con peso.';
         btnComprar.style.opacity = '0.5';
@@ -2076,15 +2101,15 @@ function abrirModalDireccion() {
         return;
     }
     
-    // ⭐ Verificar mínimos de piezas antes de continuar
+    // ⭐ Verificar mínimos de piezas - SOLO ADVERTIR, NO BLOQUEAR
     const hayMinimoIncumplido = carrito.some(item => {
         const producto = productosGlobales.find(p => p.clave === item.clave);
         return producto && producto.condicionPeso === 'SI' && producto.minimoPiezas > 0 && item.cantidad < producto.minimoPiezas;
     });
     
     if (hayMinimoIncumplido) {
-        mostrarNotificacion('❌ Hay productos que no alcanzan el mínimo de piezas requerido. Aumenta la cantidad para poder comprar.');
-        return;
+        // Solo mostrar advertencia, pero continuar
+        console.log('⚠️ Hay productos con mínimo de piezas incumplido, pero se permite continuar');
     }
     
     const verificarPeso = verificarPesoMinimo();
