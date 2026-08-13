@@ -954,9 +954,9 @@ async function cargarDatosCliente(email) {
                 const creditoHabilitadoRaw = String(values[13] || '').trim().toUpperCase();
                 const creditoHabilitado = creditoHabilitadoRaw === 'SI' || creditoHabilitadoRaw === 'TRUE' || creditoHabilitadoRaw === 'VERDADERO';
                 
-                // ⭐ IMPORTANTE: Guardar el GIRO correctamente (columna C, índice 2)
+                // ⭐⭐⭐ IMPORTANTE: El giro está en la columna C (índice 2) ⭐⭐⭐
                 const giro = String(values[2] || '').trim();
-                console.log('🏢 GIRO DEL CLIENTE:', giro);
+                console.log('🏢 GIRO DEL CLIENTE (columna C):', giro);
                 
                 clienteData = {
                     codigo: String(values[0] || '').trim(),
@@ -980,10 +980,9 @@ async function cargarDatosCliente(email) {
                 clienteLimiteCreditoPeso = clienteData.limiteCreditoPeso;
                 clienteLimiteCreditoMonto = clienteData.limiteCreditoMonto;
                 
-                console.log('💳 CRÉDITO HABILITADO:', clienteCreditoHabilitado);
-                console.log('⚖️ LÍMITE CRÉDITO PESO:', clienteLimiteCreditoPeso, 'kg');
-                console.log('💰 LÍMITE CRÉDITO MONTO:', clienteLimiteCreditoMonto);
+                console.log('✅ CLIENTE CARGADO:', clienteData.nombre);
                 console.log('🏢 GIRO:', clienteData.giro);
+                console.log('💰 DESCUENTO BASE:', clienteData.descuento);
                 
                 break;
             }
