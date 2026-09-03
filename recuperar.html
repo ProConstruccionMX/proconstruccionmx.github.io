@@ -1010,7 +1010,7 @@ function actualizarInfoCliente() {
 }
 
 // ============================================
-// CARGA DE PRODUCTOS - VERSIÓN DEFINITIVA
+// CARGA DE PRODUCTOS - DEFINITIVO
 // ============================================
 
 async function cargarProductos() {
@@ -1024,14 +1024,17 @@ async function cargarProductos() {
         const rows = data.table.rows;
         
         console.log(`📊 Total de filas en la hoja: ${rows.length}`);
+        console.log(`📊 Las filas comienzan en índice 0 (encabezado) y datos desde índice 1`);
         
         productosGlobales = [];
         let contadorConPeso = 0;
         let filasProcesadas = 0;
         let filasSaltadas = 0;
         
-        // ⭐ DEFINITIVO: Empezar desde i = 1 (fila 2 en Excel)
-        // Ya que la fila 0 es el encabezado
+        // ⭐ LEER DESDE LA FILA 1 (índice 1) - LA FILA 0 ES EL ENCABEZADO
+        // NOTA: En Excel, la fila 1 es el encabezado, la fila 2 es el primer dato.
+        // En el array de Google Sheets, el índice 0 es la fila 1 (encabezado),
+        // el índice 1 es la fila 2 (primer dato), el índice 2 es la fila 3 (segundo dato)
         for (let i = 1; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             
@@ -1074,9 +1077,11 @@ async function cargarProductos() {
             
             // ⭐ LOG PARA VERIFICAR LA COLUMNA E (NA) ⭐
             if (na === '' || na === '-' || na === null || na === undefined) {
-                console.log(`📊 [COLUMNA E VACÍA] Producto: "${nombre}" | Clave: "${clave}" → Aplica descuento por tipo de cliente (${clienteData ? clienteData.giro : 'No definido'})`);
+                console.log(`📊 [COLUMNA E VACÍA] Producto: "${nombre}" (fila ${i+1}) | Clave: "${clave}" → Usa descuento BASE del cliente: ${clienteData ? clienteData.descuento : '0'}%`);
+            } else if (na === '-') {
+                console.log(`📊 [COLUMNA E = -] Producto: "${nombre}" (fila ${i+1}) | Clave: "${clave}" → Usa descuento por GIRO del cliente`);
             } else if (na !== 'N/A') {
-                console.log(`📊 [COLUMNA E CON DATO] Producto: "${nombre}" | NA: "${na}" → Descuento fijo de ${na}%`);
+                console.log(`📊 [COLUMNA E CON DATO] Producto: "${nombre}" (fila ${i+1}) | NA: "${na}" → Descuento fijo de ${na}%`);
             }
             
             productosGlobales.push({
@@ -1098,15 +1103,19 @@ async function cargarProductos() {
                 peso: peso,
                 requiereMinPiezas: requiereMinPiezas,
                 minPiezas: minPiezas,
-                permitido: permitido
+                permitido: permitido,
+                fila: i + 1 // Guardamos el número de fila real para debugging
             });
         }
         
         console.log(`📦 Productos cargados: ${productosGlobales.length}`);
         console.log(`📊 Filas procesadas: ${filasProcesadas}, Filas saltadas (vacías): ${filasSaltadas}`);
-        console.log(`⚖️ Productos con condición de peso (SI): ${contadorConPeso}`);
-        console.log(`📦 Productos con mínimo de piezas: ${productosGlobales.filter(p => p.requiereMinPiezas).length}`);
-        console.log(`🚫 Productos no permitidos: ${productosGlobales.filter(p => !p.permitido).length}`);
+        
+        // Mostrar los primeros 5 productos para verificar
+        console.log('📋 Primeros productos cargados:');
+        productosGlobales.slice(0, 5).forEach(p => {
+            console.log(`   - Fila ${p.fila}: "${p.nombre}" | Clave: "${p.clave}" | NA: "${p.na === '' ? '(VACÍA)' : p.na}"`);
+        });
         
     } catch (error) {
         console.error('❌ Error al cargar productos:', error);
@@ -1515,7 +1524,7 @@ function limpiarBusqueda() {
 }
 
 // ============================================
-// PRECIOS Y DESCUENTOS - VERSIÓN DEFINITIVA
+// PRECIOS Y DESCUENTOS - DEFINITIVO CORREGIDO
 // ============================================
 
 function obtenerPrecioFinal(producto) {
@@ -1564,12 +1573,10 @@ function calcularDescuentoProducto(producto, cantidad) {
         return naNumero;
     }
     
-    // 4. ⭐ COLUMNA E ESTÁ VACÍA O TIENE "-" ⭐
-    // ⭐ USAR EL DESCUENTO BASE DEL CLIENTE SEGÚN SU GIRO ⭐
-    if (producto.na === '' || producto.na === '-' || producto.na === null || producto.na === undefined) {
+    // 4. ⭐ Si columna E tiene "-" (guión) - usar descuento por GIRO del cliente (columnas J-N)
+    if (producto.na === '-') {
         const giro = clienteData.giro || 'Público en general';
         
-        // Mapeo de giros a descuentos
         const mapGiro = {
             'Público en general': producto.descuentoPublico,
             'Público': producto.descuentoPublico,
@@ -1581,10 +1588,9 @@ function calcularDescuentoProducto(producto, cantidad) {
         };
         
         let descuentoBase = mapGiro[giro] || 0;
+        console.log(`📊 [COLUMNA E = -] Producto: ${producto.nombre} | Giro: ${giro} | Descuento por giro: ${descuentoBase}%`);
         
-        console.log(`✅ [COLUMNA E VACÍA] Producto: ${producto.nombre} | Giro: ${giro} | Descuento base: ${descuentoBase}%`);
-        
-        // 5. LÓGICA PXV (Precio por Volumen) - SUMAR al descuento base
+        // LÓGICA PXV (Precio por Volumen) - SUMAR al descuento base
         if (producto.pxv === 'PXV') {
             const girosPXV = ['Distribuidor', 'Arquitecto', 'Inmobiliaria', 'Constructora'];
             
@@ -1610,8 +1616,15 @@ function calcularDescuentoProducto(producto, cantidad) {
         return descuentoBase;
     }
     
+    // 5. ⭐ COLUMNA E ESTÁ VACÍA - USAR DESCUENTO BASE DEL CLIENTE ⭐
+    if (producto.na === '' || producto.na === null || producto.na === undefined) {
+        const descuentoBase = clienteData.descuento || 0;
+        console.log(`✅ [COLUMNA E VACÍA] Producto: ${producto.nombre} | Descuento BASE del cliente: ${descuentoBase}%`);
+        return descuentoBase;
+    }
+    
     // 6. Fallback: si no se cumple ninguna condición, retornar 0
-    console.warn(`⚠️ [FALLBACK] Producto: ${producto.nombre} - Sin descuento aplicado`);
+    console.warn(`⚠️ [FALLBACK] Producto: ${producto.nombre} - Sin descuento aplicado (na: "${producto.na}")`);
     return 0;
 }
 
