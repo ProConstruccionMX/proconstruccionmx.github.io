@@ -1010,7 +1010,7 @@ function actualizarInfoCliente() {
 }
 
 // ============================================
-// CARGA DE PRODUCTOS (CORREGIDO - LEE DESDE FILA 0)
+// CARGA DE PRODUCTOS - VERSIÓN DEFINITIVA
 // ============================================
 
 async function cargarProductos() {
@@ -1030,31 +1030,9 @@ async function cargarProductos() {
         let filasProcesadas = 0;
         let filasSaltadas = 0;
         
-        // ⭐ CORREGIDO: Empezar desde i = 0 para incluir todas las filas
-        // Luego detectar si la fila 0 es encabezado o datos
-        let inicioDatos = 0;
-        
-        // Detectar si la primera fila es encabezado (contiene "Clave" o "Nombre" o "Producto")
-        if (rows.length > 0) {
-            const firstRow = rows[0].c.map(cell => cell ? String(cell.v || '').trim() : '');
-            const esEncabezado = firstRow.some(val => 
-                val.toLowerCase().includes('clave') || 
-                val.toLowerCase().includes('nombre') || 
-                val.toLowerCase().includes('producto') ||
-                val.toLowerCase().includes('código') ||
-                val.toLowerCase().includes('descripción')
-            );
-            if (esEncabezado) {
-                inicioDatos = 1;
-                console.log('📌 Fila 0 detectada como ENCABEZADO. Iniciando desde fila 1.');
-            } else {
-                inicioDatos = 0;
-                console.log('📌 Fila 0 detectada como DATOS. Iniciando desde fila 0.');
-            }
-        }
-        
-        // ⭐ AHORA LEEMOS DESDE LA FILA DE DATOS DETECTADA
-        for (let i = inicioDatos; i < rows.length; i++) {
+        // ⭐ DEFINITIVO: Empezar desde i = 1 (fila 2 en Excel)
+        // Ya que la fila 0 es el encabezado
+        for (let i = 1; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             
             // Saltar filas vacías (sin clave o sin nombre)
@@ -1537,7 +1515,7 @@ function limpiarBusqueda() {
 }
 
 // ============================================
-// PRECIOS Y DESCUENTOS (CORREGIDO - COLUMNA E VACÍA)
+// PRECIOS Y DESCUENTOS - VERSIÓN DEFINITIVA
 // ============================================
 
 function obtenerPrecioFinal(producto) {
@@ -1569,24 +1547,29 @@ function calcularDescuentoProducto(producto, cantidad) {
     );
     
     if (precioEspecial) {
+        console.log(`💰 [PRECIO PERSONALIZADO] Producto: ${producto.nombre} - Sin descuento adicional`);
         return 0;
     }
     
     // 2. Si tiene NA 'N/A' - sin descuento
     if (producto.na === 'N/A') {
+        console.log(`🚫 [N/A] Producto: ${producto.nombre} - Sin descuento`);
         return 0;
     }
     
     // 3. Si tiene un número en NA (columna E) - usar ese descuento fijo
     const naNumero = parseFloat(producto.na);
     if (!isNaN(naNumero) && producto.na !== '' && producto.na !== '-' && producto.na !== 'N/A') {
+        console.log(`📊 [DESCUENTO FIJO] Producto: ${producto.nombre} - Descuento: ${naNumero}%`);
         return naNumero;
     }
     
-    // 4. ⭐ CORREGIDO: Si columna E está VACÍA o tiene '-' - aplicar descuento por tipo de cliente
+    // 4. ⭐ COLUMNA E ESTÁ VACÍA O TIENE "-" ⭐
+    // ⭐ USAR EL DESCUENTO BASE DEL CLIENTE SEGÚN SU GIRO ⭐
     if (producto.na === '' || producto.na === '-' || producto.na === null || producto.na === undefined) {
         const giro = clienteData.giro || 'Público en general';
         
+        // Mapeo de giros a descuentos
         const mapGiro = {
             'Público en general': producto.descuentoPublico,
             'Público': producto.descuentoPublico,
@@ -1598,6 +1581,8 @@ function calcularDescuentoProducto(producto, cantidad) {
         };
         
         let descuentoBase = mapGiro[giro] || 0;
+        
+        console.log(`✅ [COLUMNA E VACÍA] Producto: ${producto.nombre} | Giro: ${giro} | Descuento base: ${descuentoBase}%`);
         
         // 5. LÓGICA PXV (Precio por Volumen) - SUMAR al descuento base
         if (producto.pxv === 'PXV') {
@@ -1615,7 +1600,9 @@ function calcularDescuentoProducto(producto, cantidad) {
                 }
                 
                 if (descuentoAdicional > 0) {
-                    return descuentoBase + descuentoAdicional;
+                    const totalDescuento = descuentoBase + descuentoAdicional;
+                    console.log(`📦 [PXV FINAL] Producto: ${producto.nombre} | Descuento total: ${totalDescuento}%`);
+                    return totalDescuento;
                 }
             }
         }
@@ -1624,6 +1611,7 @@ function calcularDescuentoProducto(producto, cantidad) {
     }
     
     // 6. Fallback: si no se cumple ninguna condición, retornar 0
+    console.warn(`⚠️ [FALLBACK] Producto: ${producto.nombre} - Sin descuento aplicado`);
     return 0;
 }
 
