@@ -24,10 +24,8 @@ const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
 const ID_COTIZACIONES = '1S4qoHh3lTDoSUwDNeilmN6QKk8uhmvxjwvRQpEHQbS0';
 const HOJA_COTIZACIONES = 'Hoja 1';
 
-// ⭐ URL DEL APPS SCRIPT (ACTUALIZADA) ⭐
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz4MPJ6QmLIOsN85H9bc-E5uxozb0kVicms6c51VLwappox_ZpISSyawzfVrzof6WA3mA/exec';
 
-// ⭐ URL DEL SCRIPT DE FACTURACIÓN ⭐
 const APPS_SCRIPT_FACTURACION_URL = 'https://script.google.com/macros/s/AKfycbwcEwB2K17lhR5d52eab8EL-2K7C2mXzEubtyP-TcF-VWcmfNS-lODtFWAYdllNmHz9Mg/exec';
 
 const EMAIL_VENTAS = 'ventas@proconstruccionmx.com';
@@ -49,25 +47,21 @@ let direccionSeleccionadaId = null;
 let requiereFactura = false;
 let datosFacturaSeleccionados = null;
 
-// ⭐ VARIABLES PARA "MIS COMPRAS" ⭐
 let historialVentas = [];
 let ventasDetalladas = [];
 let productosMasComprados = [];
 
-// ⭐ VARIABLES PARA CRÉDITO ⭐
 let clienteCreditoHabilitado = false;
 let clienteLimiteCreditoPeso = 0;
 let clienteLimiteCreditoMonto = 0;
 
-// ⭐ VARIABLE PARA ALMACENAR INFO DE CRÉDITO ⭐
 let infoCreditoCalculado = null;
 
-// ⭐ VARIABLES PARA CRÉDITOS PENDIENTES ⭐
 let creditosPendientes = [];
 let creditoSeleccionadoParaPago = null;
 
 // ============================================
-// ⭐ FUNCIÓN PARA PARSEAR FECHAS CORRECTAMENTE ⭐
+// FUNCIÓN PARA PARSEAR FECHAS CORRECTAMENTE
 // ============================================
 
 function parseFechaGoogleSheets(fechaStr) {
@@ -233,6 +227,18 @@ function formatearFechaHora(fechaStr) {
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('🚀 Iniciando dashboard...');
     
+    // ⭐ INICIALIZAR EMAILJS ⭐
+    if (typeof emailjs !== 'undefined') {
+        try {
+            emailjs.init('_gOxtGSQmrhTdoRuX');
+            console.log('✅ EmailJS inicializado desde dashboard.js');
+        } catch (e) {
+            console.warn('⚠️ EmailJS ya estaba inicializado o error:', e);
+        }
+    } else {
+        console.warn('⚠️ EmailJS no está disponible al inicio');
+    }
+    
     if (sessionStorage.getItem('userLoggedIn') !== 'true') {
         window.location.href = 'login.html';
         return;
@@ -258,7 +264,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 
 // ============================================
-// FUNCIONES PARA APPS SCRIPT
+// FUNCIONES PARA APPS SCRIPT (CON NO-CORS)
 // ============================================
 
 async function guardarFilaGoogleSheets(sheetName, datos) {
@@ -396,7 +402,7 @@ async function eliminarDireccionEnSheets(fila) {
 }
 
 // ============================================
-// ⭐ FUNCIONES DE FACTURACIÓN ⭐
+// FUNCIONES DE FACTURACIÓN
 // ============================================
 
 async function cargarFacturacionCliente() {
@@ -954,14 +960,10 @@ async function cargarDatosCliente(email) {
                 const creditoHabilitadoRaw = String(values[13] || '').trim().toUpperCase();
                 const creditoHabilitado = creditoHabilitadoRaw === 'SI' || creditoHabilitadoRaw === 'TRUE' || creditoHabilitadoRaw === 'VERDADERO';
                 
-                // ⭐⭐⭐ IMPORTANTE: El giro está en la columna C (índice 2) ⭐⭐⭐
-                const giro = String(values[2] || '').trim();
-                console.log('🏢 GIRO DEL CLIENTE (columna C):', giro);
-                
                 clienteData = {
                     codigo: String(values[0] || '').trim(),
                     nombre: String(values[1] || '').trim(),
-                    giro: giro,
+                    giro: String(values[2] || '').trim(),
                     correo: correo,
                     telefono: String(values[4] || '').trim(),
                     descuento: parseFloat(values[5]) || 0,
@@ -980,9 +982,9 @@ async function cargarDatosCliente(email) {
                 clienteLimiteCreditoPeso = clienteData.limiteCreditoPeso;
                 clienteLimiteCreditoMonto = clienteData.limiteCreditoMonto;
                 
-                console.log('✅ CLIENTE CARGADO:', clienteData.nombre);
-                console.log('🏢 GIRO:', clienteData.giro);
-                console.log('💰 DESCUENTO BASE:', clienteData.descuento);
+                console.log('💳 CRÉDITO HABILITADO:', clienteCreditoHabilitado);
+                console.log('⚖️ LÍMITE CRÉDITO PESO:', clienteLimiteCreditoPeso, 'kg');
+                console.log('💰 LÍMITE CRÉDITO MONTO:', clienteLimiteCreditoMonto);
                 
                 break;
             }
@@ -1009,7 +1011,7 @@ function actualizarInfoCliente() {
 }
 
 // ============================================
-// ⭐ CARGA DE PRODUCTOS (ACTUALIZADO CON NUEVAS COLUMNAS) ⭐
+// ⭐ CARGA DE PRODUCTOS (ACTUALIZADO) ⭐
 // ============================================
 
 async function cargarProductos() {
@@ -1026,8 +1028,6 @@ async function cargarProductos() {
         
         productosGlobales = [];
         let contadorConPeso = 0;
-        let contadorPXV = 0;
-        let contadorInactivos = 0;
         
         for (let i = 2; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
@@ -1043,28 +1043,35 @@ async function cargarProductos() {
             const descuentoArquitecto = parseFloat(values[11]) || 0;
             const descuentoConstructora = parseFloat(values[12]) || 0;
             const descuentoDistribuidor = parseFloat(values[13]) || 0;
-            const pxv = String(values[14] || '').trim(); // Columna O - PXV
-            const descuentoVolumenP = parseFloat(values[15]) || 0; // Columna P - 3 toneladas
-            const descuentoVolumenQ = parseFloat(values[16]) || 0; // Columna Q - 5 toneladas
+            const pxv = String(values[14] || '').trim();
+            const descuentoVolumenP = parseFloat(values[15]) || 0;
+            const descuentoVolumenQ = parseFloat(values[16]) || 0;
             
-            // ⭐ NUEVO: Condición de peso (columna T) - índice 19
-            const condicionPesoRaw = String(values[19] || '').trim().toUpperCase();
-            const condicionPeso = condicionPesoRaw === 'SI' ? 'SI' : 'NO';
+            const pesoCondicionRaw = String(values[17] || '').trim().toUpperCase();
+            const pesoCondicion = pesoCondicionRaw === 'SI' ? 'SI' : 'NO';
             
-            // ⭐ NUEVO: Mínimo de piezas (columna U) - índice 20
-            const minimoPiezas = parseFloat(values[20]) || 0;
+            const pesoRaw = String(values[18] || '').trim();
+            const peso = parseFloat(pesoRaw) || 0;
             
-            // ⭐ NUEVO: Producto activo (columna V) - índice 21
-            const activoRaw = String(values[21] || '').trim().toUpperCase();
-            const activo = activoRaw === 'SI' ? 'SI' : 'NO';
+            // ⭐ NUEVAS COLUMNAS ⭐
+            const minPiezasCondicion = String(values[19] || '').trim().toUpperCase();
+            const minPiezas = parseFloat(values[20]) || 0;
+            const permitidoCondicion = String(values[21] || '').trim().toUpperCase();
             
-            // Peso por unidad (columna S) - índice 18
-            const peso = parseFloat(values[18]) || 0;
+            const requiereMinPiezas = minPiezasCondicion === 'SI';
+            const permitido = permitidoCondicion === 'SI';
             
-            // Contar estadísticas
-            if (condicionPeso === 'SI' && peso > 0) contadorConPeso++;
-            if (pxv === 'PXV') contadorPXV++;
-            if (activo === 'NO') contadorInactivos++;
+            if (pesoCondicion === 'SI' && peso > 0) {
+                contadorConPeso++;
+                console.log(`🔴 [PESO] Producto: "${nombre}" | Clave: "${clave}" | Peso: ${peso} kg`);
+            }
+            
+            if (requiereMinPiezas) {
+                console.log(`📦 [MIN PIEZAS] Producto: "${nombre}" | Mínimo: ${minPiezas} piezas`);
+            }
+            if (!permitido) {
+                console.log(`🚫 [NO PERMITIDO] Producto: "${nombre}" no está permitido para venta`);
+            }
             
             productosGlobales.push({
                 clave: clave,
@@ -1081,18 +1088,18 @@ async function cargarProductos() {
                 pxv: pxv,
                 descuentoVolumenP: descuentoVolumenP,
                 descuentoVolumenQ: descuentoVolumenQ,
-                // ⭐ NUEVAS PROPIEDADES
-                condicionPeso: condicionPeso,
-                minimoPiezas: minimoPiezas,
-                activo: activo,
-                peso: peso
+                pesoCondicion: pesoCondicion,
+                peso: peso,
+                requiereMinPiezas: requiereMinPiezas,
+                minPiezas: minPiezas,
+                permitido: permitido
             });
         }
         
         console.log(`📦 Productos cargados: ${productosGlobales.length}`);
         console.log(`⚖️ Productos con condición de peso (SI): ${contadorConPeso}`);
-        console.log(`📦 Productos con PXV: ${contadorPXV}`);
-        console.log(`🚫 Productos inactivos (NO): ${contadorInactivos}`);
+        console.log(`📦 Productos con mínimo de piezas: ${productosGlobales.filter(p => p.requiereMinPiezas).length}`);
+        console.log(`🚫 Productos no permitidos: ${productosGlobales.filter(p => !p.permitido).length}`);
         
     } catch (error) {
         console.error('❌ Error al cargar productos:', error);
@@ -1128,151 +1135,6 @@ async function cargarPreciosEspeciales() {
     } catch (error) {
         console.error('Error al cargar precios especiales:', error);
     }
-}
-
-// ============================================
-// ⭐ FUNCIÓN CORREGIDA: CALCULAR DESCUENTO CON REGLAS PXV ⭐
-// ============================================
-
-function calcularDescuentoProducto(producto, cantidad) {
-    // 1. Verificar precio especial (personalizado)
-    const precioEspecial = preciosEspecialesGlobales.find(p => 
-        p.codigoCliente === clienteData.codigo && 
-        p.claveProducto === producto.clave
-    );
-    
-    if (precioEspecial) {
-        return 0; // El precio especial ya tiene su precio fijo
-    }
-    
-    // 2. Calcular descuento base según NA o giro del cliente
-    let descuentoBase = 0;
-    
-    // Si tiene NA (descuento fijo)
-    if (producto.na !== '' && producto.na !== '-') {
-        const naNumero = parseFloat(producto.na);
-        if (!isNaN(naNumero)) {
-            descuentoBase = naNumero;
-            console.log(`📊 [${producto.nombre}] Descuento NA fijo: ${descuentoBase}%`);
-        }
-    } else {
-        // Descuento por giro del cliente
-        const giro = clienteData.giro || 'Público en general';
-        console.log(`🏢 Giro del cliente: "${giro}"`);
-        
-        const mapGiro = {
-            'Público en general': producto.descuentoPublico,
-            'Público': producto.descuentoPublico,
-            'Trabajador': producto.descuentoTrabajador,
-            'Arquitecto': producto.descuentoArquitecto,
-            'Inmobiliaria': producto.descuentoArquitecto,
-            'Constructora': producto.descuentoConstructora,
-            'Distribuidor': producto.descuentoDistribuidor
-        };
-        
-        descuentoBase = mapGiro[giro] || 0;
-        console.log(`📊 [${producto.nombre}] Descuento por giro (${giro}): ${descuentoBase}%`);
-    }
-    
-    // 3. Si NO es PXV, solo aplica el descuento base
-    if (producto.pxv !== 'PXV') {
-        console.log(`📊 [${producto.nombre}] NO es PXV, descuento final: ${descuentoBase}%`);
-        return descuentoBase;
-    }
-    
-    // 4. Es PXV - Calcular descuento por volumen (se SUMA al descuento base)
-    let descuentoVolumen = 0;
-    
-    // Verificar si hay descuento para 5 toneladas (columna Q) - 250 piezas aprox
-    if (producto.descuentoVolumenQ > 0 && cantidad >= 250) {
-        descuentoVolumen = producto.descuentoVolumenQ;
-        console.log(`📊 [${producto.nombre}] PXV +${descuentoVolumen}% por 5 toneladas (${cantidad} unidades)`);
-    } 
-    // Verificar si hay descuento para 3 toneladas (columna P) - 150 piezas aprox
-    else if (producto.descuentoVolumenP > 0 && cantidad >= 150) {
-        descuentoVolumen = producto.descuentoVolumenP;
-        console.log(`📊 [${producto.nombre}] PXV +${descuentoVolumen}% por 3 toneladas (${cantidad} unidades)`);
-    } else {
-        console.log(`📊 [${producto.nombre}] PXV sin descuento de volumen aplicable (${cantidad} unidades)`);
-    }
-    
-    // 5. SUMAR el descuento base + descuento por volumen
-    const descuentoFinal = descuentoBase + descuentoVolumen;
-    console.log(`📊 [${producto.nombre}] Descuento FINAL: ${descuentoBase}% + ${descuentoVolumen}% = ${descuentoFinal}%`);
-    
-    return descuentoFinal;
-}
-
-// ============================================
-// ⭐ FUNCIÓN PARA OBTENER EL PRECIO FINAL CON DESCUENTO ⭐
-// ============================================
-
-function obtenerPrecioConDescuento(producto, cantidad) {
-    // Verificar precio especial (personalizado)
-    const precioEspecial = preciosEspecialesGlobales.find(p => 
-        p.codigoCliente === clienteData.codigo && 
-        p.claveProducto === producto.clave
-    );
-    
-    // Si tiene precio especial, usarlo directamente (sin descuento adicional)
-    if (precioEspecial) {
-        console.log(`⭐ [${producto.nombre}] Precio especial: $${precioEspecial.precioPersonalizado}`);
-        return {
-            precio: precioEspecial.precioPersonalizado,
-            descuento: 0,
-            personalizado: true
-        };
-    }
-    
-    // Calcular el descuento total
-    const descuentoTotal = calcularDescuentoProducto(producto, cantidad);
-    const precioFinal = producto.precio * (1 - descuentoTotal / 100);
-    
-    console.log(`💰 [${producto.nombre}] Precio original: $${producto.precio}, Descuento: ${descuentoTotal}%, Precio final: $${precioFinal.toFixed(2)}`);
-    
-    return {
-        precio: precioFinal,
-        descuento: descuentoTotal,
-        personalizado: false
-    };
-}
-
-// ============================================
-// ⭐ NUEVAS FUNCIONES: VALIDACIONES DE PRODUCTO ⭐
-// ============================================
-
-// Verificar si un producto está activo (columna V)
-function productoEstaActivo(producto) {
-    return producto.activo === 'SI';
-}
-
-// Verificar si un producto cumple con el mínimo de piezas (columna T y U)
-function productoCumpleMinimoPiezas(producto, cantidad) {
-    // Si no tiene condición de peso (columna T = NO), no aplica restricción
-    if (producto.condicionPeso !== 'SI') {
-        return true;
-    }
-    
-    // Si tiene condición de peso (SI) y el mínimo es 0, no hay restricción
-    if (producto.minimoPiezas <= 0) {
-        return true;
-    }
-    
-    // Verificar si la cantidad cumple con el mínimo
-    return cantidad >= producto.minimoPiezas;
-}
-
-// Obtener mensaje de advertencia para el producto (solo advierte, no bloquea)
-function getMensajeAdvertenciaProducto(producto, cantidad) {
-    if (producto.activo !== 'SI') {
-        return `❌ El producto "${producto.nombre}" no está disponible actualmente.`;
-    }
-    
-    if (producto.condicionPeso === 'SI' && producto.minimoPiezas > 0 && cantidad < producto.minimoPiezas) {
-        return `⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas para completar la compra. Actualmente tienes ${cantidad}.`;
-    }
-    
-    return null;
 }
 
 // ============================================
@@ -1556,7 +1418,7 @@ async function guardarNuevaDireccion(datos) {
 }
 
 // ============================================
-// FUNCIONES DE BÚSQUEDA DE PRODUCTOS (SOLO ACTIVOS)
+// FUNCIONES DE BÚSQUEDA DE PRODUCTOS (ACTUALIZADO)
 // ============================================
 
 function buscarProductos() {
@@ -1574,13 +1436,12 @@ function buscarProductos() {
         return;
     }
     
-    // ⭐ Filtrar SOLO productos activos (columna V = SI)
+    // ⭐ SOLO MOSTRAR PRODUCTOS PERMITIDOS ⭐
     const resultados = productosGlobales.filter(p => 
-        p.activo === 'SI' && (
-            p.nombre.toLowerCase().includes(query) || 
-            p.clave.toLowerCase().includes(query) ||
-            p.descripcion.toLowerCase().includes(query)
-        )
+        (p.nombre.toLowerCase().includes(query) || 
+        p.clave.toLowerCase().includes(query) ||
+        p.descripcion.toLowerCase().includes(query)) &&
+        p.permitido
     );
     
     if (resultados.length === 0) {
@@ -1596,61 +1457,41 @@ function buscarProductos() {
     
     let html = `<div class="product-grid">`;
     resultados.forEach(producto => {
-        // Calcular precio con descuento para 1 unidad
-        const precioConDescuento = obtenerPrecioConDescuento(producto, 1);
-        const tienePersonalizado = precioConDescuento.personalizado;
-        const precioMostrar = precioConDescuento.precio;
-        const descuentoAplicado = precioConDescuento.descuento;
+        const precioFinal = obtenerPrecioFinal(producto);
+        const tienePersonalizado = precioFinal.personalizado;
+        const precioMostrar = precioFinal.precio;
         
-        // ⭐ Mostrar etiqueta de mínimo de piezas si aplica
-        let etiquetaMinimo = '';
-        if (producto.condicionPeso === 'SI' && producto.minimoPiezas > 0) {
-            etiquetaMinimo = `<span class="tag-peso">📦 Mínimo: ${producto.minimoPiezas} piezas</span>`;
-        }
-        
-        // Etiqueta de peso (si existe)
         let etiquetaPeso = '';
-        if (producto.condicionPeso === 'SI' && producto.peso > 0) {
-            etiquetaPeso = `<span class="tag-peso">⚖️ ${producto.peso} kg/unidad</span>`;
+        if (producto.pesoCondicion === 'SI' && producto.peso > 0) {
+            etiquetaPeso = `<span class="tag-peso">⚖️ ${producto.peso} kg/unidad - Mínimo 1 tonelada combinada</span>`;
         }
         
-        // Mostrar descuento aplicado
-        let etiquetaDescuento = '';
-        if (descuentoAplicado > 0) {
-            etiquetaDescuento = `<span class="tag-pxv" style="background:#dbeafe;color:#1e40af;">${descuentoAplicado}% dto.</span>`;
+        let etiquetaMinPiezas = '';
+        if (producto.requiereMinPiezas && producto.minPiezas > 0) {
+            etiquetaMinPiezas = `<span class="tag-peso" style="background:#fef3c7;color:#92400e;">📦 Mínimo: ${producto.minPiezas} piezas</span>`;
         }
         
-        // Mostrar si es PXV
         let etiquetaPXV = '';
         if (producto.pxv === 'PXV') {
-            etiquetaPXV = `<span class="tag-pxv">📦 Precio por Volumen</span>`;
-            if (producto.descuentoVolumenP > 0) {
-                etiquetaPXV += ` <span class="tag-pxv" style="background:#fef3c7;color:#92400e;">+${producto.descuentoVolumenP}% (3t)</span>`;
+            let infoVolumen = '';
+            if (producto.descuentoVolumenP > 0 || producto.descuentoVolumenQ > 0) {
+                let partes = [];
+                if (producto.descuentoVolumenP > 0) partes.push(`+${producto.descuentoVolumenP}% (3T)`);
+                if (producto.descuentoVolumenQ > 0) partes.push(`+${producto.descuentoVolumenQ}% (5T)`);
+                infoVolumen = ` - ${partes.join(' | ')}`;
             }
-            if (producto.descuentoVolumenQ > 0) {
-                etiquetaPXV += ` <span class="tag-pxv" style="background:#fef3c7;color:#92400e;">+${producto.descuentoVolumenQ}% (5t)</span>`;
-            }
-        }
-        
-        // Mostrar precio original con tachado si hay descuento
-        let precioOriginalHTML = '';
-        if (descuentoAplicado > 0) {
-            precioOriginalHTML = `<span style="text-decoration:line-through;color:#999;font-size:0.8rem;">${formatoMexicano(producto.precio)}</span><br>`;
+            etiquetaPXV = `<span class="tag-pxv">📦 Descuento por Volumen${infoVolumen}</span>`;
         }
         
         html += `
             <div class="product-card">
                 <span class="clave">${producto.clave}</span>
-                ${etiquetaPXV}
+                ${producto.pxv === 'PXV' ? etiquetaPXV : ''}
                 ${etiquetaPeso}
-                ${etiquetaMinimo}
-                ${etiquetaDescuento}
+                ${etiquetaMinPiezas}
                 <h4>${producto.nombre}</h4>
                 <p class="descripcion">${producto.descripcion || 'Sin descripción'}</p>
-                <p class="precio">
-                    ${precioOriginalHTML}
-                    ${formatoMexicano(precioMostrar)}
-                </p>
+                <p class="precio">${formatoMexicano(precioMostrar)}</p>
                 ${tienePersonalizado ? '<span class="precio-personalizado">⭐ Precio Personalizado</span>' : ''}
                 <button class="btn-agregar" onclick="agregarAlCarrito('${producto.clave}')">
                     <i class="fas fa-plus"></i> Agregar
@@ -1668,7 +1509,7 @@ function limpiarBusqueda() {
 }
 
 // ============================================
-// PRECIOS Y DESCUENTOS
+// PRECIOS Y DESCUENTOS (ACTUALIZADO)
 // ============================================
 
 function obtenerPrecioFinal(producto) {
@@ -1692,8 +1533,586 @@ function obtenerPrecioFinal(producto) {
     };
 }
 
+// ⭐ NUEVA LÓGICA DE DESCUENTO PXV ⭐
+function calcularDescuentoProducto(producto, cantidad) {
+    // 1. Verificar precio especial (personalizado)
+    const precioEspecial = preciosEspecialesGlobales.find(p => 
+        p.codigoCliente === clienteData.codigo && 
+        p.claveProducto === producto.clave
+    );
+    
+    if (precioEspecial) {
+        return 0;
+    }
+    
+    // 2. Si tiene NA (descuento fijo)
+    if (producto.na === 'N/A') {
+        return 0;
+    }
+    
+    const naNumero = parseFloat(producto.na);
+    if (!isNaN(naNumero) && producto.na !== '-') {
+        return naNumero;
+    }
+    
+    // 3. Determinar descuento base por tipo de cliente
+    let descuentoBase = 0;
+    
+    if (producto.na === '-') {
+        const giro = clienteData.giro || 'Público en general';
+        
+        const mapGiro = {
+            'Público en general': producto.descuentoPublico,
+            'Público': producto.descuentoPublico,
+            'Trabajador': producto.descuentoTrabajador,
+            'Arquitecto': producto.descuentoArquitecto,
+            'Inmobiliaria': producto.descuentoArquitecto,
+            'Constructora': producto.descuentoConstructora,
+            'Distribuidor': producto.descuentoDistribuidor
+        };
+        
+        descuentoBase = mapGiro[giro] || 0;
+    } else {
+        descuentoBase = parseFloat(producto.na) || 0;
+    }
+    
+    // 4. ⭐ NUEVA LÓGICA PXV (Precio por Volumen) ⭐
+    if (producto.pxv === 'PXV') {
+        const giro = clienteData.giro || 'Público en general';
+        const girosPXV = ['Distribuidor', 'Arquitecto', 'Inmobiliaria', 'Constructora'];
+        
+        // Solo aplicar PXV si el giro está en la lista
+        if (girosPXV.includes(giro)) {
+            let descuentoAdicional = 0;
+            
+            // Verificar si se alcanza el volumen de 5 toneladas (columna Q)
+            if (cantidad >= 250 && producto.descuentoVolumenQ > 0) {
+                descuentoAdicional = producto.descuentoVolumenQ;
+                console.log(`📦 [PXV 5T] Producto: ${producto.nombre} | Cantidad: ${cantidad} | Adicional: ${descuentoAdicional}%`);
+            } 
+            // Verificar si se alcanza el volumen de 3 toneladas (columna P)
+            else if (cantidad >= 150 && producto.descuentoVolumenP > 0) {
+                descuentoAdicional = producto.descuentoVolumenP;
+                console.log(`📦 [PXV 3T] Producto: ${producto.nombre} | Cantidad: ${cantidad} | Adicional: ${descuentoAdicional}%`);
+            }
+            
+            // ⭐ SUMAR el descuento adicional al descuento base ⭐
+            if (descuentoAdicional > 0) {
+                return descuentoBase + descuentoAdicional;
+            }
+        }
+    }
+    
+    return descuentoBase;
+}
+
 // ============================================
-// ⭐ FUNCIÓN ACTUALIZADA: AGREGAR AL CARRITO (PERMITE AGREGAR CON MÍNIMO) ⭐
+// VERIFICACIÓN DE CRÉDITO DISPONIBLE
+// ============================================
+
+function verificarCreditoDisponible() {
+    console.log('🔍 Verificando crédito disponible...');
+    console.log('💳 Cliente crédito habilitado:', clienteCreditoHabilitado);
+    console.log('⚖️ Límite crédito peso:', clienteLimiteCreditoPeso);
+    console.log('💰 Límite crédito monto:', clienteLimiteCreditoMonto);
+    
+    const productosConPeso = carrito.filter(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        return producto && producto.pesoCondicion === 'SI' && producto.peso > 0;
+    });
+    
+    const productosSinPeso = carrito.filter(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        return producto && (producto.pesoCondicion !== 'SI' || producto.peso === 0);
+    });
+    
+    console.log(`📊 Productos con peso: ${productosConPeso.length}`);
+    console.log(`📊 Productos sin peso: ${productosSinPeso.length}`);
+    
+    let pesoTotal = 0;
+    productosConPeso.forEach(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        if (producto) {
+            pesoTotal += producto.peso * item.cantidad;
+        }
+    });
+    
+    let montoSinPeso = 0;
+    productosSinPeso.forEach(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        if (producto) {
+            const precioFinal = obtenerPrecioFinal(producto);
+            const descuento = calcularDescuentoProducto(producto, item.cantidad);
+            const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+            montoSinPeso += importe;
+        }
+    });
+    
+    let montoConPeso = 0;
+    productosConPeso.forEach(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        if (producto) {
+            const precioFinal = obtenerPrecioFinal(producto);
+            const descuento = calcularDescuentoProducto(producto, item.cantidad);
+            const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+            montoConPeso += importe;
+        }
+    });
+    
+    const totalGeneral = montoConPeso + montoSinPeso;
+    
+    console.log(`⚖️ Peso total (con peso): ${pesoTotal.toFixed(2)} kg`);
+    console.log(`💰 Monto productos con peso: ${formatoMexicano(montoConPeso)}`);
+    console.log(`💰 Monto productos sin peso: ${formatoMexicano(montoSinPeso)}`);
+    console.log(`💰 Total general: ${formatoMexicano(totalGeneral)}`);
+    
+    const hayProductosConPeso = productosConPeso.length > 0;
+    const hayProductosSinPeso = productosSinPeso.length > 0;
+    
+    if (carrito.length === 0) {
+        return {
+            puedeCredito: false,
+            tipo: 'sin_productos',
+            mensaje: '⚠️ No hay productos en el carrito.',
+            pesoTotal: 0,
+            montoCredito: 0,
+            montoPago: 0,
+            productosCredito: [],
+            productosPago: [],
+            excedeLimite: false,
+            puedeUsarCredito: false,
+            montoExcedente: 0
+        };
+    }
+    
+    if (!clienteCreditoHabilitado) {
+        return {
+            puedeCredito: false,
+            tipo: 'no_habilitado',
+            mensaje: '⚠️ El crédito no está habilitado para este cliente.',
+            pesoTotal: 0,
+            montoCredito: 0,
+            montoPago: totalGeneral,
+            productosCredito: [],
+            productosPago: carrito,
+            excedeLimite: true,
+            puedeUsarCredito: false,
+            montoExcedente: totalGeneral
+        };
+    }
+    
+    if (hayProductosConPeso && !hayProductosSinPeso) {
+        console.log('📦 Caso: Solo productos con peso');
+        
+        if (pesoTotal <= clienteLimiteCreditoPeso) {
+            return {
+                puedeCredito: true,
+                tipo: 'credito_total',
+                mensaje: `✅ Todos los productos van a crédito. Peso total: ${pesoTotal.toFixed(2)} kg (límite: ${clienteLimiteCreditoPeso} kg)`,
+                pesoTotal: pesoTotal,
+                montoCredito: totalGeneral,
+                montoPago: 0,
+                productosCredito: carrito,
+                productosPago: [],
+                excedeLimite: false,
+                puedeUsarCredito: true,
+                montoExcedente: 0
+            };
+        } else {
+            const pesoExcedente = pesoTotal - clienteLimiteCreditoPeso;
+            let pesoAcumulado = 0;
+            let productosPago = [];
+            let productosCredito = [];
+            let montoPago = 0;
+            let montoCredito = 0;
+            
+            const productosOrdenados = [...productosConPeso].sort((a, b) => {
+                const prodA = productosGlobales.find(p => p.clave === a.clave);
+                const prodB = productosGlobales.find(p => p.clave === b.clave);
+                return (prodB ? prodB.peso * b.cantidad : 0) - (prodA ? prodA.peso * a.cantidad : 0);
+            });
+            
+            for (const item of productosOrdenados) {
+                const producto = productosGlobales.find(p => p.clave === item.clave);
+                if (!producto) continue;
+                
+                const pesoItem = producto.peso * item.cantidad;
+                const precioFinal = obtenerPrecioFinal(producto);
+                const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                
+                if (pesoAcumulado + pesoItem <= pesoExcedente) {
+                    productosPago.push(item);
+                    montoPago += importe;
+                    pesoAcumulado += pesoItem;
+                } else {
+                    const pesoRestante = pesoExcedente - pesoAcumulado;
+                    if (pesoRestante > 0 && pesoItem > 0) {
+                        const cantidadPago = pesoRestante / producto.peso;
+                        const cantidadCredito = item.cantidad - cantidadPago;
+                        
+                        if (cantidadPago > 0) {
+                            const importePago = precioFinal.precio * cantidadPago * (1 - descuento / 100);
+                            productosPago.push({
+                                ...item,
+                                cantidad: cantidadPago,
+                                _parcial: true
+                            });
+                            montoPago += importePago;
+                        }
+                        
+                        if (cantidadCredito > 0) {
+                            const importeCredito = precioFinal.precio * cantidadCredito * (1 - descuento / 100);
+                            productosCredito.push({
+                                ...item,
+                                cantidad: cantidadCredito,
+                                _parcial: true
+                            });
+                            montoCredito += importeCredito;
+                        }
+                    }
+                    pesoAcumulado = pesoExcedente;
+                }
+            }
+            
+            for (const item of productosConPeso) {
+                if (!productosPago.some(p => p.clave === item.clave && p._parcial === true) && 
+                    !productosPago.some(p => p.clave === item.clave && p._parcial !== true)) {
+                    const producto = productosGlobales.find(p => p.clave === item.clave);
+                    if (!producto) continue;
+                    
+                    const precioFinal = obtenerPrecioFinal(producto);
+                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                    
+                    const yaProcesado = productosPago.some(p => p.clave === item.clave) || 
+                                       productosCredito.some(p => p.clave === item.clave);
+                    
+                    if (!yaProcesado) {
+                        productosCredito.push(item);
+                        montoCredito += importe;
+                    }
+                }
+            }
+            
+            return {
+                puedeCredito: true,
+                tipo: 'credito_parcial',
+                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPago)} deben pagarse. El resto va a crédito.`,
+                pesoTotal: pesoTotal,
+                pesoExcedente: pesoExcedente,
+                montoCredito: montoCredito,
+                montoPago: montoPago,
+                productosCredito: productosCredito,
+                productosPago: productosPago,
+                excedeLimite: true,
+                puedeUsarCredito: true,
+                montoExcedente: montoPago
+            };
+        }
+    }
+    
+    if (!hayProductosConPeso && hayProductosSinPeso) {
+        console.log('📦 Caso: Solo productos sin peso');
+        
+        if (montoSinPeso <= clienteLimiteCreditoMonto) {
+            return {
+                puedeCredito: true,
+                tipo: 'credito_total',
+                mensaje: `✅ Todos los productos van a crédito. Monto: ${formatoMexicano(montoSinPeso)} (límite: ${formatoMexicano(clienteLimiteCreditoMonto)})`,
+                pesoTotal: 0,
+                montoCredito: montoSinPeso,
+                montoPago: 0,
+                productosCredito: carrito,
+                productosPago: [],
+                excedeLimite: false,
+                puedeUsarCredito: true,
+                montoExcedente: 0
+            };
+        } else {
+            const montoExcedente = montoSinPeso - clienteLimiteCreditoMonto;
+            let montoAcumulado = 0;
+            let productosPago = [];
+            let productosCredito = [];
+            let montoPago = 0;
+            let montoCredito = 0;
+            
+            const productosOrdenados = [...productosSinPeso].sort((a, b) => {
+                const prodA = productosGlobales.find(p => p.clave === a.clave);
+                const prodB = productosGlobales.find(p => p.clave === b.clave);
+                const precioA = prodA ? prodA.precio * a.cantidad : 0;
+                const precioB = prodB ? prodB.precio * b.cantidad : 0;
+                return precioB - precioA;
+            });
+            
+            for (const item of productosOrdenados) {
+                const producto = productosGlobales.find(p => p.clave === item.clave);
+                if (!producto) continue;
+                
+                const precioFinal = obtenerPrecioFinal(producto);
+                const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                
+                if (montoAcumulado + importe <= montoExcedente) {
+                    productosPago.push(item);
+                    montoPago += importe;
+                    montoAcumulado += importe;
+                } else {
+                    const montoRestante = montoExcedente - montoAcumulado;
+                    if (montoRestante > 0 && importe > 0) {
+                        const cantidadPago = montoRestante / (precioFinal.precio * (1 - descuento / 100));
+                        const cantidadCredito = item.cantidad - cantidadPago;
+                        
+                        if (cantidadPago > 0) {
+                            const importePago = precioFinal.precio * cantidadPago * (1 - descuento / 100);
+                            productosPago.push({
+                                ...item,
+                                cantidad: cantidadPago,
+                                _parcial: true
+                            });
+                            montoPago += importePago;
+                        }
+                        
+                        if (cantidadCredito > 0) {
+                            const importeCredito = precioFinal.precio * cantidadCredito * (1 - descuento / 100);
+                            productosCredito.push({
+                                ...item,
+                                cantidad: cantidadCredito,
+                                _parcial: true
+                            });
+                            montoCredito += importeCredito;
+                        }
+                    }
+                    montoAcumulado = montoExcedente;
+                }
+            }
+            
+            for (const item of productosSinPeso) {
+                if (!productosPago.some(p => p.clave === item.clave && p._parcial === true) && 
+                    !productosPago.some(p => p.clave === item.clave && p._parcial !== true)) {
+                    const producto = productosGlobales.find(p => p.clave === item.clave);
+                    if (!producto) continue;
+                    
+                    const precioFinal = obtenerPrecioFinal(producto);
+                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                    
+                    const yaProcesado = productosPago.some(p => p.clave === item.clave) || 
+                                       productosCredito.some(p => p.clave === item.clave);
+                    
+                    if (!yaProcesado) {
+                        productosCredito.push(item);
+                        montoCredito += importe;
+                    }
+                }
+            }
+            
+            return {
+                puedeCredito: true,
+                tipo: 'credito_parcial',
+                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPago)} deben pagarse. El resto va a crédito.`,
+                pesoTotal: 0,
+                montoCredito: montoCredito,
+                montoPago: montoPago,
+                productosCredito: productosCredito,
+                productosPago: productosPago,
+                excedeLimite: true,
+                puedeUsarCredito: true,
+                montoExcedente: montoPago
+            };
+        }
+    }
+    
+    if (hayProductosConPeso && hayProductosSinPeso) {
+        console.log('📦 Caso: Productos mixtos');
+        
+        const pesoCumple = pesoTotal <= clienteLimiteCreditoPeso;
+        const montoCumple = montoSinPeso <= clienteLimiteCreditoMonto;
+        
+        if (pesoCumple && montoCumple) {
+            return {
+                puedeCredito: true,
+                tipo: 'credito_total',
+                mensaje: `✅ Todos los productos van a crédito. Peso: ${pesoTotal.toFixed(2)} kg, Monto: ${formatoMexicano(montoSinPeso)}`,
+                pesoTotal: pesoTotal,
+                montoCredito: totalGeneral,
+                montoPago: 0,
+                productosCredito: carrito,
+                productosPago: [],
+                excedeLimite: false,
+                puedeUsarCredito: true,
+                montoExcedente: 0
+            };
+        } else {
+            let productosPago = [];
+            let productosCredito = [];
+            let montoPago = 0;
+            let montoCredito = 0;
+            
+            if (!pesoCumple) {
+                const pesoExcedenteTotal = pesoTotal - clienteLimiteCreditoPeso;
+                let pesoAcumulado = 0;
+                
+                const prodPesoOrdenados = [...productosConPeso].sort((a, b) => {
+                    const prodA = productosGlobales.find(p => p.clave === a.clave);
+                    const prodB = productosGlobales.find(p => p.clave === b.clave);
+                    return (prodB ? prodB.peso * b.cantidad : 0) - (prodA ? prodA.peso * a.cantidad : 0);
+                });
+                
+                for (const item of prodPesoOrdenados) {
+                    const producto = productosGlobales.find(p => p.clave === item.clave);
+                    if (!producto) continue;
+                    
+                    const pesoItem = producto.peso * item.cantidad;
+                    const precioFinal = obtenerPrecioFinal(producto);
+                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                    
+                    if (pesoAcumulado + pesoItem <= pesoExcedenteTotal) {
+                        productosPago.push(item);
+                        montoPago += importe;
+                        pesoAcumulado += pesoItem;
+                    } else {
+                        const pesoRestante = pesoExcedenteTotal - pesoAcumulado;
+                        if (pesoRestante > 0 && pesoItem > 0) {
+                            const cantidadPago = pesoRestante / producto.peso;
+                            const cantidadCredito = item.cantidad - cantidadPago;
+                            
+                            if (cantidadPago > 0) {
+                                const importePago = precioFinal.precio * cantidadPago * (1 - descuento / 100);
+                                productosPago.push({
+                                    ...item,
+                                    cantidad: cantidadPago,
+                                    _parcial: true
+                                });
+                                montoPago += importePago;
+                            }
+                            
+                            if (cantidadCredito > 0) {
+                                const importeCredito = precioFinal.precio * cantidadCredito * (1 - descuento / 100);
+                                productosCredito.push({
+                                    ...item,
+                                    cantidad: cantidadCredito,
+                                    _parcial: true
+                                });
+                                montoCredito += importeCredito;
+                            }
+                        }
+                        pesoAcumulado = pesoExcedenteTotal;
+                    }
+                }
+            }
+            
+            if (!montoCumple) {
+                const montoExcedenteTotal = montoSinPeso - clienteLimiteCreditoMonto;
+                let montoAcumulado = 0;
+                
+                const prodSinPesoOrdenados = [...productosSinPeso].sort((a, b) => {
+                    const prodA = productosGlobales.find(p => p.clave === a.clave);
+                    const prodB = productosGlobales.find(p => p.clave === b.clave);
+                    const precioA = prodA ? prodA.precio * a.cantidad : 0;
+                    const precioB = prodB ? prodB.precio * b.cantidad : 0;
+                    return precioB - precioA;
+                });
+                
+                for (const item of prodSinPesoOrdenados) {
+                    if (productosPago.some(p => p.clave === item.clave) || 
+                        productosCredito.some(p => p.clave === item.clave)) continue;
+                    
+                    const producto = productosGlobales.find(p => p.clave === item.clave);
+                    if (!producto) continue;
+                    
+                    const precioFinal = obtenerPrecioFinal(producto);
+                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                    
+                    if (montoAcumulado + importe <= montoExcedenteTotal) {
+                        productosPago.push(item);
+                        montoPago += importe;
+                        montoAcumulado += importe;
+                    } else {
+                        const montoRestante = montoExcedenteTotal - montoAcumulado;
+                        if (montoRestante > 0 && importe > 0) {
+                            const cantidadPago = montoRestante / (precioFinal.precio * (1 - descuento / 100));
+                            const cantidadCredito = item.cantidad - cantidadPago;
+                            
+                            if (cantidadPago > 0) {
+                                const importePago = precioFinal.precio * cantidadPago * (1 - descuento / 100);
+                                productosPago.push({
+                                    ...item,
+                                    cantidad: cantidadPago,
+                                    _parcial: true
+                                });
+                                montoPago += importePago;
+                            }
+                            
+                            if (cantidadCredito > 0) {
+                                const importeCredito = precioFinal.precio * cantidadCredito * (1 - descuento / 100);
+                                productosCredito.push({
+                                    ...item,
+                                    cantidad: cantidadCredito,
+                                    _parcial: true
+                                });
+                                montoCredito += importeCredito;
+                            }
+                        }
+                        montoAcumulado = montoExcedenteTotal;
+                    }
+                }
+            }
+            
+            for (const item of carrito) {
+                if (!productosPago.some(p => p.clave === item.clave && p._parcial === true) && 
+                    !productosPago.some(p => p.clave === item.clave && p._parcial !== true) &&
+                    !productosCredito.some(p => p.clave === item.clave && p._parcial === true) &&
+                    !productosCredito.some(p => p.clave === item.clave && p._parcial !== true)) {
+                    const producto = productosGlobales.find(p => p.clave === item.clave);
+                    if (!producto) continue;
+                    
+                    const precioFinal = obtenerPrecioFinal(producto);
+                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                    
+                    productosCredito.push(item);
+                    montoCredito += importe;
+                }
+            }
+            
+            const montoExcedenteTotal = montoPago;
+            
+            return {
+                puedeCredito: true,
+                tipo: 'credito_parcial',
+                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPago)} deben pagarse. El resto va a crédito.`,
+                pesoTotal: pesoTotal,
+                montoCredito: montoCredito,
+                montoPago: montoPago,
+                productosCredito: productosCredito,
+                productosPago: productosPago,
+                excedeLimite: true,
+                puedeUsarCredito: true,
+                montoExcedente: montoExcedenteTotal
+            };
+        }
+    }
+    
+    return {
+        puedeCredito: false,
+        tipo: 'sin_productos',
+        mensaje: '⚠️ No hay productos en el carrito.',
+        pesoTotal: 0,
+        montoCredito: 0,
+        montoPago: 0,
+        productosCredito: [],
+        productosPago: [],
+        excedeLimite: false,
+        puedeUsarCredito: false,
+        montoExcedente: 0
+    };
+}
+
+// ============================================
+// CARRITO (ACTUALIZADO)
 // ============================================
 
 function agregarAlCarrito(clave) {
@@ -1703,104 +2122,100 @@ function agregarAlCarrito(clave) {
         return;
     }
     
-    // ⭐ VALIDACIÓN 1: Producto activo (columna V) - BLOQUEA
-    if (producto.activo !== 'SI') {
-        mostrarNotificacion(`❌ El producto "${producto.nombre}" no está disponible actualmente.`);
+    // ⭐ VALIDACIÓN 1: Producto permitido ⭐
+    if (!producto.permitido) {
+        mostrarNotificacion('🚫 Este producto no está disponible para venta en este momento.');
         return;
     }
     
-    // Buscar si ya existe en el carrito
+    // ⭐ VALIDACIÓN 2: Mínimo de piezas ⭐
+    if (producto.requiereMinPiezas && producto.minPiezas > 0) {
+        const existente = carrito.find(item => item.clave === clave);
+        const cantidadActual = existente ? existente.cantidad : 0;
+        const nuevaCantidad = cantidadActual + 1;
+        
+        if (nuevaCantidad < producto.minPiezas) {
+            mostrarNotificacion(`⚠️ Este producto requiere un mínimo de ${producto.minPiezas} piezas para poder comprarlo.`);
+            return;
+        }
+    }
+    
     const existente = carrito.find(item => item.clave === clave);
-    let nuevaCantidad = 1;
     
     if (existente) {
-        nuevaCantidad = existente.cantidad + 1;
-    }
-    
-    // ⭐ VALIDACIÓN 2: Mínimo de piezas - SOLO ADVIERTE, NO BLOQUEA
-    let mensajeAdvertencia = null;
-    if (producto.condicionPeso === 'SI' && producto.minimoPiezas > 0 && nuevaCantidad < producto.minimoPiezas) {
-        mensajeAdvertencia = `⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas para completar la compra. Actualmente tienes ${nuevaCantidad}.`;
-    }
-    
-    // Calcular precio con descuento para la nueva cantidad
-    const precioInfo = obtenerPrecioConDescuento(producto, nuevaCantidad);
-    
-    // Agregar o actualizar en el carrito
-    if (existente) {
-        existente.cantidad = nuevaCantidad;
-        existente.descuento = precioInfo.descuento;
-        existente.precioUnitarioConDescuento = precioInfo.precio;
-        existente.importe = precioInfo.precio * nuevaCantidad;
+        if (producto.requiereMinPiezas && producto.minPiezas > 0) {
+            const nuevaCantidad = existente.cantidad + 1;
+            if (nuevaCantidad < producto.minPiezas) {
+                mostrarNotificacion(`⚠️ Este producto requiere un mínimo de ${producto.minPiezas} piezas.`);
+                return;
+            }
+        }
+        existente.cantidad += 1;
+        actualizarItemCarrito(existente);
     } else {
+        const precioFinal = obtenerPrecioFinal(producto);
+        const descuento = calcularDescuentoProducto(producto, 1);
+        const precioConDescuento = precioFinal.precio * (1 - descuento / 100);
+        
+        if (producto.requiereMinPiezas && producto.minPiezas > 0) {
+            if (1 < producto.minPiezas) {
+                mostrarNotificacion(`⚠️ Este producto requiere un mínimo de ${producto.minPiezas} piezas para poder comprarlo.`);
+                return;
+            }
+        }
+        
         carrito.push({
             clave: producto.clave,
             nombre: producto.nombre,
             descripcion: producto.descripcion,
-            precio: producto.precio,
-            precioUnitarioConDescuento: precioInfo.precio,
+            precio: precioFinal.precio,
             precioCompra: producto.precioCompra,
             cantidad: 1,
-            descuento: precioInfo.descuento,
-            importe: precioInfo.precio,
-            personalizado: precioInfo.personalizado,
-            condicionPeso: producto.condicionPeso,
+            descuento: descuento,
+            importe: precioConDescuento,
+            personalizado: precioFinal.personalizado,
+            pesoCondicion: producto.pesoCondicion,
             peso: producto.peso,
-            minimoPiezas: producto.minimoPiezas,
-            pxv: producto.pxv,
-            descuentoVolumenP: producto.descuentoVolumenP,
-            descuentoVolumenQ: producto.descuentoVolumenQ
+            requiereMinPiezas: producto.requiereMinPiezas,
+            minPiezas: producto.minPiezas
         });
     }
     
     renderizarCarrito();
-    
-    // Mostrar advertencia si aplica (después de renderizar)
-    if (mensajeAdvertencia) {
-        mostrarNotificacion(mensajeAdvertencia);
-    } else {
-        mostrarNotificacion('✅ Producto agregado al carrito');
-    }
+    mostrarNotificacion('✅ Producto agregado al carrito');
 }
 
 function actualizarItemCarrito(item) {
     const producto = productosGlobales.find(p => p.clave === item.clave);
     if (!producto) return;
     
-    // Recalcular descuento con la nueva cantidad
-    const precioInfo = obtenerPrecioConDescuento(producto, item.cantidad);
-    item.descuento = precioInfo.descuento;
-    item.precioUnitarioConDescuento = precioInfo.precio;
-    item.importe = precioInfo.precio * item.cantidad;
+    const descuento = calcularDescuentoProducto(producto, item.cantidad);
+    item.descuento = descuento;
+    item.importe = item.precio * item.cantidad * (1 - descuento / 100);
 }
-
-// ============================================
-// ⭐ FUNCIÓN ACTUALIZADA: CAMBIAR CANTIDAD (PERMITE CAMBIAR CON MÍNIMO) ⭐
-// ============================================
 
 function cambiarCantidad(clave, nuevaCantidad) {
     const item = carrito.find(i => i.clave === clave);
     if (!item) return;
+    
+    const producto = productosGlobales.find(p => p.clave === clave);
+    if (!producto) return;
     
     if (nuevaCantidad <= 0) {
         eliminarDelCarrito(clave);
         return;
     }
     
-    // ⭐ Validar mínimo de piezas - SOLO ADVIERTE, NO BLOQUEA
-    const producto = productosGlobales.find(p => p.clave === clave);
-    let mensajeAdvertencia = null;
-    if (producto && producto.condicionPeso === 'SI' && producto.minimoPiezas > 0 && nuevaCantidad < producto.minimoPiezas) {
-        mensajeAdvertencia = `⚠️ "${producto.nombre}" requiere un mínimo de ${producto.minimoPiezas} piezas para completar la compra. Actualmente tienes ${nuevaCantidad}.`;
+    if (producto.requiereMinPiezas && producto.minPiezas > 0) {
+        if (nuevaCantidad < producto.minPiezas) {
+            mostrarNotificacion(`⚠️ Este producto requiere un mínimo de ${producto.minPiezas} piezas.`);
+            return;
+        }
     }
     
     item.cantidad = nuevaCantidad;
     actualizarItemCarrito(item);
     renderizarCarrito();
-    
-    if (mensajeAdvertencia) {
-        mostrarNotificacion(mensajeAdvertencia);
-    }
 }
 
 function eliminarDelCarrito(clave) {
@@ -1816,7 +2231,7 @@ function vaciarCarrito() {
 }
 
 // ============================================
-// RENDERIZAR CARRITO
+// RENDERIZAR CARRITO (ACTUALIZADO)
 // ============================================
 
 function renderizarCarrito() {
@@ -1841,18 +2256,13 @@ function renderizarCarrito() {
     }
     
     const verificarPeso = verificarPesoMinimo();
-    // Verificar mínimos de piezas en todo el carrito (solo para mostrar advertencia)
-    const hayMinimoIncumplido = carrito.some(item => {
-        const producto = productosGlobales.find(p => p.clave === item.clave);
-        return producto && producto.condicionPeso === 'SI' && producto.minimoPiezas > 0 && item.cantidad < producto.minimoPiezas;
-    });
     
     let html = `
         <table class="cart-table">
             <thead>
                 <tr>
                     <th>Producto</th>
-                    <th>Precio Unit.</th>
+                    <th>Precio</th>
                     <th>Cantidad</th>
                     <th>Descuento</th>
                     <th>Importe</th>
@@ -1867,10 +2277,9 @@ function renderizarCarrito() {
     let subtotal = 0;
     
     carrito.forEach(item => {
-        const precioUnitario = item.precioUnitarioConDescuento || item.precio;
         const importeBase = item.precio * item.cantidad;
-        const importeFinal = precioUnitario * item.cantidad;
-        const descuentoItem = importeBase - importeFinal;
+        const descuentoItem = importeBase * (item.descuento / 100);
+        const importeFinal = importeBase - descuentoItem;
         
         subtotalSinDescuento += importeBase;
         descuentoTotal += descuentoItem;
@@ -1878,29 +2287,14 @@ function renderizarCarrito() {
         
         let pesoInfo = '';
         let pesoTotalItem = 0;
-        if (item.condicionPeso === 'SI' && item.peso > 0) {
+        if (item.pesoCondicion === 'SI' && item.peso > 0) {
             pesoTotalItem = item.peso * item.cantidad;
             pesoInfo = `<br><small style="color:var(--text-gray);">⚖️ ${item.peso} kg/unidad → ${pesoTotalItem.toFixed(2)} kg total</small>`;
         }
         
-        // Mostrar mínimo de piezas si aplica
-        let minInfo = '';
-        if (item.condicionPeso === 'SI' && item.minimoPiezas > 0) {
-            const cumpleMinimo = item.cantidad >= item.minimoPiezas;
-            minInfo = `<br><small style="color:${cumpleMinimo ? '#16a34a' : '#92400e'};font-weight:${cumpleMinimo ? 'normal' : 'bold'};">📦 Mínimo: ${item.minimoPiezas} piezas ${cumpleMinimo ? '✅' : '⚠️'}</small>`;
-        }
-        
-        // Mostrar descuento PXV si aplica
-        let pxvInfo = '';
-        const producto = productosGlobales.find(p => p.clave === item.clave);
-        if (producto && producto.pxv === 'PXV' && item.descuento > 0) {
-            pxvInfo = `<br><small style="color:#1e40af;">📦 PXV: ${item.descuento}% dto.</small>`;
-        }
-        
-        // Mostrar precio original con tachado si hay descuento
-        let precioMostrar = formatoMexicano(precioUnitario);
-        if (item.descuento > 0) {
-            precioMostrar = `<span style="text-decoration:line-through;color:#999;font-size:0.7rem;">${formatoMexicano(item.precio)}</span><br>${formatoMexicano(precioUnitario)}`;
+        let minPiezasInfo = '';
+        if (item.requiereMinPiezas && item.minPiezas > 0) {
+            minPiezasInfo = `<br><small style="color:#92400e;font-weight:600;">📦 Mínimo: ${item.minPiezas} piezas</small>`;
         }
         
         html += `
@@ -1909,11 +2303,10 @@ function renderizarCarrito() {
                     <strong>${item.nombre}</strong>
                     ${item.personalizado ? '<span class="precio-personalizado">⭐ Personalizado</span>' : ''}
                     ${pesoInfo}
-                    ${minInfo}
-                    ${pxvInfo}
+                    ${minPiezasInfo}
                     <br><small style="color:var(--text-gray);">${item.clave}</small>
                 </td>
-                <td>${precioMostrar}</td>
+                <td>${formatoMexicano(item.precio)}</td>
                 <td>
                     <input type="number" class="cantidad-input" 
                            value="${item.cantidad}" min="1" 
@@ -1937,23 +2330,6 @@ function renderizarCarrito() {
             </tbody>
         </table>
     `;
-    
-    // ⭐ Mostrar advertencia de mínimo de piezas si hay incumplimiento (SOLO ADVERTENCIA)
-    if (hayMinimoIncumplido) {
-        html += `
-            <div style="margin-top: 1rem; padding: 1rem; border-radius: 12px; background: #fef3c7; border: 2px solid #fde68a;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <span style="font-size: 1.5rem;">⚠️</span>
-                    <span style="font-weight: 700; color: #92400e; font-size: 1.1rem;">
-                        Advertencia de mínimo de piezas
-                    </span>
-                </div>
-                <p style="margin: 0.5rem 0 0 0; color: #92400e;">
-                    Hay productos que no alcanzan el mínimo de piezas requerido. Aumenta la cantidad para completar la compra.
-                </p>
-            </div>
-        `;
-    }
     
     if (verificarPeso.productosConPeso > 0) {
         let detalleProductos = '';
@@ -2014,7 +2390,6 @@ function renderizarCarrito() {
     document.getElementById('iva').textContent = formatoMexicano(iva);
     document.getElementById('total').textContent = formatoMexicano(total);
     
-    // ⭐ BLOQUEAR compra SOLO por peso mínimo, NO por mínimo de piezas
     if (verificarPeso.productosConPeso > 0 && !verificarPeso.cumple) {
         btnComprar.disabled = true;
         btnComprar.title = '⚠️ Debes completar el peso mínimo de 1 tonelada (1000 kg) para productos con peso.';
@@ -2037,7 +2412,7 @@ function verificarPesoMinimo() {
     
     const productosConPeso = carrito.filter(item => {
         const producto = productosGlobales.find(p => p.clave === item.clave);
-        return producto && producto.condicionPeso === 'SI' && producto.peso > 0;
+        return producto && producto.pesoCondicion === 'SI' && producto.peso > 0;
     });
     
     console.log(`📊 Productos con peso en carrito: ${productosConPeso.length}`);
@@ -2098,17 +2473,6 @@ function abrirModalDireccion() {
     if (carrito.length === 0) {
         mostrarNotificacion('⚠️ El carrito está vacío');
         return;
-    }
-    
-    // ⭐ Verificar mínimos de piezas - SOLO ADVERTIR, NO BLOQUEAR
-    const hayMinimoIncumplido = carrito.some(item => {
-        const producto = productosGlobales.find(p => p.clave === item.clave);
-        return producto && producto.condicionPeso === 'SI' && producto.minimoPiezas > 0 && item.cantidad < producto.minimoPiezas;
-    });
-    
-    if (hayMinimoIncumplido) {
-        // Solo mostrar advertencia, pero continuar
-        console.log('⚠️ Hay productos con mínimo de piezas incumplido, pero se permite continuar');
     }
     
     const verificarPeso = verificarPesoMinimo();
@@ -2265,7 +2629,6 @@ function abrirModalPago() {
     document.getElementById('formTransferencia').style.display = 'none';
     document.getElementById('formCredito').style.display = 'none';
     
-    // Calcular totales
     let total = calcularTotal();
     let montoPago = total;
     let montoCredito = 0;
@@ -2295,7 +2658,6 @@ function abrirModalPago() {
         }
     }
     
-    // Guardar en variables globales
     window._infoCredito = infoCredito;
     window._esCreditoParcial = esCreditoParcial;
     window._montoPago = montoPago;
@@ -2303,11 +2665,9 @@ function abrirModalPago() {
     window._puedeUsarCredito = puedeUsarCredito;
     window._montoExcedente = montoExcedente;
     
-    // Mostrar montos en el modal
     document.getElementById('montoTransferencia').textContent = formatoMexicano(total);
     document.getElementById('totalCredito').textContent = formatoMexicano(total);
     
-    // Configurar opciones de pago
     const btnCredito = document.getElementById('btnCredito');
     if (btnCredito) {
         if (clienteCreditoHabilitado && puedeUsarCredito) {
@@ -2329,7 +2689,6 @@ function abrirModalPago() {
         }
     }
     
-    // ⭐ INICIALIZAR FACTURA ⭐
     requiereFactura = false;
     document.getElementById('facturaNo').classList.add('selected');
     document.getElementById('facturaSi').classList.remove('selected');
@@ -2340,7 +2699,6 @@ function abrirModalPago() {
     pagoSeleccionado = null;
     document.querySelectorAll('.opciones-pago button').forEach(b => b.classList.remove('selected'));
     
-    // Seleccionar transferencia por defecto si no hay crédito disponible
     if (!clienteCreditoHabilitado || !puedeUsarCredito) {
         seleccionarPago('transferencia');
     }
@@ -2358,7 +2716,6 @@ function cerrarModalPago() {
     document.getElementById('fileName').textContent = 'Ningún archivo seleccionado';
     infoCreditoCalculado = null;
     
-    // Limpiar variables de crédito
     window._infoCredito = null;
     window._esCreditoParcial = false;
     window._montoPago = 0;
@@ -2371,7 +2728,6 @@ function seleccionarPago(tipo) {
     pagoSeleccionado = tipo;
     document.querySelectorAll('.opciones-pago button').forEach(b => b.classList.remove('selected'));
     
-    // Limpiar mensajes anteriores
     document.getElementById('modalMensaje').innerHTML = '';
     document.getElementById('modalMensaje').style.display = 'none';
     
@@ -2385,21 +2741,16 @@ function seleccionarPago(tipo) {
         if (formTransferencia) formTransferencia.style.display = 'block';
         if (formCredito) formCredito.style.display = 'none';
         
-        // Transferencia: PAGAR EL TOTAL
         const total = calcularTotal();
         document.getElementById('montoTransferencia').textContent = formatoMexicano(total);
         
-        // ⭐ OCULTAR botón de crédito y mostrar botón de transferencia ⭐
         if (btnConfirmarCredito) btnConfirmarCredito.style.display = 'none';
         if (btnConfirmarTransferencia) {
             btnConfirmarTransferencia.style.display = 'block';
             btnConfirmarTransferencia.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Compra';
         }
         
-        // Habilitar/deshabilitar botón según campos
         validarCamposTransferencia();
-        
-        // Asegurar que el bloque de factura esté visible
         document.getElementById('facturaContainer').style.display = 'block';
         
     } else if (tipo === 'credito') {
@@ -2407,18 +2758,13 @@ function seleccionarPago(tipo) {
         if (formCredito) formCredito.style.display = 'block';
         if (formTransferencia) formTransferencia.style.display = 'none';
         
-        // Asegurar que el bloque de factura esté visible
         document.getElementById('facturaContainer').style.display = 'block';
         
-        // Crédito: Mostrar información
         const infoCredito = window._infoCredito || infoCreditoCalculado;
         const esCreditoParcial = window._esCreditoParcial || false;
         const montoExcedente = window._montoExcedente || 0;
         
         if (esCreditoParcial && infoCredito && infoCredito.excedeLimite) {
-            // ⭐ CRÉDITO PARCIAL - Mostrar campos de transferencia y botón "Pagar Excedente y Finalizar" ⭐
-            
-            // Mostrar mensaje de excedente
             const mensajeHTML = `
                 <div style="background: #fef3c7; padding: 1rem; border-radius: 12px; margin-bottom: 1rem; border: 1px solid #fde68a;">
                     <p style="margin: 0; font-weight: 600; color: #92400e;">
@@ -2439,13 +2785,11 @@ function seleccionarPago(tipo) {
             document.getElementById('modalMensaje').innerHTML = mensajeHTML;
             document.getElementById('modalMensaje').style.display = 'block';
             
-            // ⭐ Mostrar campos de transferencia dentro del crédito ⭐
             if (formTransferencia) {
                 formTransferencia.style.display = 'block';
                 document.getElementById('montoTransferencia').textContent = formatoMexicano(montoExcedente);
             }
             
-            // ⭐ OCULTAR botón de transferencia y mostrar botón de crédito con "Pagar Excedente y Finalizar" ⭐
             if (btnConfirmarTransferencia) btnConfirmarTransferencia.style.display = 'none';
             if (btnConfirmarCredito) {
                 btnConfirmarCredito.style.display = 'block';
@@ -2457,20 +2801,16 @@ function seleccionarPago(tipo) {
                 btnConfirmarCredito.className = 'btn-enviar';
             }
             
-            // Validar campos para habilitar el botón
             validarCamposCreditoParcial();
             
         } else {
-            // ⭐ CRÉDITO TOTAL - OCULTAR campos de transferencia y botón de transferencia, mostrar "Confirmar Crédito" ⭐
             document.getElementById('modalMensaje').innerHTML = '';
             document.getElementById('modalMensaje').style.display = 'none';
             
-            // ⭐ OCULTAR campos de transferencia cuando NO excede el límite ⭐
             if (formTransferencia) {
                 formTransferencia.style.display = 'none';
             }
             
-            // ⭐ OCULTAR botón de transferencia y mostrar "Confirmar Crédito" ⭐
             if (btnConfirmarTransferencia) btnConfirmarTransferencia.style.display = 'none';
             if (btnConfirmarCredito) {
                 btnConfirmarCredito.style.display = 'block';
@@ -2485,7 +2825,6 @@ function seleccionarPago(tipo) {
     }
 }
 
-// ⭐ FUNCIÓN PARA VALIDAR CAMPOS DE TRANSFERENCIA ⭐
 function validarCamposTransferencia() {
     const referencia = document.getElementById('referenciaTransferencia').value.trim();
     const archivo = document.getElementById('fileName').textContent;
@@ -2506,7 +2845,6 @@ function validarCamposTransferencia() {
     }
 }
 
-// ⭐ FUNCIÓN PARA VALIDAR CAMPOS DE CRÉDITO PARCIAL ⭐
 function validarCamposCreditoParcial() {
     const referencia = document.getElementById('referenciaTransferencia').value.trim();
     const archivo = document.getElementById('fileName').textContent;
@@ -2527,25 +2865,6 @@ function validarCamposCreditoParcial() {
     }
 }
 
-// ⭐ FUNCIÓN PARA SELECCIONAR FACTURA ⭐
-function seleccionarFactura(opcion) {
-    requiereFactura = (opcion === 'si');
-    
-    document.getElementById('facturaNo').classList.remove('selected');
-    document.getElementById('facturaSi').classList.remove('selected');
-    
-    if (opcion === 'no') {
-        document.getElementById('facturaNo').classList.add('selected');
-        document.getElementById('facturaRazonSocialContainer').style.display = 'none';
-        document.getElementById('facturaDatosPreview').style.display = 'none';
-        datosFacturaSeleccionados = null;
-    } else {
-        document.getElementById('facturaSi').classList.add('selected');
-        document.getElementById('facturaRazonSocialContainer').style.display = 'block';
-        actualizarSelectorFacturacion();
-    }
-}
-
 function cargarComprobante(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -2557,7 +2876,6 @@ function cargarComprobante(event) {
         comprobanteTipo = file.type;
         document.getElementById('fileName').textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
         
-        // Validar campos después de cargar el archivo
         const pagoSeleccionadoActual = pagoSeleccionado;
         if (pagoSeleccionadoActual === 'transferencia') {
             validarCamposTransferencia();
@@ -2571,7 +2889,6 @@ function cargarComprobante(event) {
     reader.readAsDataURL(file);
 }
 
-// ⭐ AGREGAR EVENTO PARA VALIDAR REFERENCIA EN TIEMPO REAL ⭐
 document.addEventListener('DOMContentLoaded', function() {
     const refTransferencia = document.getElementById('referenciaTransferencia');
     if (refTransferencia) {
@@ -2591,14 +2908,15 @@ document.addEventListener('DOMContentLoaded', function() {
 function calcularTotal() {
     let subtotal = 0;
     carrito.forEach(item => {
-        const precioUnitario = item.precioUnitarioConDescuento || item.precio;
-        subtotal += precioUnitario * item.cantidad;
+        const importeBase = item.precio * item.cantidad;
+        const descuentoItem = importeBase * (item.descuento / 100);
+        subtotal += importeBase - descuentoItem;
     });
     return subtotal + (subtotal * 0.16);
 }
 
 // ============================================
-// ⭐ FUNCIÓN PARA GENERAR PDF DEL COMPROBANTE ⭐
+// FUNCIÓN PARA GENERAR PDF DEL COMPROBANTE
 // ============================================
 
 function generarPDFComprobante(datos) {
@@ -2621,10 +2939,9 @@ function generarPDFComprobante(datos) {
 
         let tablaProductos = '';
         datos.productos.forEach(producto => {
-            const precioUnitario = producto.precioUnitarioConDescuento || producto.precio;
-            let precioInfo = formatoMexicano(precioUnitario);
+            let precioInfo = formatoMexicano(producto.precio);
             if (producto.personalizado) {
-                precioInfo = `${formatoMexicano(precioUnitario)} <span class="precio-personalizado">PERSONALIZADO</span>`;
+                precioInfo = `${formatoMexicano(producto.precio)} <span class="precio-personalizado">PERSONALIZADO</span>`;
             }
             
             tablaProductos += `
@@ -2683,7 +3000,6 @@ function generarPDFComprobante(datos) {
 
         const logoUrl = 'https://i.imgur.com/1T3PCYR.png';
 
-        // ⭐ GENERAR HTML PARA EL PDF ⭐
         const htmlContent = `
 <!DOCTYPE html>
 <html>
@@ -2810,7 +3126,6 @@ function generarPDFComprobante(datos) {
 </body>
 </html>`;
 
-        // ⭐ ABRIR VENTANA PARA IMPRIMIR (GENERA PDF) ⭐
         const ventana = window.open('', '_blank', 'width=800,height=600');
         if (ventana) {
             ventana.document.write(htmlContent);
@@ -2825,7 +3140,6 @@ function generarPDFComprobante(datos) {
                 ventana.close();
             }, 5000);
         } else {
-            // Fallback: descargar como HTML
             const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -2978,7 +3292,6 @@ async function procesarPagoCredito() {
     const dias = DIAS_CREDITO_FIJO;
     const total = calcularTotal();
     
-    // Verificar si se puede usar crédito
     if (!window._puedeUsarCredito) {
         mostrarMensajeModal('error', '⚠️ No puedes usar crédito. Por favor, selecciona la opción de transferencia para pagar de contado.');
         return;
@@ -2994,12 +3307,10 @@ async function procesarPagoCredito() {
         return;
     }
     
-    // Verificar si es crédito parcial (excede el límite)
     const esCreditoParcial = window._esCreditoParcial || false;
     const infoCredito = window._infoCredito || infoCreditoCalculado;
     const montoExcedente = window._montoExcedente || 0;
     
-    // Si es crédito parcial, validar que se haya subido comprobante del excedente
     if (esCreditoParcial && montoExcedente > 0) {
         const referencia = document.getElementById('referenciaTransferencia').value.trim();
         if (!referencia) {
@@ -3044,7 +3355,6 @@ async function procesarPagoCredito() {
             referenciaExcedente = document.getElementById('referenciaTransferencia').value.trim();
             comprobanteExcedente = comprobanteBase64;
             
-            // Productos que van a pago (excedente)
             const productosPago = infoCredito.productosPago || [];
             productosPago.forEach(item => {
                 productosParaVenta.push({
@@ -3052,16 +3362,14 @@ async function procesarPagoCredito() {
                     nombre: item.nombre,
                     cantidad: item.cantidad,
                     precio: item.precio,
-                    precioUnitarioConDescuento: item.precioUnitarioConDescuento || item.precio,
                     descuento: item.descuento,
-                    importe: (item.precioUnitarioConDescuento || item.precio) * item.cantidad,
+                    importe: item.precio * item.cantidad * (1 - item.descuento / 100),
                     precioCompra: item.precioCompra || 0,
                     personalizado: item.personalizado || false,
                     _tipo: 'pago'
                 });
             });
             
-            // Productos que van a crédito
             const productosCredito = infoCredito.productosCredito || [];
             productosCredito.forEach(item => {
                 productosParaVenta.push({
@@ -3069,9 +3377,8 @@ async function procesarPagoCredito() {
                     nombre: item.nombre,
                     cantidad: item.cantidad,
                     precio: item.precio,
-                    precioUnitarioConDescuento: item.precioUnitarioConDescuento || item.precio,
                     descuento: item.descuento,
-                    importe: (item.precioUnitarioConDescuento || item.precio) * item.cantidad,
+                    importe: item.precio * item.cantidad * (1 - item.descuento / 100),
                     precioCompra: item.precioCompra || 0,
                     personalizado: item.personalizado || false,
                     _tipo: 'credito'
@@ -3079,7 +3386,6 @@ async function procesarPagoCredito() {
             });
             
         } else {
-            // Crédito total
             productosParaVenta = carrito.map(item => ({
                 ...item,
                 _tipo: 'credito'
@@ -3205,7 +3511,6 @@ async function guardarVentaEnEstadisticas(datos) {
             hour12: false
         });
         
-        // Procesar cada producto
         for (const producto of datos.productos) {
             let precioCompra = 0;
             let ganancia = 0;
@@ -3324,10 +3629,18 @@ async function enviarCorreoVentaWeb(datos) {
     try {
         console.log('📧 Enviando correo a ventas@proconstruccionmx.com...');
         
-        // Generar HTML del correo
+        if (typeof emailjs === 'undefined') {
+            console.warn('⚠️ EmailJS no está disponible. Intentando cargarlo...');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            if (typeof emailjs === 'undefined') {
+                console.error('❌ EmailJS no está disponible después de esperar.');
+                mostrarNotificacion('⚠️ Error al enviar correo. Contacta a tu asesor.');
+                return { success: false, error: 'emailjs no disponible' };
+            }
+        }
+        
         let htmlProductos = '';
         datos.productos.forEach(p => {
-            const precioUnitario = p.precioUnitarioConDescuento || p.precio;
             let tipoLabel = '';
             if (p._tipo === 'credito') {
                 tipoLabel = '<span style="color:#92400e;font-weight:600;">(Crédito)</span>';
@@ -3339,7 +3652,7 @@ async function enviarCorreoVentaWeb(datos) {
                 <tr>
                     <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:center;">${p.cantidad}</td>
                     <td style="padding:8px;border-bottom:1px solid #e0e0e0;">${p.nombre} ${tipoLabel}</td>
-                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:right;">${formatoMexicano(precioUnitario)}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:right;">${formatoMexicano(p.precio)}</td>
                     <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:center;">${p.descuento}%</td>
                     <td style="padding:8px;border-bottom:1px solid #e0e0e0;text-align:right;">${formatoMexicano(p.importe)}</td>
                 </tr>
@@ -3455,7 +3768,6 @@ async function enviarCorreoVentaWeb(datos) {
 </body>
 </html>`;
 
-        // ⭐ TEMPLATE PARAMS - Usar 'email' para coincidir con tu template ⭐
         const templateParams = {
             email: 'ventas@proconstruccionmx.com',
             from_name: 'ProConstrucción MX',
@@ -3494,7 +3806,7 @@ async function enviarCorreoVentaWeb(datos) {
 }
 
 // ============================================
-// ⭐ FUNCIONES PARA "MIS COMPRAS" ⭐
+// FUNCIONES PARA "MIS COMPRAS"
 // ============================================
 
 async function cargarHistorialCompras() {
@@ -4101,7 +4413,7 @@ function filtrarHistorial() {
 }
 
 // ============================================
-// ⭐ FUNCIONES PARA CRÉDITOS PENDIENTES ⭐
+// FUNCIONES PARA CRÉDITOS PENDIENTES
 // ============================================
 
 function cargarCreditosPendientes() {
@@ -4110,11 +4422,9 @@ function cargarCreditosPendientes() {
     const container = document.getElementById('creditosPendientesContent');
     if (!container) return;
     
-    // Filtrar ventas que son crédito y tienen saldo pendiente > 0
     creditosPendientes = historialVentas.filter(v => {
         const tipoPago = v.tipoPago || '';
         const saldoPendiente = v.saldoPendiente || v.total || 0;
-        // Verificar si es crédito (debe venir de la hoja)
         return (tipoPago === 'Crédito' || tipoPago === 'Crédito Parcial') && saldoPendiente > 0.01;
     });
     
@@ -4188,7 +4498,6 @@ function cargarCreditosPendientes() {
     document.getElementById('totalCreditoPendiente').textContent = `Total: ${formatoMexicano(totalPendiente)}`;
 }
 
-// ⭐ ABRIR MODAL PARA PAGAR CRÉDITO PENDIENTE ⭐
 function abrirModalPagoCreditoPendiente(idVenta) {
     const venta = creditosPendientes.find(v => v.idVenta === idVenta);
     if (!venta) {
@@ -4199,7 +4508,6 @@ function abrirModalPagoCreditoPendiente(idVenta) {
     creditoSeleccionadoParaPago = venta;
     const saldoPendiente = venta.saldoPendiente || venta.total || 0;
     
-    // Crear modal dinámico
     const modalHtml = `
         <div id="modalPagoCredito" class="modal-overlay active" onclick="if(event.target===this) cerrarModalPagoCredito()">
             <div class="modal" style="max-width:500px;">
@@ -4253,17 +4561,14 @@ function abrirModalPagoCreditoPendiente(idVenta) {
         </div>
     `;
     
-    // Eliminar modal existente
     const existing = document.getElementById('modalPagoCredito');
     if (existing) existing.remove();
     
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     
-    // Evento para validar campos
     document.getElementById('referenciaTransferenciaCredito').addEventListener('input', validarCamposCreditoPendiente);
 }
 
-// ⭐ CARGAR COMPROBANTE PARA CRÉDITO PENDIENTE ⭐
 let comprobanteCreditoBase64 = null;
 let comprobanteCreditoNombre = null;
 
@@ -4318,7 +4623,6 @@ function mostrarMensajeModalPagoCredito(tipo, mensaje) {
     }
 }
 
-// ⭐ PROCESAR PAGO DE CRÉDITO PENDIENTE ⭐
 async function procesarPagoCreditoPendiente() {
     const referencia = document.getElementById('referenciaTransferenciaCredito').value.trim();
     
@@ -4349,11 +4653,9 @@ async function procesarPagoCreditoPendiente() {
         const totalOriginal = venta.total || 0;
         const anticipoAnterior = venta.anticipo || 0;
         
-        // Crear datos de la venta para el correo y estadísticas
         const folio = `PAGO-${venta.idVenta}`;
         const fecha = new Date();
         
-        // Productos de la venta original
         const productosParaVenta = venta.productos ? venta.productos.map(p => ({
             ...p,
             _tipo: 'pago'
@@ -4392,13 +4694,9 @@ async function procesarPagoCreditoPendiente() {
         
         console.log('📊 Liquidando crédito:', datosVenta);
         
-        // Guardar en estadísticas
         await guardarVentaEnEstadisticas(datosVenta);
-        
-        // Enviar correo
         await enviarCorreoVentaWeb(datosVenta);
         
-        // Mostrar mensaje de éxito
         mostrarMensajeModalPagoCredito('exito', `
             ✅ ¡Pago registrado con éxito!<br>
             <strong>Venta original:</strong> ${venta.idVenta}<br>
@@ -4407,13 +4705,11 @@ async function procesarPagoCreditoPendiente() {
             Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.
         `);
         
-        // Deshabilitar botón
         if (btn) {
             btn.disabled = true;
             btn.innerHTML = '✅ Pago registrado';
         }
         
-        // Recargar créditos pendientes después de un momento
         setTimeout(() => {
             cerrarModalPagoCredito();
             cargarHistorialCompras();
@@ -4427,487 +4723,6 @@ async function procesarPagoCreditoPendiente() {
             btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Pago';
         }
     }
-}
-
-// ============================================
-// ⭐ FUNCIÓN: VERIFICAR CRÉDITO DISPONIBLE ⭐
-// ============================================
-
-function verificarCreditoDisponible() {
-    console.log('🔍 Verificando crédito disponible...');
-    console.log('💳 Cliente crédito habilitado:', clienteCreditoHabilitado);
-    console.log('⚖️ Límite crédito peso:', clienteLimiteCreditoPeso);
-    console.log('💰 Límite crédito monto:', clienteLimiteCreditoMonto);
-    
-    const productosConPeso = carrito.filter(item => {
-        const producto = productosGlobales.find(p => p.clave === item.clave);
-        return producto && producto.condicionPeso === 'SI' && producto.peso > 0;
-    });
-    
-    const productosSinPeso = carrito.filter(item => {
-        const producto = productosGlobales.find(p => p.clave === item.clave);
-        return producto && (producto.condicionPeso !== 'SI' || producto.peso === 0);
-    });
-    
-    console.log(`📊 Productos con peso: ${productosConPeso.length}`);
-    console.log(`📊 Productos sin peso: ${productosSinPeso.length}`);
-    
-    let pesoTotal = 0;
-    productosConPeso.forEach(item => {
-        const producto = productosGlobales.find(p => p.clave === item.clave);
-        if (producto) {
-            pesoTotal += producto.peso * item.cantidad;
-        }
-    });
-    
-    let montoSinPeso = 0;
-    productosSinPeso.forEach(item => {
-        const producto = productosGlobales.find(p => p.clave === item.clave);
-        if (producto) {
-            const precioUnitario = item.precioUnitarioConDescuento || item.precio;
-            montoSinPeso += precioUnitario * item.cantidad;
-        }
-    });
-    
-    let montoConPeso = 0;
-    productosConPeso.forEach(item => {
-        const producto = productosGlobales.find(p => p.clave === item.clave);
-        if (producto) {
-            const precioUnitario = item.precioUnitarioConDescuento || item.precio;
-            montoConPeso += precioUnitario * item.cantidad;
-        }
-    });
-    
-    const totalGeneral = montoConPeso + montoSinPeso;
-    
-    console.log(`⚖️ Peso total (con peso): ${pesoTotal.toFixed(2)} kg`);
-    console.log(`💰 Monto productos con peso: ${formatoMexicano(montoConPeso)}`);
-    console.log(`💰 Monto productos sin peso: ${formatoMexicano(montoSinPeso)}`);
-    console.log(`💰 Total general: ${formatoMexicano(totalGeneral)}`);
-    
-    const hayProductosConPeso = productosConPeso.length > 0;
-    const hayProductosSinPeso = productosSinPeso.length > 0;
-    
-    if (carrito.length === 0) {
-        return {
-            puedeCredito: false,
-            tipo: 'sin_productos',
-            mensaje: '⚠️ No hay productos en el carrito.',
-            pesoTotal: 0,
-            montoCredito: 0,
-            montoPago: 0,
-            productosCredito: [],
-            productosPago: [],
-            excedeLimite: false,
-            puedeUsarCredito: false,
-            montoExcedente: 0
-        };
-    }
-    
-    if (!clienteCreditoHabilitado) {
-        return {
-            puedeCredito: false,
-            tipo: 'no_habilitado',
-            mensaje: '⚠️ El crédito no está habilitado para este cliente.',
-            pesoTotal: 0,
-            montoCredito: 0,
-            montoPago: totalGeneral,
-            productosCredito: [],
-            productosPago: carrito,
-            excedeLimite: true,
-            puedeUsarCredito: false,
-            montoExcedente: totalGeneral
-        };
-    }
-    
-    // CASO 1: Solo productos con peso
-    if (hayProductosConPeso && !hayProductosSinPeso) {
-        console.log('📦 Caso: Solo productos con peso');
-        
-        if (pesoTotal <= clienteLimiteCreditoPeso) {
-            return {
-                puedeCredito: true,
-                tipo: 'credito_total',
-                mensaje: `✅ Todos los productos van a crédito. Peso total: ${pesoTotal.toFixed(2)} kg (límite: ${clienteLimiteCreditoPeso} kg)`,
-                pesoTotal: pesoTotal,
-                montoCredito: totalGeneral,
-                montoPago: 0,
-                productosCredito: carrito,
-                productosPago: [],
-                excedeLimite: false,
-                puedeUsarCredito: true,
-                montoExcedente: 0
-            };
-        } else {
-            const pesoExcedente = pesoTotal - clienteLimiteCreditoPeso;
-            let pesoAcumulado = 0;
-            let productosPago = [];
-            let productosCredito = [];
-            let montoPago = 0;
-            let montoCredito = 0;
-            
-            const productosOrdenados = [...productosConPeso].sort((a, b) => {
-                const prodA = productosGlobales.find(p => p.clave === a.clave);
-                const prodB = productosGlobales.find(p => p.clave === b.clave);
-                return (prodB ? prodB.peso * b.cantidad : 0) - (prodA ? prodA.peso * a.cantidad : 0);
-            });
-            
-            for (const item of productosOrdenados) {
-                const producto = productosGlobales.find(p => p.clave === item.clave);
-                if (!producto) continue;
-                
-                const pesoItem = producto.peso * item.cantidad;
-                const precioUnitario = item.precioUnitarioConDescuento || item.precio;
-                const importe = precioUnitario * item.cantidad;
-                
-                if (pesoAcumulado + pesoItem <= pesoExcedente) {
-                    productosPago.push(item);
-                    montoPago += importe;
-                    pesoAcumulado += pesoItem;
-                } else {
-                    const pesoRestante = pesoExcedente - pesoAcumulado;
-                    if (pesoRestante > 0 && pesoItem > 0) {
-                        const cantidadPago = pesoRestante / producto.peso;
-                        const cantidadCredito = item.cantidad - cantidadPago;
-                        
-                        if (cantidadPago > 0) {
-                            const importePago = precioUnitario * cantidadPago;
-                            productosPago.push({
-                                ...item,
-                                cantidad: cantidadPago,
-                                _parcial: true
-                            });
-                            montoPago += importePago;
-                        }
-                        
-                        if (cantidadCredito > 0) {
-                            const importeCredito = precioUnitario * cantidadCredito;
-                            productosCredito.push({
-                                ...item,
-                                cantidad: cantidadCredito,
-                                _parcial: true
-                            });
-                            montoCredito += importeCredito;
-                        }
-                    }
-                    pesoAcumulado = pesoExcedente;
-                }
-            }
-            
-            for (const item of productosConPeso) {
-                if (!productosPago.some(p => p.clave === item.clave && p._parcial === true) && 
-                    !productosPago.some(p => p.clave === item.clave && p._parcial !== true)) {
-                    const producto = productosGlobales.find(p => p.clave === item.clave);
-                    if (!producto) continue;
-                    
-                    const precioUnitario = item.precioUnitarioConDescuento || item.precio;
-                    const importe = precioUnitario * item.cantidad;
-                    
-                    const yaProcesado = productosPago.some(p => p.clave === item.clave) || 
-                                       productosCredito.some(p => p.clave === item.clave);
-                    
-                    if (!yaProcesado) {
-                        productosCredito.push(item);
-                        montoCredito += importe;
-                    }
-                }
-            }
-            
-            return {
-                puedeCredito: true,
-                tipo: 'credito_parcial',
-                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPago)} deben pagarse. El resto va a crédito.`,
-                pesoTotal: pesoTotal,
-                pesoExcedente: pesoExcedente,
-                montoCredito: montoCredito,
-                montoPago: montoPago,
-                productosCredito: productosCredito,
-                productosPago: productosPago,
-                excedeLimite: true,
-                puedeUsarCredito: true,
-                montoExcedente: montoPago
-            };
-        }
-    }
-    
-    // CASO 2: Solo productos sin peso
-    if (!hayProductosConPeso && hayProductosSinPeso) {
-        console.log('📦 Caso: Solo productos sin peso');
-        
-        if (montoSinPeso <= clienteLimiteCreditoMonto) {
-            return {
-                puedeCredito: true,
-                tipo: 'credito_total',
-                mensaje: `✅ Todos los productos van a crédito. Monto: ${formatoMexicano(montoSinPeso)} (límite: ${formatoMexicano(clienteLimiteCreditoMonto)})`,
-                pesoTotal: 0,
-                montoCredito: montoSinPeso,
-                montoPago: 0,
-                productosCredito: carrito,
-                productosPago: [],
-                excedeLimite: false,
-                puedeUsarCredito: true,
-                montoExcedente: 0
-            };
-        } else {
-            const montoExcedente = montoSinPeso - clienteLimiteCreditoMonto;
-            let montoAcumulado = 0;
-            let productosPago = [];
-            let productosCredito = [];
-            let montoPago = 0;
-            let montoCredito = 0;
-            
-            const productosOrdenados = [...productosSinPeso].sort((a, b) => {
-                const precioA = a.precioUnitarioConDescuento || a.precio;
-                const precioB = b.precioUnitarioConDescuento || b.precio;
-                return (precioB * b.cantidad) - (precioA * a.cantidad);
-            });
-            
-            for (const item of productosOrdenados) {
-                const precioUnitario = item.precioUnitarioConDescuento || item.precio;
-                const importe = precioUnitario * item.cantidad;
-                
-                if (montoAcumulado + importe <= montoExcedente) {
-                    productosPago.push(item);
-                    montoPago += importe;
-                    montoAcumulado += importe;
-                } else {
-                    const montoRestante = montoExcedente - montoAcumulado;
-                    if (montoRestante > 0 && importe > 0) {
-                        const cantidadPago = montoRestante / precioUnitario;
-                        const cantidadCredito = item.cantidad - cantidadPago;
-                        
-                        if (cantidadPago > 0) {
-                            const importePago = precioUnitario * cantidadPago;
-                            productosPago.push({
-                                ...item,
-                                cantidad: cantidadPago,
-                                _parcial: true
-                            });
-                            montoPago += importePago;
-                        }
-                        
-                        if (cantidadCredito > 0) {
-                            const importeCredito = precioUnitario * cantidadCredito;
-                            productosCredito.push({
-                                ...item,
-                                cantidad: cantidadCredito,
-                                _parcial: true
-                            });
-                            montoCredito += importeCredito;
-                        }
-                    }
-                    montoAcumulado = montoExcedente;
-                }
-            }
-            
-            for (const item of productosSinPeso) {
-                if (!productosPago.some(p => p.clave === item.clave && p._parcial === true) && 
-                    !productosPago.some(p => p.clave === item.clave && p._parcial !== true)) {
-                    const precioUnitario = item.precioUnitarioConDescuento || item.precio;
-                    const importe = precioUnitario * item.cantidad;
-                    
-                    const yaProcesado = productosPago.some(p => p.clave === item.clave) || 
-                                       productosCredito.some(p => p.clave === item.clave);
-                    
-                    if (!yaProcesado) {
-                        productosCredito.push(item);
-                        montoCredito += importe;
-                    }
-                }
-            }
-            
-            return {
-                puedeCredito: true,
-                tipo: 'credito_parcial',
-                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPago)} deben pagarse. El resto va a crédito.`,
-                pesoTotal: 0,
-                montoCredito: montoCredito,
-                montoPago: montoPago,
-                productosCredito: productosCredito,
-                productosPago: productosPago,
-                excedeLimite: true,
-                puedeUsarCredito: true,
-                montoExcedente: montoPago
-            };
-        }
-    }
-    
-    // CASO 3: Mixto
-    if (hayProductosConPeso && hayProductosSinPeso) {
-        console.log('📦 Caso: Productos mixtos');
-        
-        const pesoCumple = pesoTotal <= clienteLimiteCreditoPeso;
-        const montoCumple = montoSinPeso <= clienteLimiteCreditoMonto;
-        
-        if (pesoCumple && montoCumple) {
-            return {
-                puedeCredito: true,
-                tipo: 'credito_total',
-                mensaje: `✅ Todos los productos van a crédito. Peso: ${pesoTotal.toFixed(2)} kg, Monto: ${formatoMexicano(montoSinPeso)}`,
-                pesoTotal: pesoTotal,
-                montoCredito: totalGeneral,
-                montoPago: 0,
-                productosCredito: carrito,
-                productosPago: [],
-                excedeLimite: false,
-                puedeUsarCredito: true,
-                montoExcedente: 0
-            };
-        } else {
-            let productosPago = [];
-            let productosCredito = [];
-            let montoPago = 0;
-            let montoCredito = 0;
-            
-            if (!pesoCumple) {
-                const pesoExcedenteTotal = pesoTotal - clienteLimiteCreditoPeso;
-                let pesoAcumulado = 0;
-                
-                const prodPesoOrdenados = [...productosConPeso].sort((a, b) => {
-                    const prodA = productosGlobales.find(p => p.clave === a.clave);
-                    const prodB = productosGlobales.find(p => p.clave === b.clave);
-                    return (prodB ? prodB.peso * b.cantidad : 0) - (prodA ? prodA.peso * a.cantidad : 0);
-                });
-                
-                for (const item of prodPesoOrdenados) {
-                    const producto = productosGlobales.find(p => p.clave === item.clave);
-                    if (!producto) continue;
-                    
-                    const pesoItem = producto.peso * item.cantidad;
-                    const precioUnitario = item.precioUnitarioConDescuento || item.precio;
-                    const importe = precioUnitario * item.cantidad;
-                    
-                    if (pesoAcumulado + pesoItem <= pesoExcedenteTotal) {
-                        productosPago.push(item);
-                        montoPago += importe;
-                        pesoAcumulado += pesoItem;
-                    } else {
-                        const pesoRestante = pesoExcedenteTotal - pesoAcumulado;
-                        if (pesoRestante > 0 && pesoItem > 0) {
-                            const cantidadPago = pesoRestante / producto.peso;
-                            const cantidadCredito = item.cantidad - cantidadPago;
-                            
-                            if (cantidadPago > 0) {
-                                const importePago = precioUnitario * cantidadPago;
-                                productosPago.push({
-                                    ...item,
-                                    cantidad: cantidadPago,
-                                    _parcial: true
-                                });
-                                montoPago += importePago;
-                            }
-                            
-                            if (cantidadCredito > 0) {
-                                const importeCredito = precioUnitario * cantidadCredito;
-                                productosCredito.push({
-                                    ...item,
-                                    cantidad: cantidadCredito,
-                                    _parcial: true
-                                });
-                                montoCredito += importeCredito;
-                            }
-                        }
-                        pesoAcumulado = pesoExcedenteTotal;
-                    }
-                }
-            }
-            
-            if (!montoCumple) {
-                const montoExcedenteTotal = montoSinPeso - clienteLimiteCreditoMonto;
-                let montoAcumulado = 0;
-                
-                const prodSinPesoOrdenados = [...productosSinPeso].sort((a, b) => {
-                    const precioA = a.precioUnitarioConDescuento || a.precio;
-                    const precioB = b.precioUnitarioConDescuento || b.precio;
-                    return (precioB * b.cantidad) - (precioA * a.cantidad);
-                });
-                
-                for (const item of prodSinPesoOrdenados) {
-                    if (productosPago.some(p => p.clave === item.clave) || 
-                        productosCredito.some(p => p.clave === item.clave)) continue;
-                    
-                    const precioUnitario = item.precioUnitarioConDescuento || item.precio;
-                    const importe = precioUnitario * item.cantidad;
-                    
-                    if (montoAcumulado + importe <= montoExcedenteTotal) {
-                        productosPago.push(item);
-                        montoPago += importe;
-                        montoAcumulado += importe;
-                    } else {
-                        const montoRestante = montoExcedenteTotal - montoAcumulado;
-                        if (montoRestante > 0 && importe > 0) {
-                            const cantidadPago = montoRestante / precioUnitario;
-                            const cantidadCredito = item.cantidad - cantidadPago;
-                            
-                            if (cantidadPago > 0) {
-                                const importePago = precioUnitario * cantidadPago;
-                                productosPago.push({
-                                    ...item,
-                                    cantidad: cantidadPago,
-                                    _parcial: true
-                                });
-                                montoPago += importePago;
-                            }
-                            
-                            if (cantidadCredito > 0) {
-                                const importeCredito = precioUnitario * cantidadCredito;
-                                productosCredito.push({
-                                    ...item,
-                                    cantidad: cantidadCredito,
-                                    _parcial: true
-                                });
-                                montoCredito += importeCredito;
-                            }
-                        }
-                        montoAcumulado = montoExcedenteTotal;
-                    }
-                }
-            }
-            
-            for (const item of carrito) {
-                if (!productosPago.some(p => p.clave === item.clave && p._parcial === true) && 
-                    !productosPago.some(p => p.clave === item.clave && p._parcial !== true) &&
-                    !productosCredito.some(p => p.clave === item.clave && p._parcial === true) &&
-                    !productosCredito.some(p => p.clave === item.clave && p._parcial !== true)) {
-                    const precioUnitario = item.precioUnitarioConDescuento || item.precio;
-                    const importe = precioUnitario * item.cantidad;
-                    
-                    productosCredito.push(item);
-                    montoCredito += importe;
-                }
-            }
-            
-            const montoExcedenteTotal = montoPago;
-            
-            return {
-                puedeCredito: true,
-                tipo: 'credito_parcial',
-                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPago)} deben pagarse. El resto va a crédito.`,
-                pesoTotal: pesoTotal,
-                montoCredito: montoCredito,
-                montoPago: montoPago,
-                productosCredito: productosCredito,
-                productosPago: productosPago,
-                excedeLimite: true,
-                puedeUsarCredito: true,
-                montoExcedente: montoExcedenteTotal
-            };
-        }
-    }
-    
-    return {
-        puedeCredito: false,
-        tipo: 'sin_productos',
-        mensaje: '⚠️ No hay productos en el carrito.',
-        pesoTotal: 0,
-        montoCredito: 0,
-        montoPago: 0,
-        productosCredito: [],
-        productosPago: [],
-        excedeLimite: false,
-        puedeUsarCredito: false,
-        montoExcedente: 0
-    };
 }
 
 // ============================================
