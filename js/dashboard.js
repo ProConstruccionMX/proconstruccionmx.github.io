@@ -1010,7 +1010,7 @@ function actualizarInfoCliente() {
 }
 
 // ============================================
-// CARGA DE PRODUCTOS
+// CARGA DE PRODUCTOS (CORREGIDO - LEE DESDE FILA 2)
 // ============================================
 
 async function cargarProductos() {
@@ -1028,6 +1028,7 @@ async function cargarProductos() {
         productosGlobales = [];
         let contadorConPeso = 0;
         
+        // ⭐ CORREGIDO: leer desde la fila 2 (índice 2) en lugar de fila 4
         for (let i = 2; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             
@@ -1506,7 +1507,7 @@ function limpiarBusqueda() {
 }
 
 // ============================================
-// PRECIOS Y DESCUENTOS (CORREGIDO - COLUMNA E VACÍA)
+// PRECIOS Y DESCUENTOS (CORREGIDO - COLUMNA E VACÍA Y FILA 2)
 // ============================================
 
 function obtenerPrecioFinal(producto) {
