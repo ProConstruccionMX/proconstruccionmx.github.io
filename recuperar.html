@@ -1010,7 +1010,7 @@ function actualizarInfoCliente() {
 }
 
 // ============================================
-// CARGA DE PRODUCTOS (CORREGIDO)
+// CARGA DE PRODUCTOS (CORREGIDO - LEE DESDE FILA 0)
 // ============================================
 
 async function cargarProductos() {
@@ -1030,8 +1030,31 @@ async function cargarProductos() {
         let filasProcesadas = 0;
         let filasSaltadas = 0;
         
-        // ⭐ CORREGIDO: leer desde la fila 1 (índice 1) - antes era desde 2
-        for (let i = 1; i < rows.length; i++) {
+        // ⭐ CORREGIDO: Empezar desde i = 0 para incluir todas las filas
+        // Luego detectar si la fila 0 es encabezado o datos
+        let inicioDatos = 0;
+        
+        // Detectar si la primera fila es encabezado (contiene "Clave" o "Nombre" o "Producto")
+        if (rows.length > 0) {
+            const firstRow = rows[0].c.map(cell => cell ? String(cell.v || '').trim() : '');
+            const esEncabezado = firstRow.some(val => 
+                val.toLowerCase().includes('clave') || 
+                val.toLowerCase().includes('nombre') || 
+                val.toLowerCase().includes('producto') ||
+                val.toLowerCase().includes('código') ||
+                val.toLowerCase().includes('descripción')
+            );
+            if (esEncabezado) {
+                inicioDatos = 1;
+                console.log('📌 Fila 0 detectada como ENCABEZADO. Iniciando desde fila 1.');
+            } else {
+                inicioDatos = 0;
+                console.log('📌 Fila 0 detectada como DATOS. Iniciando desde fila 0.');
+            }
+        }
+        
+        // ⭐ AHORA LEEMOS DESDE LA FILA DE DATOS DETECTADA
+        for (let i = inicioDatos; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             
             // Saltar filas vacías (sin clave o sin nombre)
@@ -1070,18 +1093,6 @@ async function cargarProductos() {
             
             const requiereMinPiezas = minPiezasCondicion === 'SI';
             const permitido = permitidoCondicion === 'SI';
-            
-            if (pesoCondicion === 'SI' && peso > 0) {
-                contadorConPeso++;
-                console.log(`🔴 [PESO] Producto: "${nombre}" | Clave: "${clave}" | Peso: ${peso} kg`);
-            }
-            
-            if (requiereMinPiezas) {
-                console.log(`📦 [MIN PIEZAS] Producto: "${nombre}" | Mínimo: ${minPiezas} piezas`);
-            }
-            if (!permitido) {
-                console.log(`🚫 [NO PERMITIDO] Producto: "${nombre}" no está permitido para venta`);
-            }
             
             // ⭐ LOG PARA VERIFICAR LA COLUMNA E (NA) ⭐
             if (na === '' || na === '-' || na === null || na === undefined) {
