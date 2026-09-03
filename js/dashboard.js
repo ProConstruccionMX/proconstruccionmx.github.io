@@ -1027,13 +1027,22 @@ async function cargarProductos() {
         
         productosGlobales = [];
         let contadorConPeso = 0;
+        let filasProcesadas = 0;
         
-        // ⭐ CORREGIDO: leer desde la fila 2 (índice 2) en lugar de fila 4
+        // ⭐ CORREGIDO: leer desde la fila 2 (índice 2) 
         for (let i = 2; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             
+            // Saltar filas vacías (sin clave o sin nombre)
             const clave = String(values[0] || '').trim();
             const nombre = String(values[1] || '').trim();
+            
+            if (!clave || !nombre) {
+                continue;
+            }
+            
+            filasProcesadas++;
+            
             const descripcion = String(values[2] || '').trim();
             const precio = parseFloat(values[3]) || 0;
             const na = String(values[4] || '').trim();
@@ -1072,6 +1081,11 @@ async function cargarProductos() {
                 console.log(`🚫 [NO PERMITIDO] Producto: "${nombre}" no está permitido para venta`);
             }
             
+            // ⭐ LOG PARA VERIFICAR LA COLUMNA E (NA) ⭐
+            if (na === '' || na === '-' || na === null || na === undefined) {
+                console.log(`📊 [COLUMNA E VACÍA] Producto: "${nombre}" | Clave: "${clave}" | NA: "${na}" → Aplica descuento por tipo de cliente`);
+            }
+            
             productosGlobales.push({
                 clave: clave,
                 nombre: nombre,
@@ -1095,7 +1109,7 @@ async function cargarProductos() {
             });
         }
         
-        console.log(`📦 Productos cargados: ${productosGlobales.length}`);
+        console.log(`📦 Productos cargados: ${productosGlobales.length} (de ${filasProcesadas} filas procesadas)`);
         console.log(`⚖️ Productos con condición de peso (SI): ${contadorConPeso}`);
         console.log(`📦 Productos con mínimo de piezas: ${productosGlobales.filter(p => p.requiereMinPiezas).length}`);
         console.log(`🚫 Productos no permitidos: ${productosGlobales.filter(p => !p.permitido).length}`);
@@ -1507,7 +1521,7 @@ function limpiarBusqueda() {
 }
 
 // ============================================
-// PRECIOS Y DESCUENTOS (CORREGIDO - COLUMNA E VACÍA Y FILA 2)
+// PRECIOS Y DESCUENTOS (CORREGIDO - COLUMNA E VACÍA)
 // ============================================
 
 function obtenerPrecioFinal(producto) {
