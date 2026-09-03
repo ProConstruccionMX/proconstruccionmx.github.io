@@ -1010,7 +1010,7 @@ function actualizarInfoCliente() {
 }
 
 // ============================================
-// CARGA DE PRODUCTOS (CORREGIDO - LEE DESDE FILA 2)
+// CARGA DE PRODUCTOS (CORREGIDO)
 // ============================================
 
 async function cargarProductos() {
@@ -1028,6 +1028,7 @@ async function cargarProductos() {
         productosGlobales = [];
         let contadorConPeso = 0;
         let filasProcesadas = 0;
+        let filasSaltadas = 0;
         
         // ⭐ CORREGIDO: leer desde la fila 2 (índice 2) 
         for (let i = 2; i < rows.length; i++) {
@@ -1038,6 +1039,7 @@ async function cargarProductos() {
             const nombre = String(values[1] || '').trim();
             
             if (!clave || !nombre) {
+                filasSaltadas++;
                 continue;
             }
             
@@ -1083,7 +1085,9 @@ async function cargarProductos() {
             
             // ⭐ LOG PARA VERIFICAR LA COLUMNA E (NA) ⭐
             if (na === '' || na === '-' || na === null || na === undefined) {
-                console.log(`📊 [COLUMNA E VACÍA] Producto: "${nombre}" | Clave: "${clave}" | NA: "${na}" → Aplica descuento por tipo de cliente`);
+                console.log(`📊 [COLUMNA E VACÍA] Producto: "${nombre}" | Clave: "${clave}" → Aplica descuento por tipo de cliente (${clienteData ? clienteData.giro : 'No definido'})`);
+            } else if (na !== 'N/A') {
+                console.log(`📊 [COLUMNA E CON DATO] Producto: "${nombre}" | NA: "${na}" → Descuento fijo de ${na}%`);
             }
             
             productosGlobales.push({
@@ -1109,7 +1113,8 @@ async function cargarProductos() {
             });
         }
         
-        console.log(`📦 Productos cargados: ${productosGlobales.length} (de ${filasProcesadas} filas procesadas)`);
+        console.log(`📦 Productos cargados: ${productosGlobales.length}`);
+        console.log(`📊 Filas procesadas: ${filasProcesadas}, Filas saltadas (vacías): ${filasSaltadas}`);
         console.log(`⚖️ Productos con condición de peso (SI): ${contadorConPeso}`);
         console.log(`📦 Productos con mínimo de piezas: ${productosGlobales.filter(p => p.requiereMinPiezas).length}`);
         console.log(`🚫 Productos no permitidos: ${productosGlobales.filter(p => !p.permitido).length}`);
