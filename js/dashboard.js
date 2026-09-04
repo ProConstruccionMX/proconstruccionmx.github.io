@@ -1012,7 +1012,7 @@ function actualizarInfoCliente() {
 }
 
 // ============================================
-// CARGA DE PRODUCTOS - CORREGIDO (LEE DESDE FILA 0)
+// CARGA DE PRODUCTOS - CORREGIDO
 // ============================================
 
 async function cargarProductos() {
@@ -1026,35 +1026,21 @@ async function cargarProductos() {
         const rows = data.table.rows;
         
         console.log(`📊 Total de filas en la hoja: ${rows.length}`);
-        console.log(`📌 La fila 0 es el encabezado. Los datos comienzan desde la fila 0 (primera fila de datos).`);
+        console.log(`📌 La fila 0 es el encabezado. Los datos comienzan desde la fila 1.`);
         
         productosGlobales = [];
         let contadorConPeso = 0;
         let filasProcesadas = 0;
         let filasSaltadas = 0;
         
-        // ⭐ COMIENZA DESDE LA FILA 0 - para leer TODOS los datos
-        // La fila 0 es el encabezado, la fila 1 es la fila 2 en Excel
-        for (let i = 0; i < rows.length; i++) {
+        // ⭐ COMIENZA DESDE LA FILA 1 - la fila 0 es el encabezado
+        for (let i = 1; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             
             const clave = String(values[0] || '').trim();
             const nombre = String(values[1] || '').trim();
             
-            // Saltar filas vacías (sin clave o sin nombre)
             if (!clave || !nombre) {
-                filasSaltadas++;
-                continue;
-            }
-            
-            // Detectar si es encabezado (contiene palabras clave)
-            const esEncabezado = clave.toLowerCase().includes('clave') || 
-                                 clave.toLowerCase().includes('código') ||
-                                 nombre.toLowerCase().includes('nombre') ||
-                                 nombre.toLowerCase().includes('producto');
-            
-            if (esEncabezado) {
-                console.log(`📌 Fila ${i} detectada como ENCABEZADO, saltando...`);
                 filasSaltadas++;
                 continue;
             }
@@ -1071,8 +1057,8 @@ async function cargarProductos() {
             const descuentoConstructora = parseFloat(values[12]) || 0;
             const descuentoDistribuidor = parseFloat(values[13]) || 0;
             const pxv = String(values[14] || '').trim(); // ⭐ Columna O - PXV
-            const descuentoVolumenP = parseFloat(values[15]) || 0; // ⭐ Columna P - 3T (150 unidades)
-            const descuentoVolumenQ = parseFloat(values[16]) || 0; // ⭐ Columna Q - 5T (250 unidades)
+            const descuentoVolumenP = parseFloat(values[15]) || 0; // ⭐ Columna P - 3T (150 und)
+            const descuentoVolumenQ = parseFloat(values[16]) || 0; // ⭐ Columna Q - 5T (250 und)
             
             const pesoCondicionRaw = String(values[17] || '').trim().toUpperCase(); // ⭐ Columna R - SI/NO
             const pesoCondicion = pesoCondicionRaw === 'SI' ? 'SI' : 'NO';
@@ -1609,29 +1595,25 @@ function calcularDescuentoProducto(producto, cantidad) {
         let descuentoBase = mapGiro[giro] || 0;
         console.log(`📊 [COLUMNA E = -] ${producto.nombre} | Giro: ${giro} | Descuento por giro: ${descuentoBase}%`);
         
-        // ⭐ LÓGICA PXV - SOLO si la columna R (pesoCondicion) es "SI" ⭐
+        // ⭐ LÓGICA PXV - APLICA PARA TODOS LOS GIROS ⭐
         if (producto.pxv === 'PXV' && producto.pesoCondicion === 'SI') {
-            const girosPXV = ['Distribuidor', 'Arquitecto', 'Inmobiliaria', 'Constructora'];
+            let descuentoAdicional = 0;
             
-            if (girosPXV.includes(giro)) {
-                let descuentoAdicional = 0;
-                
-                // ⭐ Columna Q = 5 toneladas (250 unidades) - se aplica primero si cumple
-                if (cantidad >= 250 && producto.descuentoVolumenQ > 0) {
-                    descuentoAdicional = producto.descuentoVolumenQ;
-                    console.log(`📦 [PXV 5T] ${producto.nombre} | Adicional: ${descuentoAdicional}% (250+ unidades)`);
-                } 
-                // ⭐ Columna P = 3 toneladas (150 unidades)
-                else if (cantidad >= 150 && producto.descuentoVolumenP > 0) {
-                    descuentoAdicional = producto.descuentoVolumenP;
-                    console.log(`📦 [PXV 3T] ${producto.nombre} | Adicional: ${descuentoAdicional}% (150+ unidades)`);
-                }
-                
-                if (descuentoAdicional > 0) {
-                    const totalDescuento = descuentoBase + descuentoAdicional;
-                    console.log(`📦 [PXV FINAL] ${producto.nombre} | Descuento total: ${totalDescuento}% (${descuentoBase}% + ${descuentoAdicional}%)`);
-                    return totalDescuento;
-                }
+            // ⭐ Columna Q = 5 toneladas (250 unidades) - se aplica primero si cumple
+            if (cantidad >= 250 && producto.descuentoVolumenQ > 0) {
+                descuentoAdicional = producto.descuentoVolumenQ;
+                console.log(`📦 [PXV 5T] ${producto.nombre} | Adicional: ${descuentoAdicional}% (250+ unidades)`);
+            } 
+            // ⭐ Columna P = 3 toneladas (150 unidades)
+            else if (cantidad >= 150 && producto.descuentoVolumenP > 0) {
+                descuentoAdicional = producto.descuentoVolumenP;
+                console.log(`📦 [PXV 3T] ${producto.nombre} | Adicional: ${descuentoAdicional}% (150+ unidades)`);
+            }
+            
+            if (descuentoAdicional > 0) {
+                const totalDescuento = descuentoBase + descuentoAdicional;
+                console.log(`📦 [PXV FINAL] ${producto.nombre} | Descuento total: ${totalDescuento}% (${descuentoBase}% + ${descuentoAdicional}%)`);
+                return totalDescuento;
             }
         }
         return descuentoBase;
@@ -1642,30 +1624,25 @@ function calcularDescuentoProducto(producto, cantidad) {
         let descuentoBase = clienteData.descuento || 0;
         console.log(`✅ [COLUMNA E VACÍA] ${producto.nombre} - Descuento BASE del cliente: ${descuentoBase}%`);
         
-        // ⭐ LÓGICA PXV - SOLO si la columna R (pesoCondicion) es "SI" ⭐
+        // ⭐ LÓGICA PXV - APLICA PARA TODOS LOS GIROS ⭐
         if (producto.pxv === 'PXV' && producto.pesoCondicion === 'SI') {
-            const giro = clienteData.giro || 'Público en general';
-            const girosPXV = ['Distribuidor', 'Arquitecto', 'Inmobiliaria', 'Constructora'];
+            let descuentoAdicional = 0;
             
-            if (girosPXV.includes(giro)) {
-                let descuentoAdicional = 0;
-                
-                // ⭐ Columna Q = 5 toneladas (250 unidades)
-                if (cantidad >= 250 && producto.descuentoVolumenQ > 0) {
-                    descuentoAdicional = producto.descuentoVolumenQ;
-                    console.log(`📦 [PXV 5T] ${producto.nombre} | Adicional: ${descuentoAdicional}% (250+ unidades)`);
-                } 
-                // ⭐ Columna P = 3 toneladas (150 unidades)
-                else if (cantidad >= 150 && producto.descuentoVolumenP > 0) {
-                    descuentoAdicional = producto.descuentoVolumenP;
-                    console.log(`📦 [PXV 3T] ${producto.nombre} | Adicional: ${descuentoAdicional}% (150+ unidades)`);
-                }
-                
-                if (descuentoAdicional > 0) {
-                    const totalDescuento = descuentoBase + descuentoAdicional;
-                    console.log(`📦 [PXV FINAL] ${producto.nombre} | Descuento total: ${totalDescuento}% (${descuentoBase}% + ${descuentoAdicional}%)`);
-                    return totalDescuento;
-                }
+            // ⭐ Columna Q = 5 toneladas (250 unidades)
+            if (cantidad >= 250 && producto.descuentoVolumenQ > 0) {
+                descuentoAdicional = producto.descuentoVolumenQ;
+                console.log(`📦 [PXV 5T] ${producto.nombre} | Adicional: ${descuentoAdicional}% (250+ unidades)`);
+            } 
+            // ⭐ Columna P = 3 toneladas (150 unidades)
+            else if (cantidad >= 150 && producto.descuentoVolumenP > 0) {
+                descuentoAdicional = producto.descuentoVolumenP;
+                console.log(`📦 [PXV 3T] ${producto.nombre} | Adicional: ${descuentoAdicional}% (150+ unidades)`);
+            }
+            
+            if (descuentoAdicional > 0) {
+                const totalDescuento = descuentoBase + descuentoAdicional;
+                console.log(`📦 [PXV FINAL] ${producto.nombre} | Descuento total: ${totalDescuento}% (${descuentoBase}% + ${descuentoAdicional}%)`);
+                return totalDescuento;
             }
         }
         return descuentoBase;
@@ -2439,8 +2416,7 @@ function renderizarCarrito() {
                 <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
                     <span style="font-size: 1.5rem;">⚠️</span>
                     <span style="font-weight: 700; color: #92400e; font-size: 1.1rem;">
-                        Mínimo de piezas no cumplido
-                    </span>
+                        Mínimo de piezas no cumplido                    </span>
                 </div>
                 <div style="background: white; padding: 0.8rem 1rem; border-radius: 8px; margin: 0.5rem 0;">
                     ${verificarMinPiezas.detalle.map(d => `
@@ -3066,9 +3042,9 @@ function calcularTotal() {
 // FUNCIÓN PARA GENERAR PDF DEL COMPROBANTE
 // ============================================
 
-function generarPDFComprobante(datos) {
+function generarPDFComprobante(datos, esParaCliente = false) {
     try {
-        console.log('📄 Generando PDF del comprobante...');
+        console.log(`📄 Generando PDF del comprobante${esParaCliente ? ' (para cliente)' : ''}...`);
 
         const hoy = new Date();
         const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 
@@ -3080,8 +3056,8 @@ function generarPDFComprobante(datos) {
             nombreAsesor = clienteData.asesor;
         }
 
-        const tituloDocumento = 'Comprobante de Compra';
-        const mensajeFooter = '¡Gracias por su preferencia!';
+        const tituloDocumento = esParaCliente ? 'Comprobante de Compra - Cliente' : 'Comprobante de Compra';
+        const mensajeFooter = esParaCliente ? '¡Gracias por su preferencia! Este es su comprobante de compra.' : '¡Gracias por su preferencia!';
         const facturaFooter = datos.requiereFactura ? '<p><strong>✅ Factura solicitada</strong></p>' : '';
 
         let tablaProductos = '';
@@ -3145,6 +3121,38 @@ function generarPDFComprobante(datos) {
 
         let metodoPagoHTML = `<p><strong>Método de pago:</strong> ${datos.tipoPago.toUpperCase()}</p>`;
 
+        // Información de dirección de envío para el cliente
+        let direccionHTML = '';
+        if (datos.direccion && esParaCliente) {
+            direccionHTML = `
+                <div class="direccion-envio">
+                    <h3>📦 Dirección de Envío</h3>
+                    <p><strong>Nombre:</strong> ${datos.nombreDireccion || 'Sin nombre'}</p>
+                    <p><strong>Calle:</strong> ${datos.direccion.calle}</p>
+                    <p><strong>Colonia:</strong> ${datos.direccion.colonia}</p>
+                    <p><strong>Alcaldía:</strong> ${datos.direccion.alcaldia}</p>
+                    <p><strong>Estado:</strong> ${datos.direccion.estado}</p>
+                    <p><strong>CP:</strong> ${datos.direccion.cp}</p>
+                    <p><strong>Teléfono:</strong> ${datos.direccion.telefono}</p>
+                    <p><strong>Recibe:</strong> ${datos.direccion.nombreRecibe}</p>
+                    ${datos.direccion.mapsUrl ? `<p><strong>Google Maps:</strong> <a href="${datos.direccion.mapsUrl}" target="_blank">Ver mapa</a></p>` : ''}
+                </div>
+            `;
+        }
+
+        // Información de referencia de transferencia
+        let referenciaHTML = '';
+        if (datos.tipoPago === 'Transferencia' && datos.referencia) {
+            referenciaHTML = `
+                <div class="info-transferencia">
+                    <h3>💳 Información de Transferencia</h3>
+                    <p><strong>Número de referencia/folio:</strong> ${datos.referencia}</p>
+                    ${datos.comprobanteNombre ? `<p><strong>Comprobante:</strong> ${datos.comprobanteNombre}</p>` : ''}
+                    <p><strong>Monto total:</strong> ${formatoMexicano(datos.total)}</p>
+                </div>
+            `;
+        }
+
         const logoUrl = 'https://i.imgur.com/1T3PCYR.png';
 
         const htmlContent = `
@@ -3164,6 +3172,10 @@ function generarPDFComprobante(datos) {
     .datos-cliente { margin-bottom: 20px; }
     .datos-cliente h3 { margin-bottom: 10px; color: #2a3990; }
     .datos-cliente p { margin: 3px 0; }
+    .direccion-envio { background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0; }
+    .direccion-envio h3 { color: #2a3990; margin-top: 0; }
+    .info-transferencia { background: #dbeafe; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #bfdbfe; }
+    .info-transferencia h3 { color: #1e40af; margin-top: 0; }
     .info-credito { background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #ffeaa7; }
     .info-credito h3 { color: #856404; margin-top: 0; }
     .info-factura { background: #d4edda; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #c3e6cb; }
@@ -3211,10 +3223,13 @@ function generarPDFComprobante(datos) {
         <h3>Datos del Cliente</h3>
         <p><strong>Nombre:</strong> ${datos.cliente.nombre}</p>
         <p><strong>Código:</strong> ${datos.cliente.codigo}</p>
-        <p><strong>Asesor:</strong> ${nombreAsesor}</p>
+        <p><strong>Correo:</strong> ${datos.cliente.correo}</p>
+        <p><strong>Teléfono:</strong> ${datos.cliente.telefono || 'No especificado'}</p>
         ${metodoPagoHTML}
     </div>
     
+    ${direccionHTML}
+    ${referenciaHTML}
     ${infoCreditoHTML}
     ${infoFacturaHTML}
     
@@ -3234,8 +3249,6 @@ function generarPDFComprobante(datos) {
     </table>
     
     <div class="totales">
-        <p><strong>Importe base:</strong> ${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16))}</p>
-        <p><strong>Descuento aplicado:</strong> -${formatoMexicano((datos.subtotal + (datos.subtotal * 0.16)) - datos.total)}</p>
         <p><strong>Subtotal:</strong> ${formatoMexicano(datos.subtotal)}</p>
         <p><strong>IVA (16%):</strong> ${formatoMexicano(datos.iva)}</p>
         <p class="total-row"><strong>Total a pagar:</strong> ${formatoMexicano(datos.total)}</p>
@@ -3291,7 +3304,7 @@ function generarPDFComprobante(datos) {
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `Comprobante_${datos.folio}.html`;
+            link.download = `Comprobante_${datos.folio}${esParaCliente ? '_cliente' : ''}.html`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -3299,7 +3312,7 @@ function generarPDFComprobante(datos) {
             mostrarNotificacion('⚠️ No se pudo abrir la ventana de impresión. Se descargó el archivo HTML.');
         }
         
-        console.log('✅ PDF del comprobante generado');
+        console.log(`✅ PDF del comprobante${esParaCliente ? ' (cliente)' : ''} generado`);
         return true;
     } catch (error) {
         console.error('❌ Error al generar PDF:', error);
@@ -3382,9 +3395,15 @@ async function procesarPagoTransferencia() {
         console.log('📊 Datos de venta a guardar (Transferencia):', datosVenta);
         
         await guardarVentaEnEstadisticas(datosVenta);
+        
+        // ⭐ Enviar correo a ventas con todos los detalles
         await enviarCorreoVentaWeb(datosVenta);
         
-        generarPDFComprobante(datosVenta);
+        // ⭐ Enviar correo al cliente con su comprobante
+        await enviarCorreoCliente(datosVenta);
+        
+        // ⭐ Generar PDF para el cliente (se descarga automáticamente)
+        generarPDFComprobante(datosVenta, false);
         
         let mensajeExito = `
             ✅ ¡Compra realizada con éxito!<br>
@@ -3400,7 +3419,7 @@ async function procesarPagoTransferencia() {
             mensajeExito += `<strong>Factura:</strong> No<br>`;
         }
         
-        mensajeExito += `<br>Se ha descargado el comprobante en formato PDF.<br>Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.`;
+        mensajeExito += `<br>Se ha descargado el comprobante en formato PDF.<br>Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.<br>Se ha enviado un correo a ${clienteData.correo} con su comprobante.`;
         
         mostrarMensajeModal('exito', mensajeExito);
         
@@ -3570,9 +3589,15 @@ async function procesarPagoCredito() {
         console.log('📊 Datos de venta a guardar (Crédito):', datosVenta);
         
         await guardarVentaEnEstadisticas(datosVenta);
+        
+        // ⭐ Enviar correo a ventas con todos los detalles
         await enviarCorreoVentaWeb(datosVenta);
         
-        generarPDFComprobante(datosVenta);
+        // ⭐ Enviar correo al cliente con su comprobante
+        await enviarCorreoCliente(datosVenta);
+        
+        // ⭐ Generar PDF para el cliente
+        generarPDFComprobante(datosVenta, false);
         
         let mensajeExito = `
             ✅ ¡Crédito ${esCreditoParcial ? 'parcial' : ''} aprobado!<br>
@@ -3597,7 +3622,7 @@ async function procesarPagoCredito() {
             mensajeExito += `<strong>Factura:</strong> No<br>`;
         }
         
-        mensajeExito += `<br>Se ha descargado el comprobante en formato PDF.<br>Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.`;
+        mensajeExito += `<br>Se ha descargado el comprobante en formato PDF.<br>Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.<br>Se ha enviado un correo a ${clienteData.correo} con su comprobante.`;
         
         if (esCreditoParcial) {
             mensajeExito += `<br><span style="color:#92400e;font-size:0.9rem;">✅ El excedente ha sido pagado. El resto queda a crédito.</span>`;
@@ -3689,6 +3714,7 @@ async function guardarVentaEnEstadisticas(datos) {
                     montoPagado = 0;
                 }
             } else {
+                // ⭐ TRANSFERENCIA: crédito pendiente = 0, monto pagado = importe
                 creditoPendiente = 0;
                 montoPagado = producto.importe;
             }
@@ -3726,6 +3752,7 @@ async function guardarVentaEnEstadisticas(datos) {
             razonSocialFactura = datos.datosFactura.razonSocial || '';
         }
         
+        // ⭐ CORREGIDO: Transferencia → crédito pendiente = 0
         let creditoPendienteTotal = datos.montoCredito || 0;
         let montoPagadoTotal = datos.montoPago || 0;
         
@@ -3745,8 +3772,8 @@ async function guardarVentaEnEstadisticas(datos) {
             datos.cliente.codigo,
             datos.cliente.nombre,
             datos.total.toFixed(2),
-            creditoPendienteTotal.toFixed(2),
-            montoPagadoTotal.toFixed(2),
+            creditoPendienteTotal.toFixed(2), // ⭐ Columna F - Crédito pendiente
+            montoPagadoTotal.toFixed(2),      // ⭐ Columna G - Monto pagado
             facturaTexto,
             datos.sucursal,
             formaPago,
@@ -3769,7 +3796,7 @@ async function guardarVentaEnEstadisticas(datos) {
 }
 
 // ============================================
-// FUNCIÓN PARA ENVIAR CORREO A VENTAS
+// ⭐ FUNCIÓN PARA ENVIAR CORREO A VENTAS CON TODOS LOS DETALLES ⭐
 // ============================================
 
 async function enviarCorreoVentaWeb(datos) {
@@ -3826,8 +3853,9 @@ async function enviarCorreoVentaWeb(datos) {
         let infoPago = '';
         if (datos.tipoPago === 'Transferencia') {
             infoPago = `
-                <p><strong>Referencia:</strong> ${datos.referencia}</p>
+                <p><strong>Referencia/Folio:</strong> ${datos.referencia}</p>
                 <p><strong>Comprobante:</strong> ${datos.comprobanteNombre}</p>
+                <p><strong>Monto total:</strong> ${formatoMexicano(datos.total)}</p>
             `;
         } else if (datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial') {
             infoPago = `
@@ -3839,20 +3867,34 @@ async function enviarCorreoVentaWeb(datos) {
             `;
         }
 
+        // Información de factura
+        let facturaInfo = '';
+        if (datos.requiereFactura && datos.datosFactura) {
+            facturaInfo = `
+                <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
+                <h3 style="color:#0A2540;">📄 Información de Facturación</h3>
+                <p><strong>Razón Social:</strong> ${datos.datosFactura.razonSocial || '---'}</p>
+                <p><strong>RFC:</strong> ${datos.datosFactura.rfc || '---'}</p>
+                <p><strong>Uso de CFDI:</strong> ${datos.datosFactura.usoCFDI || '---'}</p>
+                <p><strong>Código Postal:</strong> ${datos.datosFactura.cp || '---'}</p>
+                <p><strong>Régimen Fiscal:</strong> ${datos.datosFactura.regimen || '---'}</p>
+                <p><strong>Correo:</strong> ${datos.datosFactura.correo || '---'}</p>
+            `;
+        }
+
         const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"></head>
-<body style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;">
+<body style="font-family:Arial,sans-serif;max-width:900px;margin:0 auto;padding:20px;">
     <div style="background:#0A2540;padding:20px;text-align:center;border-radius:10px 10px 0 0;">
         <h1 style="color:white;margin:0;">ProConstrucción <span style="color:#F5A623;">MX</span></h1>
-        <p style="color:#94a3b8;margin:5px 0 0 0;">🛒 Nueva compra desde el portal web</p>
+        <p style="color:#94a3b8;margin:5px 0 0 0;">🛒 NUEVA COMPRA DESDE EL PORTAL WEB</p>
     </div>
     <div style="background:white;padding:30px;border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,0.05);">
         <h2 style="color:#0A2540;">🧾 ${datos.folio}</h2>
         <p><strong>Fecha:</strong> ${datos.fecha.toLocaleString('es-MX')}</p>
         <p><strong>Método de pago:</strong> ${datos.tipoPago}</p>
-        <p><strong>Factura:</strong> ${datos.requiereFactura ? 'SÍ' : 'NO'}</p>
         <p><strong>Estado:</strong> ${datos.estadoPago || 'Validando pago'}</p>
         
         ${datos.esCreditoParcial ? `
@@ -3873,6 +3915,7 @@ async function enviarCorreoVentaWeb(datos) {
         <p><strong>Descuento Base:</strong> ${datos.cliente.descuento}%</p>
         
         ${htmlDireccion}
+        ${facturaInfo}
         
         <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
         
@@ -3893,8 +3936,6 @@ async function enviarCorreoVentaWeb(datos) {
         <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
         
         <div style="text-align:right;">
-            <p><strong>Subtotal sin descuento:</strong> ${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16))}</p>
-            <p><strong>Descuento total:</strong> -${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16) - datos.total)}</p>
             <p><strong>Subtotal:</strong> ${formatoMexicano(datos.subtotal)}</p>
             <p><strong>IVA (16%):</strong> ${formatoMexicano(datos.iva)}</p>
             <p style="font-size:1.4rem;font-weight:700;color:#0A2540;"><strong>TOTAL:</strong> ${formatoMexicano(datos.total)}</p>
@@ -3904,6 +3945,13 @@ async function enviarCorreoVentaWeb(datos) {
         
         <h3 style="color:#0A2540;">💳 Información de Pago</h3>
         ${infoPago}
+        
+        ${datos.comprobanteBase64 ? `
+            <div style="margin-top:15px;padding:15px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;">
+                <p style="margin:0;color:#16a34a;font-weight:600;">✅ Comprobante de transferencia adjunto en este correo</p>
+                <p style="margin:5px 0 0 0;font-size:12px;color:#16a34a;">Nombre del archivo: ${datos.comprobanteNombre || 'Comprobante'}</p>
+            </div>
+        ` : ''}
         
         <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
         
@@ -3917,8 +3965,8 @@ async function enviarCorreoVentaWeb(datos) {
 
         const templateParams = {
             email: 'ventas@proconstruccionmx.com',
-            from_name: 'ProConstrucción MX',
-            subject: `🛒 NUEVA COMPRA WEB - ${datos.folio} - ${datos.cliente.nombre}`,
+            from_name: 'ProConstrucción MX - Venta Web',
+            subject: `🛒 NUEVA VENTA WEB - ${datos.folio} - ${datos.cliente.nombre}`,
             message: htmlContent,
             folio: datos.folio,
             cliente: datos.cliente.nombre,
@@ -3929,12 +3977,7 @@ async function enviarCorreoVentaWeb(datos) {
             factura: datos.requiereFactura ? 'SÍ' : 'NO'
         };
 
-        console.log('📧 TemplateParams enviados:', templateParams);
-
-        if (typeof emailjs === 'undefined') {
-            console.error('❌ emailjs no está definido.');
-            return { success: false, error: 'emailjs no disponible' };
-        }
+        console.log('📧 TemplateParams enviados a ventas:', templateParams);
 
         const response = await emailjs.send(
             'service_o2zvkzo',
@@ -3947,7 +3990,170 @@ async function enviarCorreoVentaWeb(datos) {
         return { success: true };
 
     } catch (error) {
-        console.error('❌ Error al enviar correo:', error);
+        console.error('❌ Error al enviar correo a ventas:', error);
+        return { success: false, error: error.toString() };
+    }
+}
+
+// ============================================
+// ⭐ FUNCIÓN PARA ENVIAR CORREO AL CLIENTE CON SU COMPROBANTE ⭐
+// ============================================
+
+async function enviarCorreoCliente(datos) {
+    try {
+        const emailCliente = datos.cliente.correo;
+        if (!emailCliente) {
+            console.warn('⚠️ No hay correo del cliente para enviar el comprobante.');
+            return { success: false, error: 'No hay correo del cliente' };
+        }
+        
+        console.log(`📧 Enviando comprobante al cliente: ${emailCliente}`);
+        
+        if (typeof emailjs === 'undefined') {
+            console.warn('⚠️ EmailJS no está disponible.');
+            return { success: false, error: 'emailjs no disponible' };
+        }
+        
+        let htmlProductos = '';
+        datos.productos.forEach(p => {
+            htmlProductos += `
+                <tr>
+                    <td style="padding:6px;border-bottom:1px solid #e0e0e0;text-align:center;">${p.cantidad}</td>
+                    <td style="padding:6px;border-bottom:1px solid #e0e0e0;">${p.nombre}</td>
+                    <td style="padding:6px;border-bottom:1px solid #e0e0e0;text-align:right;">${formatoMexicano(p.precio)}</td>
+                    <td style="padding:6px;border-bottom:1px solid #e0e0e0;text-align:center;">${p.descuento}%</td>
+                    <td style="padding:6px;border-bottom:1px solid #e0e0e0;text-align:right;">${formatoMexicano(p.importe)}</td>
+                </tr>
+            `;
+        });
+
+        let htmlDireccion = '';
+        if (datos.direccion) {
+            htmlDireccion = `
+                <hr style="border:none;border-top:1px solid #e2e8f0;margin:15px 0;">
+                <h3 style="color:#0A2540;">📦 Dirección de Envío</h3>
+                <p><strong>Nombre:</strong> ${datos.nombreDireccion || 'Sin nombre'}</p>
+                <p><strong>Calle:</strong> ${datos.direccion.calle}</p>
+                <p><strong>Colonia:</strong> ${datos.direccion.colonia}</p>
+                <p><strong>Alcaldía:</strong> ${datos.direccion.alcaldia}</p>
+                <p><strong>Estado:</strong> ${datos.direccion.estado}</p>
+                <p><strong>CP:</strong> ${datos.direccion.cp}</p>
+                <p><strong>Teléfono:</strong> ${datos.direccion.telefono}</p>
+                <p><strong>Recibe:</strong> ${datos.direccion.nombreRecibe}</p>
+                ${datos.direccion.mapsUrl ? `<p><strong>Google Maps:</strong> <a href="${datos.direccion.mapsUrl}" target="_blank">Ver mapa</a></p>` : ''}
+            `;
+        }
+
+        let metodoPagoInfo = '';
+        if (datos.tipoPago === 'Transferencia') {
+            metodoPagoInfo = `
+                <p><strong>Método de pago:</strong> Transferencia bancaria</p>
+                <p><strong>Referencia/Folio:</strong> ${datos.referencia}</p>
+            `;
+        } else {
+            metodoPagoInfo = `
+                <p><strong>Método de pago:</strong> ${datos.tipoPago}</p>
+                <p><strong>Días de crédito:</strong> ${datos.diasCredito || DIAS_CREDITO_FIJO} días</p>
+                <p><strong>Saldo pendiente:</strong> ${formatoMexicano(datos.saldoPendiente || datos.montoCredito || 0)}</p>
+            `;
+        }
+
+        const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;">
+    <div style="background:#0A2540;padding:20px;text-align:center;border-radius:10px 10px 0 0;">
+        <h1 style="color:white;margin:0;">ProConstrucción <span style="color:#F5A623;">MX</span></h1>
+        <p style="color:#94a3b8;margin:5px 0 0 0;">✅ Comprobante de Compra</p>
+    </div>
+    <div style="background:white;padding:30px;border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+        <h2 style="color:#0A2540;">🧾 ${datos.folio}</h2>
+        <p><strong>Fecha:</strong> ${datos.fecha.toLocaleString('es-MX')}</p>
+        
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:15px 0;">
+        
+        <h3 style="color:#0A2540;">👤 Datos del Cliente</h3>
+        <p><strong>Nombre:</strong> ${datos.cliente.nombre}</p>
+        <p><strong>Código:</strong> ${datos.cliente.codigo}</p>
+        <p><strong>Teléfono:</strong> ${datos.cliente.telefono || 'No especificado'}</p>
+        ${metodoPagoInfo}
+        
+        ${htmlDireccion}
+        
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:15px 0;">
+        
+        <h3 style="color:#0A2540;">📦 Productos</h3>
+        <table style="width:100%;border-collapse:collapse;">
+            <thead>
+                <tr style="background:#f8f9fa;">
+                    <th style="padding:8px;text-align:center;">Cant.</th>
+                    <th style="padding:8px;text-align:left;">Producto</th>
+                    <th style="padding:8px;text-align:right;">Precio</th>
+                    <th style="padding:8px;text-align:center;">Dto.%</th>
+                    <th style="padding:8px;text-align:right;">Importe</th>
+                </tr>
+            </thead>
+            <tbody>${htmlProductos}</tbody>
+        </table>
+        
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:15px 0;">
+        
+        <div style="text-align:right;">
+            <p><strong>Subtotal:</strong> ${formatoMexicano(datos.subtotal)}</p>
+            <p><strong>IVA (16%):</strong> ${formatoMexicano(datos.iva)}</p>
+            <p style="font-size:1.3rem;font-weight:700;color:#0A2540;"><strong>TOTAL:</strong> ${formatoMexicano(datos.total)}</p>
+        </div>
+        
+        ${datos.requiereFactura ? `
+            <div style="background:#d4edda;padding:12px;border-radius:8px;margin:15px 0;border:1px solid #c3e6cb;">
+                <p style="margin:0;color:#155724;font-weight:600;">✅ Factura solicitada</p>
+                <p style="margin:5px 0 0 0;font-size:12px;color:#155724;">Será procesada según los datos fiscales proporcionados.</p>
+            </div>
+        ` : ''}
+        
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:15px 0;">
+        
+        <div style="background:#f8f9fa;padding:15px;border-radius:8px;margin:15px 0;">
+            <p style="margin:0;text-align:center;font-size:12px;color:#666;">
+                <strong>PROCONSTRUCCIONMX SAS DE CV</strong><br>
+                RFC: PRO2605135X4<br>
+                📧 ventas@proconstruccionmx.com
+            </p>
+        </div>
+        
+        <p style="text-align:center;color:#718096;font-size:0.8rem;">
+            Este es un comprobante de compra generado automáticamente.<br>
+            © ${new Date().getFullYear()} ProConstrucción MX - Todos los derechos reservados
+        </p>
+    </div>
+</body>
+</html>`;
+
+        const templateParams = {
+            email: emailCliente,
+            from_name: 'ProConstrucción MX',
+            subject: `🧾 Tu comprobante de compra - ${datos.folio}`,
+            message: htmlContent,
+            folio: datos.folio,
+            cliente: datos.cliente.nombre,
+            total: formatoMexicano(datos.total)
+        };
+
+        console.log('📧 TemplateParams enviados al cliente:', templateParams);
+
+        const response = await emailjs.send(
+            'service_o2zvkzo',
+            'template_usum2d8',
+            templateParams,
+            '_gOxtGSQmrhTdoRuX'
+        );
+
+        console.log(`✅ Correo enviado al cliente ${emailCliente}:`, response);
+        return { success: true };
+
+    } catch (error) {
+        console.error('❌ Error al enviar correo al cliente:', error);
         return { success: false, error: error.toString() };
     }
 }
@@ -4841,6 +5047,7 @@ async function procesarPagoCreditoPendiente() {
         
         await guardarVentaEnEstadisticas(datosVenta);
         await enviarCorreoVentaWeb(datosVenta);
+        await enviarCorreoCliente(datosVenta);
         
         mostrarMensajeModalPagoCredito('exito', `
             ✅ ¡Pago registrado con éxito!<br>
@@ -4848,6 +5055,7 @@ async function procesarPagoCreditoPendiente() {
             <strong>Monto liquidado:</strong> ${formatoMexicano(saldoPendiente)}<br>
             <strong>Referencia:</strong> ${referencia}<br><br>
             Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.
+            Se ha enviado un correo a ${clienteData.correo} con su comprobante.
         `);
         
         if (btn) {
