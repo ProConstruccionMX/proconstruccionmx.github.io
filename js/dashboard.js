@@ -1620,6 +1620,28 @@ function verificarCreditoDisponible() {
     console.log('⚖️ Límite crédito peso:', clienteLimiteCreditoPeso);
     console.log('💰 Límite crédito monto:', clienteLimiteCreditoMonto);
     
+    // ⭐ VERIFICAR SI TIENE CRÉDITOS PENDIENTES
+    const tieneCreditosPendientes = creditosPendientes && creditosPendientes.length > 0;
+    if (tieneCreditosPendientes) {
+        const totalPendiente = creditosPendientes.reduce((sum, v) => sum + (v.saldoPendiente || v.total || 0), 0);
+        console.log(`⚠️ Cliente tiene créditos pendientes: ${formatoMexicano(totalPendiente)}`);
+        
+        // Si tiene créditos pendientes, NO puede usar crédito
+        return {
+            puedeCredito: false,
+            tipo: 'creditos_pendientes',
+            mensaje: `⚠️ Tienes créditos pendientes por ${formatoMexicano(totalPendiente)}. Debes liquidarlos antes de solicitar un nuevo crédito.`,
+            pesoTotal: 0,
+            montoCredito: 0,
+            montoPago: carrito.reduce((sum, item) => sum + item.importe, 0),
+            productosCredito: [],
+            productosPago: carrito,
+            excedeLimite: true,
+            puedeUsarCredito: false,
+            montoExcedente: 0
+        };
+    }
+    
     const productosConPeso = carrito.filter(item => {
         const producto = productosGlobales.find(p => p.clave === item.clave);
         return producto && producto.pesoCondicion === 'SI' && producto.peso > 0;
@@ -3274,7 +3296,7 @@ async function enviarCorreoConAdjuntoAppsScript(datos) {
         const payload = {
             action: 'enviarCorreoAdjunto',
             email: 'ventas@proconstruccionmx.com',
-            asunto: `🛒 NUEVA VENTA WEB - ${datos.folio} - ${datos.cliente.nombre}`,
+            asunto: `NUEVA VENTA WEB - ${datos.folio} - ${datos.cliente.nombre}`,
             folio: datos.folio || 'Sin folio',
             fecha: datos.fecha ? datos.fecha.toLocaleString('es-MX') : new Date().toLocaleString('es-MX'),
             cliente_nombre: datos.cliente ? datos.cliente.nombre : 'Sin nombre',
@@ -3287,7 +3309,20 @@ async function enviarCorreoConAdjuntoAppsScript(datos) {
             subtotal: Number(datos.subtotal || 0).toFixed(2),
             iva: Number(datos.iva || 0).toFixed(2),
             total: Number(datos.total || 0).toFixed(2),
-            anio: new Date().getFullYear()
+            anio: new Date().getFullYear(),
+            // Dirección
+            direccion_nombre: datos.nombreDireccion || 'Sin nombre',
+            direccion_calle: datos.direccion ? datos.direccion.calle : '',
+            direccion_colonia: datos.direccion ? datos.direccion.colonia : '',
+            direccion_alcaldia: datos.direccion ? datos.direccion.alcaldia : '',
+            direccion_estado: datos.direccion ? datos.direccion.estado : '',
+            direccion_cp: datos.direccion ? datos.direccion.cp : '',
+            direccion_telefono: datos.direccion ? datos.direccion.telefono : '',
+            direccion_recibe: datos.direccion ? datos.direccion.nombreRecibe : '',
+            // Facturación
+            requiere_factura: datos.requiereFactura || false,
+            factura_razon_social: datos.datosFactura ? datos.datosFactura.razonSocial : '',
+            factura_rfc: datos.datosFactura ? datos.datosFactura.rfc : ''
         };
         
         console.log('📤 Enviando a Apps Script:', payload);
@@ -3697,6 +3732,7 @@ async function guardarVentaEnEstadisticas(datos) {
                     montoPagado = 0;
                 }
             } else {
+                // ⭐ TRANSFERENCIA: crédito pendiente = 0, monto pagado = importe
                 creditoPendiente = 0;
                 montoPagado = producto.importe;
             }
@@ -3709,8 +3745,8 @@ async function guardarVentaEnEstadisticas(datos) {
                 producto.importe.toFixed(2),
                 ganancia.toFixed(2),
                 '',
-                creditoPendiente.toFixed(2),
-                montoPagado.toFixed(2),
+                creditoPendiente.toFixed(2),  // ⭐ Columna H - Crédito pendiente
+                montoPagado.toFixed(2),       // ⭐ Columna I - Monto pagado
                 datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial' ? DIAS_CREDITO_FIJO : 0,
                 datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial' ? 
                     (datos.fechaPago ? datos.fechaPago.toLocaleDateString('es-MX') : '') : '',
@@ -3734,6 +3770,7 @@ async function guardarVentaEnEstadisticas(datos) {
             razonSocialFactura = datos.datosFactura.razonSocial || '';
         }
         
+        // ⭐ CORREGIDO: Transferencia → crédito pendiente = 0, monto pagado = total
         let creditoPendienteTotal = datos.montoCredito || 0;
         let montoPagadoTotal = datos.montoPago || 0;
         
@@ -3753,8 +3790,8 @@ async function guardarVentaEnEstadisticas(datos) {
             datos.cliente.codigo,
             datos.cliente.nombre,
             datos.total.toFixed(2),
-            creditoPendienteTotal.toFixed(2),
-            montoPagadoTotal.toFixed(2),
+            creditoPendienteTotal.toFixed(2),  // ⭐ Columna F - Crédito pendiente
+            montoPagadoTotal.toFixed(2),       // ⭐ Columna G - Monto pagado
             facturaTexto,
             datos.sucursal,
             formaPago,
@@ -4427,24 +4464,43 @@ function cargarCreditosPendientes() {
             year: 'numeric'
         }) : 'Fecha no disponible';
         
-        const fechaPago = venta.fechaPago ? new Date(venta.fechaPago) : null;
-        const fechaPagoFormateada = fechaPago ? fechaPago.toLocaleDateString('es-MX') : 'No definida';
+        // ⭐ CALCULAR FECHA LÍMITE DE PAGO
+        let fechaPago = venta.fechaPago ? new Date(venta.fechaPago) : null;
+        if (!fechaPago && venta.diasCredito) {
+            const fechaVenta = venta.fechaObj || parseFechaGoogleSheets(venta.fecha);
+            if (fechaVenta) {
+                fechaPago = new Date(fechaVenta);
+                fechaPago.setDate(fechaPago.getDate() + venta.diasCredito);
+            }
+        }
+        const fechaPagoFormateada = fechaPago ? fechaPago.toLocaleDateString('es-MX', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        }) : 'No definida';
+        
+        // ⭐ VERIFICAR SI ESTÁ VENCIDO
+        const estaVencido = fechaPago && fechaPago < new Date();
+        const estadoColor = estaVencido ? '#dc2626' : '#92400e';
+        const estadoTexto = estaVencido ? '⚠️ VENCIDO' : 'Pendiente';
         
         html += `
-            <div style="background:white; border-radius:12px; padding:1.2rem; border:1px solid #fef3c7; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+            <div style="background:white; border-radius:12px; padding:1.2rem; border:1px solid ${estaVencido ? '#fecaca' : '#fef3c7'}; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
                     <div>
                         <span style="font-weight:700; color:var(--primary-dark); font-size:1rem;">${venta.idVenta}</span>
                         <span style="font-size:0.75rem; color:var(--text-gray); margin-left:0.5rem;">${fechaFormateada}</span>
                         <div style="font-size:0.8rem; color:var(--text-gray); margin-top:0.2rem;">
                             <span class="badge badge-warning">${venta.tipoPago || 'Crédito'}</span>
+                            ${estaVencido ? '<span class="badge badge-danger" style="margin-left:0.5rem;">VENCIDO</span>' : ''}
                         </div>
                     </div>
                     <div style="text-align:right;">
-                        <div style="font-weight:700; color:#92400e; font-size:1.1rem;">
+                        <div style="font-weight:700; color:${estaVencido ? '#dc2626' : '#92400e'}; font-size:1.1rem;">
                             ${formatoMexicano(saldoPendiente)}
                         </div>
-                        <div style="font-size:0.7rem; color:var(--text-gray);">Pago límite: ${fechaPagoFormateada}</div>
+                        <div style="font-size:0.7rem; color:var(--text-gray);">Límite: ${fechaPagoFormateada}</div>
+                        <div style="font-size:0.7rem; color:${estadoColor}; font-weight:600;">${estadoTexto}</div>
                     </div>
                 </div>
                 <div style="margin-top:0.5rem; padding-top:0.5rem; border-top:1px solid #f3f4f6;">
