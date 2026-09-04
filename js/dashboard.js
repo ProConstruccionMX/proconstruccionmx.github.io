@@ -1049,21 +1049,21 @@ async function cargarProductos() {
             
             const descripcion = String(values[2] || '').trim();
             const precio = parseFloat(values[3]) || 0;
-            const na = String(values[4] || '').trim(); // ⭐ Columna E
+            const na = String(values[4] || '').trim();
             const precioCompra = parseFloat(values[5]) || 0;
             const descuentoPublico = parseFloat(values[9]) || 0;
             const descuentoTrabajador = parseFloat(values[10]) || 0;
             const descuentoArquitecto = parseFloat(values[11]) || 0;
             const descuentoConstructora = parseFloat(values[12]) || 0;
             const descuentoDistribuidor = parseFloat(values[13]) || 0;
-            const pxv = String(values[14] || '').trim(); // ⭐ Columna O - PXV
-            const descuentoVolumenP = parseFloat(values[15]) || 0; // ⭐ Columna P - 3T (150 und)
-            const descuentoVolumenQ = parseFloat(values[16]) || 0; // ⭐ Columna Q - 5T (250 und)
+            const pxv = String(values[14] || '').trim();
+            const descuentoVolumenP = parseFloat(values[15]) || 0;
+            const descuentoVolumenQ = parseFloat(values[16]) || 0;
             
-            const pesoCondicionRaw = String(values[17] || '').trim().toUpperCase(); // ⭐ Columna R - SI/NO
+            const pesoCondicionRaw = String(values[17] || '').trim().toUpperCase();
             const pesoCondicion = pesoCondicionRaw === 'SI' ? 'SI' : 'NO';
             
-            const pesoRaw = String(values[18] || '').trim(); // ⭐ Columna S - Peso por unidad
+            const pesoRaw = String(values[18] || '').trim();
             const peso = parseFloat(pesoRaw) || 0;
             
             const minPiezasCondicion = String(values[19] || '').trim().toUpperCase();
@@ -3243,7 +3243,7 @@ function generarPDFComprobante(datos) {
 }
 
 // ============================================
-// ⭐ ENVIAR CORREO A VENTAS CON TODOS LOS DETALLES ⭐
+// ⭐ ENVIAR CORREO A VENTAS - VERSIÓN SIMPLIFICADA ⭐
 // ============================================
 
 async function enviarCorreoVentaWeb(datos) {
@@ -3255,68 +3255,33 @@ async function enviarCorreoVentaWeb(datos) {
             return { success: false, error: 'emailjs no disponible' };
         }
         
-        // ⭐ Preparar los parámetros para la plantilla VENTAS
+        // ⭐ PREPARAR SOLO LOS PARÁMETROS QUE USA LA PLANTILLA SIMPLIFICADA
         const templateParams = {
             email: 'ventas@proconstruccionmx.com',
-            folio: datos.folio,
-            fecha: datos.fecha.toLocaleString('es-MX'),
-            tipo_pago: datos.tipoPago,
-            estado: datos.estadoPago || 'Validando pago',
-            es_credito_parcial: datos.esCreditoParcial || false,
-            monto_pagado: formatoMexicano(datos.montoPago || 0),
-            monto_credito: formatoMexicano(datos.montoCredito || 0),
-            cliente_nombre: datos.cliente.nombre,
-            cliente_codigo: datos.cliente.codigo,
-            cliente_correo: datos.cliente.correo,
-            cliente_telefono: datos.cliente.telefono || 'No especificado',
-            cliente_giro: datos.cliente.giro || 'No especificado',
-            cliente_descuento: datos.cliente.descuento || 0,
-            direccion: datos.direccion ? true : false,
-            direccion_nombre: datos.nombreDireccion || 'Sin nombre',
-            direccion_calle: datos.direccion ? datos.direccion.calle : '',
-            direccion_colonia: datos.direccion ? datos.direccion.colonia : '',
-            direccion_alcaldia: datos.direccion ? datos.direccion.alcaldia : '',
-            direccion_estado: datos.direccion ? datos.direccion.estado : '',
-            direccion_cp: datos.direccion ? datos.direccion.cp : '',
-            direccion_telefono: datos.direccion ? datos.direccion.telefono : '',
-            direccion_recibe: datos.direccion ? datos.direccion.nombreRecibe : '',
-            direccion_maps: datos.direccion ? datos.direccion.mapsUrl : '',
-            factura: datos.requiereFactura || false,
-            factura_razon_social: datos.datosFactura ? datos.datosFactura.razonSocial : '',
-            factura_rfc: datos.datosFactura ? datos.datosFactura.rfc : '',
-            factura_uso_cfdi: datos.datosFactura ? datos.datosFactura.usoCFDI : '',
-            factura_cp: datos.datosFactura ? datos.datosFactura.cp : '',
-            factura_regimen: datos.datosFactura ? datos.datosFactura.regimen : '',
-            factura_correo: datos.datosFactura ? datos.datosFactura.correo : '',
-            productos: datos.productos.map(p => ({
-                cantidad: p.cantidad,
-                nombre: p.nombre,
-                precio: formatoMexicano(p.precio),
-                descuento: p.descuento,
-                importe: formatoMexicano(p.importe),
-                tipo: p._tipo || ''
-            })),
-            subtotal: formatoMexicano(datos.subtotal),
-            iva: formatoMexicano(datos.iva),
-            total: formatoMexicano(datos.total),
-            transferencia: datos.tipoPago === 'Transferencia',
+            folio: datos.folio || 'Sin folio',
+            fecha: datos.fecha ? datos.fecha.toLocaleString('es-MX') : new Date().toLocaleString('es-MX'),
+            cliente_nombre: datos.cliente ? datos.cliente.nombre : 'Sin nombre',
+            tipo_pago: datos.tipoPago || 'No especificado',
+            productos: datos.productos ? datos.productos.map(p => ({
+                cantidad: p.cantidad || 0,
+                nombre: p.nombre || 'Sin nombre',
+                precio: formatoMexicano(p.precio || 0),
+                descuento: p.descuento || 0,
+                importe: formatoMexicano(p.importe || 0)
+            })) : [],
+            subtotal: datos.subtotal ? formatoMexicano(datos.subtotal) : '$0.00',
+            iva: datos.iva ? formatoMexicano(datos.iva) : '$0.00',
+            total: datos.total ? formatoMexicano(datos.total) : '$0.00',
             referencia: datos.referencia || 'N/A',
             comprobante_nombre: datos.comprobanteNombre || 'No adjunto',
-            credito: datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial',
-            dias_credito: datos.diasCredito || 0,
-            saldo_pendiente: formatoMexicano(datos.saldoPendiente || 0),
-            fecha_pago: datos.fechaPago ? datos.fechaPago.toLocaleDateString('es-MX') : 'No definida',
-            anticipo: formatoMexicano(datos.anticipo || 0),
-            comprobante_adjunto: datos.comprobante ? true : false,
             anio: new Date().getFullYear()
         };
 
         console.log('📧 TemplateParams enviados a ventas:', templateParams);
 
-        // ⭐ Enviar usando la nueva plantilla
         const response = await emailjs.send(
             'service_o2zvkzo',
-            'template_ventas_web',  // ⭐ NOMBRE DE LA PLANTILLA
+            'template_ventas_web',
             templateParams,
             '_gOxtGSQmrhTdoRuX'
         );
@@ -3405,7 +3370,7 @@ async function procesarPagoTransferencia() {
         
         await guardarVentaEnEstadisticas(datosVenta);
         
-        // ⭐ Enviar correo a ventas con todos los detalles
+        // ⭐ Enviar correo a ventas
         await enviarCorreoVentaWeb(datosVenta);
         
         // ⭐ Generar PDF
@@ -3596,7 +3561,7 @@ async function procesarPagoCredito() {
         
         await guardarVentaEnEstadisticas(datosVenta);
         
-        // ⭐ Enviar correo a ventas con todos los detalles
+        // ⭐ Enviar correo a ventas
         await enviarCorreoVentaWeb(datosVenta);
         
         // ⭐ Generar PDF
@@ -3717,7 +3682,6 @@ async function guardarVentaEnEstadisticas(datos) {
                     montoPagado = 0;
                 }
             } else {
-                // ⭐ TRANSFERENCIA: crédito pendiente = 0, monto pagado = importe
                 creditoPendiente = 0;
                 montoPagado = producto.importe;
             }
@@ -3798,7 +3762,7 @@ async function guardarVentaEnEstadisticas(datos) {
 }
 
 // ============================================
-// FUNCIONES PARA "MIS COMPRAS"
+// FUNCIONES PARA "MIS COMPRAS" (RESUMIDO PARA AHORRAR ESPACIO)
 // ============================================
 
 async function cargarHistorialCompras() {
