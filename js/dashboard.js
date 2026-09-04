@@ -965,7 +965,7 @@ async function cargarDatosCliente(email) {
                     giro: String(values[2] || '').trim(),
                     correo: correo,
                     telefono: String(values[4] || '').trim(),
-                    descuento: parseFloat(values[5]) || 0, // ⭐ Columna F - DESCUENTO BASE DEL CLIENTE
+                    descuento: parseFloat(values[5]) || 0,
                     noCompras: parseInt(values[6]) || 0,
                     montoCompras: parseFloat(values[7]) || 0,
                     creditoPendiente: parseFloat(values[8]) || 0,
@@ -1012,7 +1012,7 @@ function actualizarInfoCliente() {
 }
 
 // ============================================
-// CARGA DE PRODUCTOS - CORREGIDO
+// CARGA DE PRODUCTOS - CORREGIDO (LEE DESDE FILA 0)
 // ============================================
 
 async function cargarProductos() {
@@ -1026,22 +1026,35 @@ async function cargarProductos() {
         const rows = data.table.rows;
         
         console.log(`📊 Total de filas en la hoja: ${rows.length}`);
-        console.log(`📌 IMPORTANTE: La fila 0 es el encabezado. Los datos comienzan desde la fila 1.`);
+        console.log(`📌 La fila 0 es el encabezado. Los datos comienzan desde la fila 0 (primera fila de datos).`);
         
         productosGlobales = [];
         let contadorConPeso = 0;
         let filasProcesadas = 0;
         let filasSaltadas = 0;
         
-        // ⭐ COMIENZA DESDE LA FILA 1 (que es la fila 2 en Excel)
-        // La fila 0 es el encabezado
-        for (let i = 1; i < rows.length; i++) {
+        // ⭐ COMIENZA DESDE LA FILA 0 - para leer TODOS los datos
+        // La fila 0 es el encabezado, la fila 1 es la fila 2 en Excel
+        for (let i = 0; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             
             const clave = String(values[0] || '').trim();
             const nombre = String(values[1] || '').trim();
             
+            // Saltar filas vacías (sin clave o sin nombre)
             if (!clave || !nombre) {
+                filasSaltadas++;
+                continue;
+            }
+            
+            // Detectar si es encabezado (contiene palabras clave)
+            const esEncabezado = clave.toLowerCase().includes('clave') || 
+                                 clave.toLowerCase().includes('código') ||
+                                 nombre.toLowerCase().includes('nombre') ||
+                                 nombre.toLowerCase().includes('producto');
+            
+            if (esEncabezado) {
+                console.log(`📌 Fila ${i} detectada como ENCABEZADO, saltando...`);
                 filasSaltadas++;
                 continue;
             }
@@ -1057,14 +1070,14 @@ async function cargarProductos() {
             const descuentoArquitecto = parseFloat(values[11]) || 0;
             const descuentoConstructora = parseFloat(values[12]) || 0;
             const descuentoDistribuidor = parseFloat(values[13]) || 0;
-            const pxv = String(values[14] || '').trim();
-            const descuentoVolumenP = parseFloat(values[15]) || 0;
-            const descuentoVolumenQ = parseFloat(values[16]) || 0;
+            const pxv = String(values[14] || '').trim(); // ⭐ Columna O - PXV
+            const descuentoVolumenP = parseFloat(values[15]) || 0; // ⭐ Columna P - 3T (150 unidades)
+            const descuentoVolumenQ = parseFloat(values[16]) || 0; // ⭐ Columna Q - 5T (250 unidades)
             
-            const pesoCondicionRaw = String(values[17] || '').trim().toUpperCase();
+            const pesoCondicionRaw = String(values[17] || '').trim().toUpperCase(); // ⭐ Columna R - SI/NO
             const pesoCondicion = pesoCondicionRaw === 'SI' ? 'SI' : 'NO';
             
-            const pesoRaw = String(values[18] || '').trim();
+            const pesoRaw = String(values[18] || '').trim(); // ⭐ Columna S - Peso por unidad
             const peso = parseFloat(pesoRaw) || 0;
             
             const minPiezasCondicion = String(values[19] || '').trim().toUpperCase();
@@ -1074,11 +1087,16 @@ async function cargarProductos() {
             const requiereMinPiezas = minPiezasCondicion === 'SI';
             const permitido = permitidoCondicion === 'SI';
             
+            // ⭐ LOG PARA VERIFICAR PXV ⭐
+            if (pxv === 'PXV' && pesoCondicion === 'SI') {
+                console.log(`📦 [PXV] Producto: "${nombre}" (fila ${i+1}) | P: ${descuentoVolumenP}% (3T) | Q: ${descuentoVolumenQ}% (5T)`);
+            }
+            
             // ⭐ LOG PARA VERIFICAR LA COLUMNA E (NA) ⭐
             if (na === '' || na === null || na === undefined) {
                 console.log(`📊 [COLUMNA E VACÍA] Producto: "${nombre}" (fila ${i+1}) | Usa descuento BASE del cliente: ${clienteData ? clienteData.descuento : '0'}%`);
             } else if (na === '-') {
-                console.log(`📊 [COLUMNA E = -] Producto: "${nombre}" (fila ${i+1}) | Usa descuento por GIRO del cliente (columnas J-N)`);
+                console.log(`📊 [COLUMNA E = -] Producto: "${nombre}" (fila ${i+1}) | Usa descuento por GIRO del cliente`);
             } else if (na !== 'N/A') {
                 console.log(`📊 [COLUMNA E CON DATO] Producto: "${nombre}" (fila ${i+1}) | NA: "${na}" → Descuento fijo de ${na}%`);
             }
@@ -1108,12 +1126,12 @@ async function cargarProductos() {
         }
         
         console.log(`📦 Productos cargados: ${productosGlobales.length}`);
-        console.log(`📊 Filas procesadas: ${filasProcesadas}, Filas saltadas: ${filasSaltadas}`);
+        console.log(`📊 Filas procesadas: ${filasProcesadas}, Filas saltadas (vacías/encabezado): ${filasSaltadas}`);
         
         // Mostrar primeros productos para verificar
         console.log('📋 PRIMEROS PRODUCTOS CARGADOS:');
         productosGlobales.slice(0, 5).forEach(p => {
-            console.log(`   - Fila ${p.fila}: "${p.nombre}" | NA: "${p.na === '' ? '(VACÍA)' : p.na}"`);
+            console.log(`   - Fila ${p.fila}: "${p.nombre}" | NA: "${p.na === '' ? '(VACÍA)' : p.na}" | PXV: "${p.pxv}" | Peso: ${p.pesoCondicion === 'SI' ? 'SI' : 'NO'}`);
         });
         
     } catch (error) {
@@ -1486,12 +1504,12 @@ function buscarProductos() {
         }
         
         let etiquetaPXV = '';
-        if (producto.pxv === 'PXV') {
+        if (producto.pxv === 'PXV' && producto.pesoCondicion === 'SI') {
             let infoVolumen = '';
             if (producto.descuentoVolumenP > 0 || producto.descuentoVolumenQ > 0) {
                 let partes = [];
-                if (producto.descuentoVolumenP > 0) partes.push(`+${producto.descuentoVolumenP}% (3T)`);
-                if (producto.descuentoVolumenQ > 0) partes.push(`+${producto.descuentoVolumenQ}% (5T)`);
+                if (producto.descuentoVolumenP > 0) partes.push(`+${producto.descuentoVolumenP}% (150 und / 3T)`);
+                if (producto.descuentoVolumenQ > 0) partes.push(`+${producto.descuentoVolumenQ}% (250 und / 5T)`);
                 infoVolumen = ` - ${partes.join(' | ')}`;
             }
             etiquetaPXV = `<span class="tag-pxv">📦 Descuento por Volumen${infoVolumen}</span>`;
@@ -1500,7 +1518,7 @@ function buscarProductos() {
         html += `
             <div class="product-card">
                 <span class="clave">${producto.clave}</span>
-                ${producto.pxv === 'PXV' ? etiquetaPXV : ''}
+                ${producto.pxv === 'PXV' && producto.pesoCondicion === 'SI' ? etiquetaPXV : ''}
                 ${etiquetaPeso}
                 ${etiquetaMinPiezas}
                 <h4>${producto.nombre}</h4>
@@ -1548,7 +1566,7 @@ function obtenerPrecioFinal(producto) {
 }
 
 function calcularDescuentoProducto(producto, cantidad) {
-    console.log(`🔍 Calculando descuento para: "${producto.nombre}" | NA: "${producto.na}"`);
+    console.log(`🔍 Calculando descuento para: "${producto.nombre}" | NA: "${producto.na}" | PXV: "${producto.pxv}" | Peso: ${producto.pesoCondicion}`);
     
     // 1. Verificar precio especial (personalizado)
     const precioEspecial = preciosEspecialesGlobales.find(p => 
@@ -1591,20 +1609,28 @@ function calcularDescuentoProducto(producto, cantidad) {
         let descuentoBase = mapGiro[giro] || 0;
         console.log(`📊 [COLUMNA E = -] ${producto.nombre} | Giro: ${giro} | Descuento por giro: ${descuentoBase}%`);
         
-        // LÓGICA PXV (Precio por Volumen) - SUMAR al descuento base
-        if (producto.pxv === 'PXV') {
+        // ⭐ LÓGICA PXV - SOLO si la columna R (pesoCondicion) es "SI" ⭐
+        if (producto.pxv === 'PXV' && producto.pesoCondicion === 'SI') {
             const girosPXV = ['Distribuidor', 'Arquitecto', 'Inmobiliaria', 'Constructora'];
+            
             if (girosPXV.includes(giro)) {
                 let descuentoAdicional = 0;
+                
+                // ⭐ Columna Q = 5 toneladas (250 unidades) - se aplica primero si cumple
                 if (cantidad >= 250 && producto.descuentoVolumenQ > 0) {
                     descuentoAdicional = producto.descuentoVolumenQ;
-                } else if (cantidad >= 150 && producto.descuentoVolumenP > 0) {
+                    console.log(`📦 [PXV 5T] ${producto.nombre} | Adicional: ${descuentoAdicional}% (250+ unidades)`);
+                } 
+                // ⭐ Columna P = 3 toneladas (150 unidades)
+                else if (cantidad >= 150 && producto.descuentoVolumenP > 0) {
                     descuentoAdicional = producto.descuentoVolumenP;
+                    console.log(`📦 [PXV 3T] ${producto.nombre} | Adicional: ${descuentoAdicional}% (150+ unidades)`);
                 }
+                
                 if (descuentoAdicional > 0) {
-                    const total = descuentoBase + descuentoAdicional;
-                    console.log(`📦 [PXV] ${producto.nombre} | Total: ${total}%`);
-                    return total;
+                    const totalDescuento = descuentoBase + descuentoAdicional;
+                    console.log(`📦 [PXV FINAL] ${producto.nombre} | Descuento total: ${totalDescuento}% (${descuentoBase}% + ${descuentoAdicional}%)`);
+                    return totalDescuento;
                 }
             }
         }
@@ -1612,10 +1638,36 @@ function calcularDescuentoProducto(producto, cantidad) {
     }
     
     // 5. ⭐ COLUMNA E ESTÁ VACÍA - USAR DESCUENTO BASE DEL CLIENTE (columna F de clientes) ⭐
-    // ⭐ ESTA ES LA CORRECCIÓN CLAVE: NO usar el mapa de giros, usar DIRECTAMENTE clienteData.descuento ⭐
     if (producto.na === '' || producto.na === null || producto.na === undefined) {
-        const descuentoBase = clienteData.descuento || 0;
-        console.log(`✅ [COLUMNA E VACÍA] ${producto.nombre} - Descuento BASE del cliente: ${descuentoBase}% (DESDE COLUMNA F DE CLIENTES)`);
+        let descuentoBase = clienteData.descuento || 0;
+        console.log(`✅ [COLUMNA E VACÍA] ${producto.nombre} - Descuento BASE del cliente: ${descuentoBase}%`);
+        
+        // ⭐ LÓGICA PXV - SOLO si la columna R (pesoCondicion) es "SI" ⭐
+        if (producto.pxv === 'PXV' && producto.pesoCondicion === 'SI') {
+            const giro = clienteData.giro || 'Público en general';
+            const girosPXV = ['Distribuidor', 'Arquitecto', 'Inmobiliaria', 'Constructora'];
+            
+            if (girosPXV.includes(giro)) {
+                let descuentoAdicional = 0;
+                
+                // ⭐ Columna Q = 5 toneladas (250 unidades)
+                if (cantidad >= 250 && producto.descuentoVolumenQ > 0) {
+                    descuentoAdicional = producto.descuentoVolumenQ;
+                    console.log(`📦 [PXV 5T] ${producto.nombre} | Adicional: ${descuentoAdicional}% (250+ unidades)`);
+                } 
+                // ⭐ Columna P = 3 toneladas (150 unidades)
+                else if (cantidad >= 150 && producto.descuentoVolumenP > 0) {
+                    descuentoAdicional = producto.descuentoVolumenP;
+                    console.log(`📦 [PXV 3T] ${producto.nombre} | Adicional: ${descuentoAdicional}% (150+ unidades)`);
+                }
+                
+                if (descuentoAdicional > 0) {
+                    const totalDescuento = descuentoBase + descuentoAdicional;
+                    console.log(`📦 [PXV FINAL] ${producto.nombre} | Descuento total: ${totalDescuento}% (${descuentoBase}% + ${descuentoAdicional}%)`);
+                    return totalDescuento;
+                }
+            }
+        }
         return descuentoBase;
     }
     
@@ -2178,7 +2230,10 @@ function agregarAlCarrito(clave) {
             pesoCondicion: producto.pesoCondicion,
             peso: producto.peso,
             requiereMinPiezas: producto.requiereMinPiezas,
-            minPiezas: producto.minPiezas
+            minPiezas: producto.minPiezas,
+            pxv: producto.pxv,
+            descuentoVolumenP: producto.descuentoVolumenP,
+            descuentoVolumenQ: producto.descuentoVolumenQ
         });
     }
     
@@ -2330,6 +2385,19 @@ function renderizarCarrito() {
             minPiezasInfo = `<br><small style="color:${color};font-weight:600;">${icono} Mínimo: ${item.minPiezas} piezas (${item.cantidad} actuales)</small>`;
         }
         
+        let pxvInfo = '';
+        if (item.pxv === 'PXV' && item.pesoCondicion === 'SI') {
+            let info = '';
+            if (item.cantidad >= 250 && item.descuentoVolumenQ > 0) {
+                info = `✅ 5T (${item.descuentoVolumenQ}% extra)`;
+            } else if (item.cantidad >= 150 && item.descuentoVolumenP > 0) {
+                info = `✅ 3T (${item.descuentoVolumenP}% extra)`;
+            } else {
+                info = `ℹ️ ${150 - item.cantidad} und para 3T | ${250 - item.cantidad} und para 5T`;
+            }
+            pxvInfo = `<br><small style="color:var(--text-gray);">📦 ${info}</small>`;
+        }
+        
         html += `
             <tr>
                 <td>
@@ -2337,6 +2405,7 @@ function renderizarCarrito() {
                     ${item.personalizado ? '<span class="precio-personalizado">⭐ Personalizado</span>' : ''}
                     ${pesoInfo}
                     ${minPiezasInfo}
+                    ${pxvInfo}
                     <br><small style="color:var(--text-gray);">${item.clave}</small>
                 </td>
                 <td>${formatoMexicano(item.precio)}</td>
