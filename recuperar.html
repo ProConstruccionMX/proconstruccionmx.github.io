@@ -965,7 +965,7 @@ async function cargarDatosCliente(email) {
                     giro: String(values[2] || '').trim(),
                     correo: correo,
                     telefono: String(values[4] || '').trim(),
-                    descuento: parseFloat(values[5]) || 0,
+                    descuento: parseFloat(values[5]) || 0, // ⭐ Columna F - DESCUENTO BASE DEL CLIENTE
                     noCompras: parseInt(values[6]) || 0,
                     montoCompras: parseFloat(values[7]) || 0,
                     creditoPendiente: parseFloat(values[8]) || 0,
@@ -984,6 +984,8 @@ async function cargarDatosCliente(email) {
                 console.log('💳 CRÉDITO HABILITADO:', clienteCreditoHabilitado);
                 console.log('⚖️ LÍMITE CRÉDITO PESO:', clienteLimiteCreditoPeso, 'kg');
                 console.log('💰 LÍMITE CRÉDITO MONTO:', clienteLimiteCreditoMonto);
+                console.log('📊 DESCUENTO BASE DEL CLIENTE:', clienteData.descuento + '%');
+                console.log('📊 GIRO DEL CLIENTE:', clienteData.giro);
                 
                 break;
             }
@@ -1076,7 +1078,7 @@ async function cargarProductos() {
             if (na === '' || na === null || na === undefined) {
                 console.log(`📊 [COLUMNA E VACÍA] Producto: "${nombre}" (fila ${i+1}) | Usa descuento BASE del cliente: ${clienteData ? clienteData.descuento : '0'}%`);
             } else if (na === '-') {
-                console.log(`📊 [COLUMNA E = -] Producto: "${nombre}" (fila ${i+1}) | Usa descuento por GIRO del cliente`);
+                console.log(`📊 [COLUMNA E = -] Producto: "${nombre}" (fila ${i+1}) | Usa descuento por GIRO del cliente (columnas J-N)`);
             } else if (na !== 'N/A') {
                 console.log(`📊 [COLUMNA E CON DATO] Producto: "${nombre}" (fila ${i+1}) | NA: "${na}" → Descuento fijo de ${na}%`);
             }
@@ -1521,7 +1523,7 @@ function limpiarBusqueda() {
 }
 
 // ============================================
-// PRECIOS Y DESCUENTOS - DEFINITIVO CORREGIDO
+// ⭐ PRECIOS Y DESCUENTOS - CORREGIDO DEFINITIVAMENTE ⭐
 // ============================================
 
 function obtenerPrecioFinal(producto) {
@@ -1545,9 +1547,8 @@ function obtenerPrecioFinal(producto) {
     };
 }
 
-// ⭐ FUNCIÓN DE DESCUENTO - CORREGIDA DEFINITIVAMENTE ⭐
 function calcularDescuentoProducto(producto, cantidad) {
-    console.log(`🔍 Calculando descuento para: ${producto.nombre} | NA: "${producto.na}"`);
+    console.log(`🔍 Calculando descuento para: "${producto.nombre}" | NA: "${producto.na}"`);
     
     // 1. Verificar precio especial (personalizado)
     const precioEspecial = preciosEspecialesGlobales.find(p => 
@@ -1573,7 +1574,7 @@ function calcularDescuentoProducto(producto, cantidad) {
         return naNumero;
     }
     
-    // 4. ⭐ Si columna E tiene "-" (guión) - usar descuento por GIRO del cliente (columnas J-N)
+    // 4. ⭐ SI LA COLUMNA E TIENE "-" (GUION) - usar descuento por GIRO del cliente (columnas J-N)
     if (producto.na === '-') {
         const giro = clienteData.giro || 'Público en general';
         
@@ -1588,9 +1589,9 @@ function calcularDescuentoProducto(producto, cantidad) {
         };
         
         let descuentoBase = mapGiro[giro] || 0;
-        console.log(`📊 [COLUMNA E = -] ${producto.nombre} | Giro: ${giro} | Descuento: ${descuentoBase}%`);
+        console.log(`📊 [COLUMNA E = -] ${producto.nombre} | Giro: ${giro} | Descuento por giro: ${descuentoBase}%`);
         
-        // LÓGICA PXV
+        // LÓGICA PXV (Precio por Volumen) - SUMAR al descuento base
         if (producto.pxv === 'PXV') {
             const girosPXV = ['Distribuidor', 'Arquitecto', 'Inmobiliaria', 'Constructora'];
             if (girosPXV.includes(giro)) {
@@ -1610,10 +1611,11 @@ function calcularDescuentoProducto(producto, cantidad) {
         return descuentoBase;
     }
     
-    // 5. ⭐ COLUMNA E ESTÁ VACÍA - USAR DESCUENTO BASE DEL CLIENTE ⭐
+    // 5. ⭐ COLUMNA E ESTÁ VACÍA - USAR DESCUENTO BASE DEL CLIENTE (columna F de clientes) ⭐
+    // ⭐ ESTA ES LA CORRECCIÓN CLAVE: NO usar el mapa de giros, usar DIRECTAMENTE clienteData.descuento ⭐
     if (producto.na === '' || producto.na === null || producto.na === undefined) {
         const descuentoBase = clienteData.descuento || 0;
-        console.log(`✅ [COLUMNA E VACÍA] ${producto.nombre} - Descuento BASE del cliente: ${descuentoBase}%`);
+        console.log(`✅ [COLUMNA E VACÍA] ${producto.nombre} - Descuento BASE del cliente: ${descuentoBase}% (DESDE COLUMNA F DE CLIENTES)`);
         return descuentoBase;
     }
     
