@@ -3255,16 +3255,15 @@ async function enviarCorreoVentaWeb(datos) {
             return { success: false, error: 'emailjs no disponible' };
         }
         
-        // ⭐ PREPARAR TODOS LOS PARÁMETROS
+        // ⭐ PARÁMETROS SIMPLIFICADOS - SOLO LOS QUE USA LA PLANTILLA
         const templateParams = {
             email: 'ventas@proconstruccionmx.com',
             folio: datos.folio || 'Sin folio',
             fecha: datos.fecha ? datos.fecha.toLocaleString('es-MX') : new Date().toLocaleString('es-MX'),
             cliente_nombre: datos.cliente ? datos.cliente.nombre : 'Sin nombre',
             tipo_pago: datos.tipoPago || 'No especificado',
-            anio: new Date().getFullYear(),
-            
-            // Productos
+            referencia: datos.referencia || 'N/A',
+            comprobante_nombre: datos.comprobanteNombre || 'No adjunto',
             productos: datos.productos ? datos.productos.map(p => ({
                 cantidad: p.cantidad || 0,
                 nombre: p.nombre || 'Sin nombre',
@@ -3272,37 +3271,18 @@ async function enviarCorreoVentaWeb(datos) {
                 descuento: p.descuento || 0,
                 importe: formatoMexicano(p.importe || 0)
             })) : [],
-            
-            // Totales
             subtotal: datos.subtotal ? formatoMexicano(datos.subtotal) : '$0.00',
             iva: datos.iva ? formatoMexicano(datos.iva) : '$0.00',
             total: datos.total ? formatoMexicano(datos.total) : '$0.00',
-            
-            // Transferencia
-            transferencia: datos.tipoPago === 'Transferencia' ? true : false,
-            referencia: datos.referencia || 'N/A',
-            comprobante_nombre: datos.comprobanteNombre || 'No adjunto',
-            
-            // Crédito
-            credito: datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial' ? true : false,
-            dias_credito: datos.diasCredito || 0,
-            saldo_pendiente: datos.saldoPendiente ? formatoMexicano(datos.saldoPendiente) : '$0.00',
-            fecha_pago: datos.fechaPago ? datos.fechaPago.toLocaleDateString('es-MX') : 'No aplica',
-            anticipo: datos.anticipo ? formatoMexicano(datos.anticipo) : '$0.00',
-            
-            // Crédito Parcial
-            es_credito_parcial: datos.esCreditoParcial || false,
-            monto_pagado: datos.montoPago ? formatoMexicano(datos.montoPago) : '$0.00',
-            monto_credito: datos.montoCredito ? formatoMexicano(datos.montoCredito) : '$0.00',
-            referencia_excedente: datos.referencia || 'N/A',
-            comprobante_excedente_nombre: datos.comprobanteNombre || 'No adjunto'
+            anio: new Date().getFullYear()
         };
 
         console.log('📧 TemplateParams enviados a ventas:', templateParams);
 
+        // ⭐ Usar la NUEVA plantilla
         const response = await emailjs.send(
             'service_o2zvkzo',
-            'template_ventas_web',
+            'template_ventas_web_v2',  // ← NUEVO Template ID
             templateParams,
             '_gOxtGSQmrhTdoRuX'
         );
