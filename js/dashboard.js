@@ -3243,56 +3243,69 @@ function generarPDFComprobante(datos) {
 }
 
 // ============================================
-// ⭐ ENVIAR CORREO A VENTAS - VERSIÓN COMPLETA ⭐
+// ⭐ FUNCIÓN PARA ENVIAR CORREO CON ADJUNTO VÍA APPS SCRIPT
 // ============================================
 
-async function enviarCorreoVentaWeb(datos) {
+async function enviarCorreoConAdjuntoAppsScript(datos) {
     try {
-        console.log('📧 Enviando correo a ventas@proconstruccionmx.com...');
+        // ⭐ URL DE TU APPS SCRIPT
+        const APPS_SCRIPT_EMAIL_URL = 'https://script.google.com/macros/s/AKfycbzxjyFsLB6go3gcMz1qPNou1HhxsugQoiLvKPl0GAwLOQJZKdEcOyK-QxFU64WukWCY/exec';
         
-        if (typeof emailjs === 'undefined') {
-            console.warn('⚠️ EmailJS no está disponible.');
-            return { success: false, error: 'emailjs no disponible' };
+        console.log('📧 Enviando correo con adjunto vía Apps Script...');
+        
+        // Generar texto de productos
+        let productosTexto = '';
+        if (datos.productos && datos.productos.length > 0) {
+            productosTexto = 'Cant. | Producto | Precio | Dto.% | Importe\n';
+            productosTexto += '-----|---------|--------|-------|--------\n';
+            datos.productos.forEach(p => {
+                const cantidad = p.cantidad || 0;
+                const nombre = p.nombre || 'Sin nombre';
+                const precio = Number(p.precio || 0).toFixed(2);
+                const descuento = Number(p.descuento || 0);
+                const importe = Number(p.importe || 0).toFixed(2);
+                productosTexto += `${cantidad} | ${nombre} | $${precio} | ${descuento}% | $${importe}\n`;
+            });
+        } else {
+            productosTexto = 'No hay productos en esta venta.';
         }
         
-        // ⭐ CONVERTIR PRODUCTOS A JSON STRING PARA EVITAR PROBLEMAS
-        const productosString = JSON.stringify(datos.productos ? datos.productos.map(p => ({
-            cantidad: p.cantidad || 0,
-            nombre: String(p.nombre || 'Sin nombre'),
-            precio: Number(p.precio || 0).toFixed(2),
-            descuento: Number(p.descuento || 0),
-            importe: Number(p.importe || 0).toFixed(2)
-        })) : []);
-        
-        const templateParams = {
+        // Preparar los datos
+        const payload = {
+            action: 'enviarCorreoAdjunto',
             email: 'ventas@proconstruccionmx.com',
+            asunto: `🛒 NUEVA VENTA WEB - ${datos.folio} - ${datos.cliente.nombre}`,
             folio: datos.folio || 'Sin folio',
             fecha: datos.fecha ? datos.fecha.toLocaleString('es-MX') : new Date().toLocaleString('es-MX'),
             cliente_nombre: datos.cliente ? datos.cliente.nombre : 'Sin nombre',
             tipo_pago: datos.tipoPago || 'No especificado',
             referencia: datos.referencia || 'N/A',
             comprobante_nombre: datos.comprobanteNombre || 'No adjunto',
-            productos_json: productosString,
+            comprobanteBase64: datos.comprobante || null,
+            comprobanteTipo: datos.comprobanteTipo || 'image/jpeg',
+            productos_texto: productosTexto,
             subtotal: Number(datos.subtotal || 0).toFixed(2),
             iva: Number(datos.iva || 0).toFixed(2),
             total: Number(datos.total || 0).toFixed(2),
             anio: new Date().getFullYear()
         };
-
-        console.log('📧 TemplateParams enviados a ventas:', templateParams);
-
-        const response = await emailjs.send(
-            'service_o2zvkzo',
-            'template_ventas_web_v2',
-            templateParams,
-            '_gOxtGSQmrhTdoRuX'
-        );
-
-        console.log('✅ Correo enviado a ventas:', response);
+        
+        console.log('📤 Enviando a Apps Script:', payload);
+        
+        const response = await fetch(APPS_SCRIPT_EMAIL_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        console.log('✅ Correo enviado con adjunto a ventas@proconstruccionmx.com');
         return { success: true };
-
+        
     } catch (error) {
-        console.error('❌ Error al enviar correo a ventas:', error);
+        console.error('❌ Error al enviar correo con adjunto:', error);
         return { success: false, error: error.toString() };
     }
 }
@@ -3372,8 +3385,8 @@ async function procesarPagoTransferencia() {
         
         await guardarVentaEnEstadisticas(datosVenta);
         
-        // ⭐ Enviar correo a ventas
-        await enviarCorreoVentaWeb(datosVenta);
+        // ⭐ Enviar correo con adjunto vía Apps Script
+        await enviarCorreoConAdjuntoAppsScript(datosVenta);
         
         // ⭐ Generar PDF
         generarPDFComprobante(datosVenta);
@@ -3563,8 +3576,8 @@ async function procesarPagoCredito() {
         
         await guardarVentaEnEstadisticas(datosVenta);
         
-        // ⭐ Enviar correo a ventas
-        await enviarCorreoVentaWeb(datosVenta);
+        // ⭐ Enviar correo con adjunto vía Apps Script
+        await enviarCorreoConAdjuntoAppsScript(datosVenta);
         
         // ⭐ Generar PDF
         generarPDFComprobante(datosVenta);
@@ -4651,7 +4664,7 @@ async function procesarPagoCreditoPendiente() {
         console.log('📊 Liquidando crédito:', datosVenta);
         
         await guardarVentaEnEstadisticas(datosVenta);
-        await enviarCorreoVentaWeb(datosVenta);
+        await enviarCorreoConAdjuntoAppsScript(datosVenta);
         
         mostrarMensajeModalPagoCredito('exito', `
             ✅ ¡Pago registrado con éxito!<br>
