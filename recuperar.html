@@ -1010,7 +1010,7 @@ function actualizarInfoCliente() {
 }
 
 // ============================================
-// CARGA DE PRODUCTOS - DEFINITIVO
+// CARGA DE PRODUCTOS - CORREGIDO
 // ============================================
 
 async function cargarProductos() {
@@ -1024,21 +1024,18 @@ async function cargarProductos() {
         const rows = data.table.rows;
         
         console.log(`📊 Total de filas en la hoja: ${rows.length}`);
-        console.log(`📊 Las filas comienzan en índice 0 (encabezado) y datos desde índice 1`);
+        console.log(`📌 IMPORTANTE: La fila 0 es el encabezado. Los datos comienzan desde la fila 1.`);
         
         productosGlobales = [];
         let contadorConPeso = 0;
         let filasProcesadas = 0;
         let filasSaltadas = 0;
         
-        // ⭐ LEER DESDE LA FILA 1 (índice 1) - LA FILA 0 ES EL ENCABEZADO
-        // NOTA: En Excel, la fila 1 es el encabezado, la fila 2 es el primer dato.
-        // En el array de Google Sheets, el índice 0 es la fila 1 (encabezado),
-        // el índice 1 es la fila 2 (primer dato), el índice 2 es la fila 3 (segundo dato)
+        // ⭐ COMIENZA DESDE LA FILA 1 (que es la fila 2 en Excel)
+        // La fila 0 es el encabezado
         for (let i = 1; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             
-            // Saltar filas vacías (sin clave o sin nombre)
             const clave = String(values[0] || '').trim();
             const nombre = String(values[1] || '').trim();
             
@@ -1076,10 +1073,10 @@ async function cargarProductos() {
             const permitido = permitidoCondicion === 'SI';
             
             // ⭐ LOG PARA VERIFICAR LA COLUMNA E (NA) ⭐
-            if (na === '' || na === '-' || na === null || na === undefined) {
-                console.log(`📊 [COLUMNA E VACÍA] Producto: "${nombre}" (fila ${i+1}) | Clave: "${clave}" → Usa descuento BASE del cliente: ${clienteData ? clienteData.descuento : '0'}%`);
+            if (na === '' || na === null || na === undefined) {
+                console.log(`📊 [COLUMNA E VACÍA] Producto: "${nombre}" (fila ${i+1}) | Usa descuento BASE del cliente: ${clienteData ? clienteData.descuento : '0'}%`);
             } else if (na === '-') {
-                console.log(`📊 [COLUMNA E = -] Producto: "${nombre}" (fila ${i+1}) | Clave: "${clave}" → Usa descuento por GIRO del cliente`);
+                console.log(`📊 [COLUMNA E = -] Producto: "${nombre}" (fila ${i+1}) | Usa descuento por GIRO del cliente`);
             } else if (na !== 'N/A') {
                 console.log(`📊 [COLUMNA E CON DATO] Producto: "${nombre}" (fila ${i+1}) | NA: "${na}" → Descuento fijo de ${na}%`);
             }
@@ -1104,17 +1101,17 @@ async function cargarProductos() {
                 requiereMinPiezas: requiereMinPiezas,
                 minPiezas: minPiezas,
                 permitido: permitido,
-                fila: i + 1 // Guardamos el número de fila real para debugging
+                fila: i + 1
             });
         }
         
         console.log(`📦 Productos cargados: ${productosGlobales.length}`);
-        console.log(`📊 Filas procesadas: ${filasProcesadas}, Filas saltadas (vacías): ${filasSaltadas}`);
+        console.log(`📊 Filas procesadas: ${filasProcesadas}, Filas saltadas: ${filasSaltadas}`);
         
-        // Mostrar los primeros 5 productos para verificar
-        console.log('📋 Primeros productos cargados:');
+        // Mostrar primeros productos para verificar
+        console.log('📋 PRIMEROS PRODUCTOS CARGADOS:');
         productosGlobales.slice(0, 5).forEach(p => {
-            console.log(`   - Fila ${p.fila}: "${p.nombre}" | Clave: "${p.clave}" | NA: "${p.na === '' ? '(VACÍA)' : p.na}"`);
+            console.log(`   - Fila ${p.fila}: "${p.nombre}" | NA: "${p.na === '' ? '(VACÍA)' : p.na}"`);
         });
         
     } catch (error) {
@@ -1548,7 +1545,10 @@ function obtenerPrecioFinal(producto) {
     };
 }
 
+// ⭐ FUNCIÓN DE DESCUENTO - CORREGIDA DEFINITIVAMENTE ⭐
 function calcularDescuentoProducto(producto, cantidad) {
+    console.log(`🔍 Calculando descuento para: ${producto.nombre} | NA: "${producto.na}"`);
+    
     // 1. Verificar precio especial (personalizado)
     const precioEspecial = preciosEspecialesGlobales.find(p => 
         p.codigoCliente === clienteData.codigo && 
@@ -1556,20 +1556,20 @@ function calcularDescuentoProducto(producto, cantidad) {
     );
     
     if (precioEspecial) {
-        console.log(`💰 [PRECIO PERSONALIZADO] Producto: ${producto.nombre} - Sin descuento adicional`);
+        console.log(`💰 [PRECIO PERSONALIZADO] ${producto.nombre} - Sin descuento`);
         return 0;
     }
     
     // 2. Si tiene NA 'N/A' - sin descuento
     if (producto.na === 'N/A') {
-        console.log(`🚫 [N/A] Producto: ${producto.nombre} - Sin descuento`);
+        console.log(`🚫 [N/A] ${producto.nombre} - Sin descuento`);
         return 0;
     }
     
     // 3. Si tiene un número en NA (columna E) - usar ese descuento fijo
     const naNumero = parseFloat(producto.na);
     if (!isNaN(naNumero) && producto.na !== '' && producto.na !== '-' && producto.na !== 'N/A') {
-        console.log(`📊 [DESCUENTO FIJO] Producto: ${producto.nombre} - Descuento: ${naNumero}%`);
+        console.log(`📊 [DESCUENTO FIJO] ${producto.nombre} - Descuento: ${naNumero}%`);
         return naNumero;
     }
     
@@ -1588,43 +1588,37 @@ function calcularDescuentoProducto(producto, cantidad) {
         };
         
         let descuentoBase = mapGiro[giro] || 0;
-        console.log(`📊 [COLUMNA E = -] Producto: ${producto.nombre} | Giro: ${giro} | Descuento por giro: ${descuentoBase}%`);
+        console.log(`📊 [COLUMNA E = -] ${producto.nombre} | Giro: ${giro} | Descuento: ${descuentoBase}%`);
         
-        // LÓGICA PXV (Precio por Volumen) - SUMAR al descuento base
+        // LÓGICA PXV
         if (producto.pxv === 'PXV') {
             const girosPXV = ['Distribuidor', 'Arquitecto', 'Inmobiliaria', 'Constructora'];
-            
             if (girosPXV.includes(giro)) {
                 let descuentoAdicional = 0;
-                
                 if (cantidad >= 250 && producto.descuentoVolumenQ > 0) {
                     descuentoAdicional = producto.descuentoVolumenQ;
-                    console.log(`📦 [PXV 5T] Producto: ${producto.nombre} | Adicional: ${descuentoAdicional}%`);
                 } else if (cantidad >= 150 && producto.descuentoVolumenP > 0) {
                     descuentoAdicional = producto.descuentoVolumenP;
-                    console.log(`📦 [PXV 3T] Producto: ${producto.nombre} | Adicional: ${descuentoAdicional}%`);
                 }
-                
                 if (descuentoAdicional > 0) {
-                    const totalDescuento = descuentoBase + descuentoAdicional;
-                    console.log(`📦 [PXV FINAL] Producto: ${producto.nombre} | Descuento total: ${totalDescuento}%`);
-                    return totalDescuento;
+                    const total = descuentoBase + descuentoAdicional;
+                    console.log(`📦 [PXV] ${producto.nombre} | Total: ${total}%`);
+                    return total;
                 }
             }
         }
-        
         return descuentoBase;
     }
     
     // 5. ⭐ COLUMNA E ESTÁ VACÍA - USAR DESCUENTO BASE DEL CLIENTE ⭐
     if (producto.na === '' || producto.na === null || producto.na === undefined) {
         const descuentoBase = clienteData.descuento || 0;
-        console.log(`✅ [COLUMNA E VACÍA] Producto: ${producto.nombre} | Descuento BASE del cliente: ${descuentoBase}%`);
+        console.log(`✅ [COLUMNA E VACÍA] ${producto.nombre} - Descuento BASE del cliente: ${descuentoBase}%`);
         return descuentoBase;
     }
     
-    // 6. Fallback: si no se cumple ninguna condición, retornar 0
-    console.warn(`⚠️ [FALLBACK] Producto: ${producto.nombre} - Sin descuento aplicado (na: "${producto.na}")`);
+    // 6. Fallback
+    console.warn(`⚠️ [FALLBACK] ${producto.nombre} - Sin descuento (na: "${producto.na}")`);
     return 0;
 }
 
