@@ -3255,7 +3255,7 @@ async function enviarCorreoVentaWeb(datos) {
             return { success: false, error: 'emailjs no disponible' };
         }
         
-        // ⭐ PARÁMETROS SIMPLIFICADOS - SOLO LOS QUE USA LA PLANTILLA
+        // ⭐ PARÁMETROS SIMPLIFICADOS - PRECIOS COMO NÚMEROS
         const templateParams = {
             email: 'ventas@proconstruccionmx.com',
             folio: datos.folio || 'Sin folio',
@@ -3264,25 +3264,25 @@ async function enviarCorreoVentaWeb(datos) {
             tipo_pago: datos.tipoPago || 'No especificado',
             referencia: datos.referencia || 'N/A',
             comprobante_nombre: datos.comprobanteNombre || 'No adjunto',
+            // ⭐ ENVIAR PRECIOS COMO NÚMEROS (sin formato de moneda)
             productos: datos.productos ? datos.productos.map(p => ({
                 cantidad: p.cantidad || 0,
-                nombre: p.nombre || 'Sin nombre',
-                precio: formatoMexicano(p.precio || 0),
-                descuento: p.descuento || 0,
-                importe: formatoMexicano(p.importe || 0)
+                nombre: String(p.nombre || 'Sin nombre'),
+                precio: Number(p.precio || 0).toFixed(2),
+                descuento: Number(p.descuento || 0),
+                importe: Number(p.importe || 0).toFixed(2)
             })) : [],
-            subtotal: datos.subtotal ? formatoMexicano(datos.subtotal) : '$0.00',
-            iva: datos.iva ? formatoMexicano(datos.iva) : '$0.00',
-            total: datos.total ? formatoMexicano(datos.total) : '$0.00',
+            subtotal: Number(datos.subtotal || 0).toFixed(2),
+            iva: Number(datos.iva || 0).toFixed(2),
+            total: Number(datos.total || 0).toFixed(2),
             anio: new Date().getFullYear()
         };
 
         console.log('📧 TemplateParams enviados a ventas:', templateParams);
 
-        // ⭐ Usar la NUEVA plantilla
         const response = await emailjs.send(
             'service_o2zvkzo',
-            'template_ventas_web_v2',  // ← NUEVO Template ID
+            'template_ventas_web_v2',
             templateParams,
             '_gOxtGSQmrhTdoRuX'
         );
