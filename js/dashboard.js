@@ -3714,8 +3714,13 @@ async function guardarVentaEnEstadisticas(datos) {
             
             let creditoPendiente = 0;
             let montoPagado = 0;
+            let diasCredito = 0;
+            let fechaPago = '';
             
-            if (datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial') {
+            // ⭐ DETERMINAR SI ES CRÉDITO
+            const esCredito = datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial';
+            
+            if (esCredito) {
                 if (producto._tipo === 'credito') {
                     if (datos.total > 0 && datos.montoCredito > 0) {
                         const proporcion = producto.importe / datos.total;
@@ -3724,42 +3729,47 @@ async function guardarVentaEnEstadisticas(datos) {
                         creditoPendiente = producto.importe;
                     }
                     montoPagado = 0;
+                    diasCredito = datos.diasCredito || DIAS_CREDITO_FIJO;
+                    fechaPago = datos.fechaPago ? datos.fechaPago.toLocaleDateString('es-MX') : '';
                 } else if (producto._tipo === 'pago') {
                     creditoPendiente = 0;
                     montoPagado = producto.importe;
                 } else {
                     creditoPendiente = producto.importe;
                     montoPagado = 0;
+                    diasCredito = datos.diasCredito || DIAS_CREDITO_FIJO;
+                    fechaPago = datos.fechaPago ? datos.fechaPago.toLocaleDateString('es-MX') : '';
                 }
             } else {
-                // ⭐ TRANSFERENCIA: crédito pendiente = 0, monto pagado = importe
+                // ⭐ TRANSFERENCIA: crédito pendiente = 0, monto pagado = 0
                 creditoPendiente = 0;
-                montoPagado = producto.importe;
+                montoPagado = 0; // ✅ CORREGIDO: antes era producto.importe
+                diasCredito = 0;
+                fechaPago = '';
             }
             
             const filaProducto = [
-                fechaFormateada,
-                datos.folio,
-                producto.nombre,
-                producto.cantidad,
-                producto.importe.toFixed(2),
-                ganancia.toFixed(2),
-                '',
-                creditoPendiente.toFixed(2),  // ⭐ Columna H - Crédito pendiente
-                montoPagado.toFixed(2),       // ⭐ Columna I - Monto pagado
-                datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial' ? DIAS_CREDITO_FIJO : 0,
-                datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial' ? 
-                    (datos.fechaPago ? datos.fechaPago.toLocaleDateString('es-MX') : '') : '',
-                datos.sucursal
+                fechaFormateada,                                    // A - Fecha
+                datos.folio,                                        // B - Folio
+                producto.nombre,                                    // C - Producto
+                producto.cantidad,                                  // D - Cantidad
+                producto.importe.toFixed(2),                        // E - Importe
+                ganancia.toFixed(2),                                // F - Ganancia
+                '',                                                 // G - (vacío)
+                creditoPendiente.toFixed(2),                        // H - Crédito pendiente
+                montoPagado.toFixed(2),                             // I - Monto pagado (0 en transferencia)
+                diasCredito,                                        // J - Días de crédito
+                fechaPago,                                          // K - Fecha de pago
+                datos.sucursal                                      // L - Sucursal
             ];
             
-            console.log(`📝 Guardando producto: ${producto.nombre}, crédito: ${creditoPendiente}, pagado: ${montoPagado}`);
+            console.log(`📝 Guardando producto: ${producto.nombre}, crédito: ${creditoPendiente}, pagado: ${montoPagado}, días: ${diasCredito}, fechaPago: ${fechaPago}`);
             await guardarFilaGoogleSheets(HOJA_EST_PRODUCTOS, filaProducto);
         }
         
         const facturaTexto = datos.requiereFactura ? 'SÍ' : 'NO';
-        const formaPago = datos.tipoPago === 'Transferencia' ? 'Transferencia bancaria' : 
-                          datos.tipoPago === 'Crédito' ? 'Crédito' : 
+        const formaPago = datos.tipoPago === 'Transferencia' ? 'Transferencia bancaria' :
+                          datos.tipoPago === 'Crédito' ? 'Crédito' :
                           datos.tipoPago === 'Crédito Parcial' ? 'Crédito parcial' : datos.tipoPago;
         const tipoPago = datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial' ? 'Pago diferido en parcialidades' : 'Pago en una sola exhibición';
         const estadoPago = datos.estadoPago || (datos.tipoPago === 'Crédito' ? 'En preparación' : 'Validando pago');
@@ -3770,13 +3780,13 @@ async function guardarVentaEnEstadisticas(datos) {
             razonSocialFactura = datos.datosFactura.razonSocial || '';
         }
         
-        // ⭐ CORREGIDO: Transferencia → crédito pendiente = 0, monto pagado = total
+        // ⭐ CORREGIDO: Transferencia → crédito pendiente = 0, monto pagado = 0
         let creditoPendienteTotal = datos.montoCredito || 0;
         let montoPagadoTotal = datos.montoPago || 0;
         
         if (datos.tipoPago === 'Transferencia') {
             creditoPendienteTotal = 0;
-            montoPagadoTotal = datos.total;
+            montoPagadoTotal = 0; // ✅ CORREGIDO: antes era datos.total
         }
         
         if (datos.tipoPago === 'Crédito' && !datos.esCreditoParcial) {
@@ -3785,21 +3795,21 @@ async function guardarVentaEnEstadisticas(datos) {
         }
         
         const filaCliente = [
-            fechaFormateada,
-            datos.folio,
-            datos.cliente.codigo,
-            datos.cliente.nombre,
-            datos.total.toFixed(2),
-            creditoPendienteTotal.toFixed(2),  // ⭐ Columna F - Crédito pendiente
-            montoPagadoTotal.toFixed(2),       // ⭐ Columna G - Monto pagado
-            facturaTexto,
-            datos.sucursal,
-            formaPago,
-            tipoPago,
-            '',
-            estadoPago,
-            nombreDireccion,
-            razonSocialFactura
+            fechaFormateada,                                    // A - Fecha
+            datos.folio,                                        // B - Folio
+            datos.cliente.codigo,                               // C - Código
+            datos.cliente.nombre,                               // D - Nombre
+            datos.total.toFixed(2),                             // E - Total
+            creditoPendienteTotal.toFixed(2),                   // F - Crédito pendiente
+            montoPagadoTotal.toFixed(2),                        // G - Monto pagado (0 en transferencia)
+            facturaTexto,                                       // H - Factura
+            datos.sucursal,                                     // I - Sucursal
+            formaPago,                                          // J - Forma de pago
+            tipoPago,                                           // K - Tipo de pago
+            '',                                                 // L - (vacío)
+            estadoPago,                                         // M - Estado
+            nombreDireccion,                                    // N - Dirección
+            razonSocialFactura                                  // O - Razón social
         ];
         
         console.log(`📝 Guardando cliente: ${datos.cliente.nombre}, total: ${datos.total}, crédito: ${creditoPendienteTotal}, pagado: ${montoPagadoTotal}`);
@@ -3892,6 +3902,10 @@ async function cargarHistorialCompras() {
             const nombreProducto = String(values[2] || '').trim();
             const cantidad = parseFloat(values[3]) || 0;
             const importe = parseFloat(values[4]) || 0;
+            const creditoPendiente = parseFloat(values[7]) || 0;
+            const montoPagado = parseFloat(values[8]) || 0;
+            const diasCredito = parseFloat(values[9]) || 0;
+            const fechaPagoStr = String(values[10] || '').trim(); // ⭐ Columna K - Fecha de pago
             
             if (idsVenta.includes(idVenta) && nombreProducto) {
                 if (!productosPorVenta.has(idVenta)) {
@@ -3902,6 +3916,16 @@ async function cargarHistorialCompras() {
                     cantidad: cantidad,
                     importe: importe
                 });
+                
+                // ⭐ Guardar fecha de pago y días de crédito en el mapa de ventas
+                if (!ventasMap.has(idVenta)) {
+                    ventasMap.set(idVenta, {});
+                }
+                const ventaInfo = ventasMap.get(idVenta);
+                ventaInfo.diasCredito = diasCredito || ventaInfo.diasCredito || 0;
+                if (fechaPagoStr && !ventaInfo.fechaPago) {
+                    ventaInfo.fechaPago = fechaPagoStr;
+                }
                 
                 if (contadorProductos.has(nombreProducto)) {
                     const data = contadorProductos.get(nombreProducto);
@@ -3929,7 +3953,9 @@ async function cargarHistorialCompras() {
                 productos: productos,
                 subtotal: subtotal,
                 iva: subtotal * 0.16,
-                totalConIva: subtotal * 1.16
+                totalConIva: subtotal * 1.16,
+                fechaPago: info.fechaPago || null,
+                diasCredito: info.diasCredito || 0
             });
         }
         
@@ -4464,23 +4490,41 @@ function cargarCreditosPendientes() {
             year: 'numeric'
         }) : 'Fecha no disponible';
         
-        // ⭐ CALCULAR FECHA LÍMITE DE PAGO
-        let fechaPago = venta.fechaPago ? new Date(venta.fechaPago) : null;
-        if (!fechaPago && venta.diasCredito) {
-            const fechaVenta = venta.fechaObj || parseFechaGoogleSheets(venta.fecha);
-            if (fechaVenta) {
-                fechaPago = new Date(fechaVenta);
-                fechaPago.setDate(fechaPago.getDate() + venta.diasCredito);
+        // ⭐ CALCULAR FECHA LÍMITE DE PAGO - Usar fechaPago de la venta
+        let fechaPago = null;
+        let fechaPagoFormateada = 'No definida';
+        
+        // Intentar obtener fecha de pago de la venta
+        if (venta.fechaPago) {
+            fechaPago = new Date(venta.fechaPago);
+            if (!isNaN(fechaPago.getTime())) {
+                fechaPagoFormateada = fechaPago.toLocaleDateString('es-MX', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                });
             }
         }
-        const fechaPagoFormateada = fechaPago ? fechaPago.toLocaleDateString('es-MX', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric'
-        }) : 'No definida';
+        
+        // Si no tiene fechaPago, calcular con días de crédito
+        if (!fechaPago || isNaN(fechaPago.getTime())) {
+            const fechaVenta = venta.fechaObj || parseFechaGoogleSheets(venta.fecha);
+            const diasCredito = venta.diasCredito || 20;
+            if (fechaVenta) {
+                fechaPago = new Date(fechaVenta);
+                fechaPago.setDate(fechaPago.getDate() + diasCredito);
+                if (!isNaN(fechaPago.getTime())) {
+                    fechaPagoFormateada = fechaPago.toLocaleDateString('es-MX', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                    });
+                }
+            }
+        }
         
         // ⭐ VERIFICAR SI ESTÁ VENCIDO
-        const estaVencido = fechaPago && fechaPago < new Date();
+        const estaVencido = fechaPago && !isNaN(fechaPago.getTime()) && fechaPago < new Date();
         const estadoColor = estaVencido ? '#dc2626' : '#92400e';
         const estadoTexto = estaVencido ? '⚠️ VENCIDO' : 'Pendiente';
         
@@ -4493,6 +4537,7 @@ function cargarCreditosPendientes() {
                         <div style="font-size:0.8rem; color:var(--text-gray); margin-top:0.2rem;">
                             <span class="badge badge-warning">${venta.tipoPago || 'Crédito'}</span>
                             ${estaVencido ? '<span class="badge badge-danger" style="margin-left:0.5rem;">VENCIDO</span>' : ''}
+                            ${venta.diasCredito ? `<span style="font-size:0.7rem; color:var(--text-gray); margin-left:0.5rem;">${venta.diasCredito} días</span>` : ''}
                         </div>
                     </div>
                     <div style="text-align:right;">
