@@ -1603,532 +1603,7 @@ function calcularDescuentoProducto(producto, cantidad) {
 }
 
 // ============================================
-// VERIFICACIÓN DE CRÉDITO DISPONIBLE
-// ============================================
-
-function verificarCreditoDisponible() {
-    console.log('🔍 Verificando crédito disponible...');
-    console.log('💳 Cliente crédito habilitado:', clienteCreditoHabilitado);
-    console.log('⚖️ Límite crédito peso:', clienteLimiteCreditoPeso);
-    console.log('💰 Límite crédito monto:', clienteLimiteCreditoMonto);
-    
-    const tieneCreditosPendientes = creditosPendientes && creditosPendientes.length > 0;
-    if (tieneCreditosPendientes) {
-        const totalPendiente = creditosPendientes.reduce((sum, v) => sum + (v.saldoPendiente || v.total || 0), 0);
-        console.log(`⚠️ Cliente tiene créditos pendientes: ${formatoMexicano(totalPendiente)}`);
-        
-        return {
-            puedeCredito: false,
-            tipo: 'creditos_pendientes',
-            mensaje: `⚠️ Tienes créditos pendientes por ${formatoMexicano(totalPendiente)}. Debes liquidarlos antes de solicitar un nuevo crédito.`,
-            pesoTotal: 0,
-            montoCredito: 0,
-            montoPago: carrito.reduce((sum, item) => sum + item.importe, 0),
-            productosCredito: [],
-            productosPago: carrito,
-            excedeLimite: true,
-            puedeUsarCredito: false,
-            montoExcedente: 0
-        };
-    }
-    
-    const productosConPeso = carrito.filter(item => {
-        const producto = productosGlobales.find(p => p.clave === item.clave);
-        return producto && producto.pesoCondicion === 'SI' && producto.peso > 0;
-    });
-    
-    const productosSinPeso = carrito.filter(item => {
-        const producto = productosGlobales.find(p => p.clave === item.clave);
-        return producto && (producto.pesoCondicion !== 'SI' || producto.peso === 0);
-    });
-    
-    console.log(`📊 Productos con peso: ${productosConPeso.length}`);
-    console.log(`📊 Productos sin peso: ${productosSinPeso.length}`);
-    
-    let pesoTotal = 0;
-    productosConPeso.forEach(item => {
-        const producto = productosGlobales.find(p => p.clave === item.clave);
-        if (producto) {
-            pesoTotal += producto.peso * item.cantidad;
-        }
-    });
-    
-    let montoSinPeso = 0;
-    productosSinPeso.forEach(item => {
-        const producto = productosGlobales.find(p => p.clave === item.clave);
-        if (producto) {
-            const precioFinal = obtenerPrecioFinal(producto);
-            const descuento = calcularDescuentoProducto(producto, item.cantidad);
-            const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
-            montoSinPeso += importe;
-        }
-    });
-    
-    let montoConPeso = 0;
-    productosConPeso.forEach(item => {
-        const producto = productosGlobales.find(p => p.clave === item.clave);
-        if (producto) {
-            const precioFinal = obtenerPrecioFinal(producto);
-            const descuento = calcularDescuentoProducto(producto, item.cantidad);
-            const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
-            montoConPeso += importe;
-        }
-    });
-    
-    const totalGeneral = montoConPeso + montoSinPeso;
-    
-    console.log(`⚖️ Peso total (con peso): ${pesoTotal.toFixed(2)} kg`);
-    console.log(`💰 Monto productos con peso: ${formatoMexicano(montoConPeso)}`);
-    console.log(`💰 Monto productos sin peso: ${formatoMexicano(montoSinPeso)}`);
-    console.log(`💰 Total general: ${formatoMexicano(totalGeneral)}`);
-    
-    const hayProductosConPeso = productosConPeso.length > 0;
-    const hayProductosSinPeso = productosSinPeso.length > 0;
-    
-    if (carrito.length === 0) {
-        return {
-            puedeCredito: false,
-            tipo: 'sin_productos',
-            mensaje: '⚠️ No hay productos en el carrito.',
-            pesoTotal: 0,
-            montoCredito: 0,
-            montoPago: 0,
-            productosCredito: [],
-            productosPago: [],
-            excedeLimite: false,
-            puedeUsarCredito: false,
-            montoExcedente: 0
-        };
-    }
-    
-    if (!clienteCreditoHabilitado) {
-        return {
-            puedeCredito: false,
-            tipo: 'no_habilitado',
-            mensaje: '⚠️ El crédito no está habilitado para este cliente.',
-            pesoTotal: 0,
-            montoCredito: 0,
-            montoPago: totalGeneral,
-            productosCredito: [],
-            productosPago: carrito,
-            excedeLimite: true,
-            puedeUsarCredito: false,
-            montoExcedente: totalGeneral
-        };
-    }
-    
-    if (hayProductosConPeso && !hayProductosSinPeso) {
-        console.log('📦 Caso: Solo productos con peso');
-        
-        if (pesoTotal <= clienteLimiteCreditoPeso) {
-            return {
-                puedeCredito: true,
-                tipo: 'credito_total',
-                mensaje: `✅ Todos los productos van a crédito. Peso total: ${pesoTotal.toFixed(2)} kg (límite: ${clienteLimiteCreditoPeso} kg)`,
-                pesoTotal: pesoTotal,
-                montoCredito: totalGeneral,
-                montoPago: 0,
-                productosCredito: carrito,
-                productosPago: [],
-                excedeLimite: false,
-                puedeUsarCredito: true,
-                montoExcedente: 0
-            };
-        } else {
-            const pesoExcedente = pesoTotal - clienteLimiteCreditoPeso;
-            let pesoAcumulado = 0;
-            let productosPago = [];
-            let productosCredito = [];
-            let montoPago = 0;
-            let montoCredito = 0;
-            
-            const productosOrdenados = [...productosConPeso].sort((a, b) => {
-                const prodA = productosGlobales.find(p => p.clave === a.clave);
-                const prodB = productosGlobales.find(p => p.clave === b.clave);
-                return (prodB ? prodB.peso * b.cantidad : 0) - (prodA ? prodA.peso * a.cantidad : 0);
-            });
-            
-            for (const item of productosOrdenados) {
-                const producto = productosGlobales.find(p => p.clave === item.clave);
-                if (!producto) continue;
-                
-                const pesoItem = producto.peso * item.cantidad;
-                const precioFinal = obtenerPrecioFinal(producto);
-                const descuento = calcularDescuentoProducto(producto, item.cantidad);
-                const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
-                
-                if (pesoAcumulado + pesoItem <= pesoExcedente) {
-                    productosPago.push(item);
-                    montoPago += importe;
-                    pesoAcumulado += pesoItem;
-                } else {
-                    const pesoRestante = pesoExcedente - pesoAcumulado;
-                    if (pesoRestante > 0 && pesoItem > 0) {
-                        const cantidadPago = pesoRestante / producto.peso;
-                        const cantidadCredito = item.cantidad - cantidadPago;
-                        
-                        if (cantidadPago > 0) {
-                            const importePago = precioFinal.precio * cantidadPago * (1 - descuento / 100);
-                            productosPago.push({
-                                ...item,
-                                cantidad: cantidadPago,
-                                _parcial: true
-                            });
-                            montoPago += importePago;
-                        }
-                        
-                        if (cantidadCredito > 0) {
-                            const importeCredito = precioFinal.precio * cantidadCredito * (1 - descuento / 100);
-                            productosCredito.push({
-                                ...item,
-                                cantidad: cantidadCredito,
-                                _parcial: true
-                            });
-                            montoCredito += importeCredito;
-                        }
-                    }
-                    pesoAcumulado = pesoExcedente;
-                }
-            }
-            
-            for (const item of productosConPeso) {
-                if (!productosPago.some(p => p.clave === item.clave && p._parcial === true) && 
-                    !productosPago.some(p => p.clave === item.clave && p._parcial !== true)) {
-                    const producto = productosGlobales.find(p => p.clave === item.clave);
-                    if (!producto) continue;
-                    
-                    const precioFinal = obtenerPrecioFinal(producto);
-                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
-                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
-                    
-                    const yaProcesado = productosPago.some(p => p.clave === item.clave) || 
-                                       productosCredito.some(p => p.clave === item.clave);
-                    
-                    if (!yaProcesado) {
-                        productosCredito.push(item);
-                        montoCredito += importe;
-                    }
-                }
-            }
-            
-            return {
-                puedeCredito: true,
-                tipo: 'credito_parcial',
-                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPago)} deben pagarse. El resto va a crédito.`,
-                pesoTotal: pesoTotal,
-                pesoExcedente: pesoExcedente,
-                montoCredito: montoCredito,
-                montoPago: montoPago,
-                productosCredito: productosCredito,
-                productosPago: productosPago,
-                excedeLimite: true,
-                puedeUsarCredito: true,
-                montoExcedente: montoPago
-            };
-        }
-    }
-    
-    if (!hayProductosConPeso && hayProductosSinPeso) {
-        console.log('📦 Caso: Solo productos sin peso');
-        
-        if (montoSinPeso <= clienteLimiteCreditoMonto) {
-            return {
-                puedeCredito: true,
-                tipo: 'credito_total',
-                mensaje: `✅ Todos los productos van a crédito. Monto: ${formatoMexicano(montoSinPeso)} (límite: ${formatoMexicano(clienteLimiteCreditoMonto)})`,
-                pesoTotal: 0,
-                montoCredito: montoSinPeso,
-                montoPago: 0,
-                productosCredito: carrito,
-                productosPago: [],
-                excedeLimite: false,
-                puedeUsarCredito: true,
-                montoExcedente: 0
-            };
-        } else {
-            const montoExcedente = montoSinPeso - clienteLimiteCreditoMonto;
-            let montoAcumulado = 0;
-            let productosPago = [];
-            let productosCredito = [];
-            let montoPago = 0;
-            let montoCredito = 0;
-            
-            const productosOrdenados = [...productosSinPeso].sort((a, b) => {
-                const prodA = productosGlobales.find(p => p.clave === a.clave);
-                const prodB = productosGlobales.find(p => p.clave === b.clave);
-                const precioA = prodA ? prodA.precio * a.cantidad : 0;
-                const precioB = prodB ? prodB.precio * b.cantidad : 0;
-                return precioB - precioA;
-            });
-            
-            for (const item of productosOrdenados) {
-                const producto = productosGlobales.find(p => p.clave === item.clave);
-                if (!producto) continue;
-                
-                const precioFinal = obtenerPrecioFinal(producto);
-                const descuento = calcularDescuentoProducto(producto, item.cantidad);
-                const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
-                
-                if (montoAcumulado + importe <= montoExcedente) {
-                    productosPago.push(item);
-                    montoPago += importe;
-                    montoAcumulado += importe;
-                } else {
-                    const montoRestante = montoExcedente - montoAcumulado;
-                    if (montoRestante > 0 && importe > 0) {
-                        const cantidadPago = montoRestante / (precioFinal.precio * (1 - descuento / 100));
-                        const cantidadCredito = item.cantidad - cantidadPago;
-                        
-                        if (cantidadPago > 0) {
-                            const importePago = precioFinal.precio * cantidadPago * (1 - descuento / 100);
-                            productosPago.push({
-                                ...item,
-                                cantidad: cantidadPago,
-                                _parcial: true
-                            });
-                            montoPago += importePago;
-                        }
-                        
-                        if (cantidadCredito > 0) {
-                            const importeCredito = precioFinal.precio * cantidadCredito * (1 - descuento / 100);
-                            productosCredito.push({
-                                ...item,
-                                cantidad: cantidadCredito,
-                                _parcial: true
-                            });
-                            montoCredito += importeCredito;
-                        }
-                    }
-                    montoAcumulado = montoExcedente;
-                }
-            }
-            
-            for (const item of productosSinPeso) {
-                if (!productosPago.some(p => p.clave === item.clave && p._parcial === true) && 
-                    !productosPago.some(p => p.clave === item.clave && p._parcial !== true)) {
-                    const producto = productosGlobales.find(p => p.clave === item.clave);
-                    if (!producto) continue;
-                    
-                    const precioFinal = obtenerPrecioFinal(producto);
-                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
-                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
-                    
-                    const yaProcesado = productosPago.some(p => p.clave === item.clave) || 
-                                       productosCredito.some(p => p.clave === item.clave);
-                    
-                    if (!yaProcesado) {
-                        productosCredito.push(item);
-                        montoCredito += importe;
-                    }
-                }
-            }
-            
-            return {
-                puedeCredito: true,
-                tipo: 'credito_parcial',
-                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPago)} deben pagarse. El resto va a crédito.`,
-                pesoTotal: 0,
-                montoCredito: montoCredito,
-                montoPago: montoPago,
-                productosCredito: productosCredito,
-                productosPago: productosPago,
-                excedeLimite: true,
-                puedeUsarCredito: true,
-                montoExcedente: montoPago
-            };
-        }
-    }
-    
-    if (hayProductosConPeso && hayProductosSinPeso) {
-        console.log('📦 Caso: Productos mixtos');
-        
-        const pesoCumple = pesoTotal <= clienteLimiteCreditoPeso;
-        const montoCumple = montoSinPeso <= clienteLimiteCreditoMonto;
-        
-        if (pesoCumple && montoCumple) {
-            return {
-                puedeCredito: true,
-                tipo: 'credito_total',
-                mensaje: `✅ Todos los productos van a crédito. Peso: ${pesoTotal.toFixed(2)} kg, Monto: ${formatoMexicano(montoSinPeso)}`,
-                pesoTotal: pesoTotal,
-                montoCredito: totalGeneral,
-                montoPago: 0,
-                productosCredito: carrito,
-                productosPago: [],
-                excedeLimite: false,
-                puedeUsarCredito: true,
-                montoExcedente: 0
-            };
-        } else {
-            let productosPago = [];
-            let productosCredito = [];
-            let montoPago = 0;
-            let montoCredito = 0;
-            
-            if (!pesoCumple) {
-                const pesoExcedenteTotal = pesoTotal - clienteLimiteCreditoPeso;
-                let pesoAcumulado = 0;
-                
-                const prodPesoOrdenados = [...productosConPeso].sort((a, b) => {
-                    const prodA = productosGlobales.find(p => p.clave === a.clave);
-                    const prodB = productosGlobales.find(p => p.clave === b.clave);
-                    return (prodB ? prodB.peso * b.cantidad : 0) - (prodA ? prodA.peso * a.cantidad : 0);
-                });
-                
-                for (const item of prodPesoOrdenados) {
-                    const producto = productosGlobales.find(p => p.clave === item.clave);
-                    if (!producto) continue;
-                    
-                    const pesoItem = producto.peso * item.cantidad;
-                    const precioFinal = obtenerPrecioFinal(producto);
-                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
-                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
-                    
-                    if (pesoAcumulado + pesoItem <= pesoExcedenteTotal) {
-                        productosPago.push(item);
-                        montoPago += importe;
-                        pesoAcumulado += pesoItem;
-                    } else {
-                        const pesoRestante = pesoExcedenteTotal - pesoAcumulado;
-                        if (pesoRestante > 0 && pesoItem > 0) {
-                            const cantidadPago = pesoRestante / producto.peso;
-                            const cantidadCredito = item.cantidad - cantidadPago;
-                            
-                            if (cantidadPago > 0) {
-                                const importePago = precioFinal.precio * cantidadPago * (1 - descuento / 100);
-                                productosPago.push({
-                                    ...item,
-                                    cantidad: cantidadPago,
-                                    _parcial: true
-                                });
-                                montoPago += importePago;
-                            }
-                            
-                            if (cantidadCredito > 0) {
-                                const importeCredito = precioFinal.precio * cantidadCredito * (1 - descuento / 100);
-                                productosCredito.push({
-                                    ...item,
-                                    cantidad: cantidadCredito,
-                                    _parcial: true
-                                });
-                                montoCredito += importeCredito;
-                            }
-                        }
-                        pesoAcumulado = pesoExcedenteTotal;
-                    }
-                }
-            }
-            
-            if (!montoCumple) {
-                const montoExcedenteTotal = montoSinPeso - clienteLimiteCreditoMonto;
-                let montoAcumulado = 0;
-                
-                const prodSinPesoOrdenados = [...productosSinPeso].sort((a, b) => {
-                    const prodA = productosGlobales.find(p => p.clave === a.clave);
-                    const prodB = productosGlobales.find(p => p.clave === b.clave);
-                    const precioA = prodA ? prodA.precio * a.cantidad : 0;
-                    const precioB = prodB ? prodB.precio * b.cantidad : 0;
-                    return precioB - precioA;
-                });
-                
-                for (const item of prodSinPesoOrdenados) {
-                    if (productosPago.some(p => p.clave === item.clave) || 
-                        productosCredito.some(p => p.clave === item.clave)) continue;
-                    
-                    const producto = productosGlobales.find(p => p.clave === item.clave);
-                    if (!producto) continue;
-                    
-                    const precioFinal = obtenerPrecioFinal(producto);
-                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
-                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
-                    
-                    if (montoAcumulado + importe <= montoExcedenteTotal) {
-                        productosPago.push(item);
-                        montoPago += importe;
-                        montoAcumulado += importe;
-                    } else {
-                        const montoRestante = montoExcedenteTotal - montoAcumulado;
-                        if (montoRestante > 0 && importe > 0) {
-                            const cantidadPago = montoRestante / (precioFinal.precio * (1 - descuento / 100));
-                            const cantidadCredito = item.cantidad - cantidadPago;
-                            
-                            if (cantidadPago > 0) {
-                                const importePago = precioFinal.precio * cantidadPago * (1 - descuento / 100);
-                                productosPago.push({
-                                    ...item,
-                                    cantidad: cantidadPago,
-                                    _parcial: true
-                                });
-                                montoPago += importePago;
-                            }
-                            
-                            if (cantidadCredito > 0) {
-                                const importeCredito = precioFinal.precio * cantidadCredito * (1 - descuento / 100);
-                                productosCredito.push({
-                                    ...item,
-                                    cantidad: cantidadCredito,
-                                    _parcial: true
-                                });
-                                montoCredito += importeCredito;
-                            }
-                        }
-                        montoAcumulado = montoExcedenteTotal;
-                    }
-                }
-            }
-            
-            for (const item of carrito) {
-                if (!productosPago.some(p => p.clave === item.clave && p._parcial === true) && 
-                    !productosPago.some(p => p.clave === item.clave && p._parcial !== true) &&
-                    !productosCredito.some(p => p.clave === item.clave && p._parcial === true) &&
-                    !productosCredito.some(p => p.clave === item.clave && p._parcial !== true)) {
-                    const producto = productosGlobales.find(p => p.clave === item.clave);
-                    if (!producto) continue;
-                    
-                    const precioFinal = obtenerPrecioFinal(producto);
-                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
-                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
-                    
-                    productosCredito.push(item);
-                    montoCredito += importe;
-                }
-            }
-            
-            const montoExcedenteTotal = montoPago;
-            
-            return {
-                puedeCredito: true,
-                tipo: 'credito_parcial',
-                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPago)} deben pagarse. El resto va a crédito.`,
-                pesoTotal: pesoTotal,
-                montoCredito: montoCredito,
-                montoPago: montoPago,
-                productosCredito: productosCredito,
-                productosPago: productosPago,
-                excedeLimite: true,
-                puedeUsarCredito: true,
-                montoExcedente: montoExcedenteTotal
-            };
-        }
-    }
-    
-    return {
-        puedeCredito: false,
-        tipo: 'sin_productos',
-        mensaje: '⚠️ No hay productos en el carrito.',
-        pesoTotal: 0,
-        montoCredito: 0,
-        montoPago: 0,
-        productosCredito: [],
-        productosPago: [],
-        excedeLimite: false,
-        puedeUsarCredito: false,
-        montoExcedente: 0
-    };
-}
-
-// ============================================
-// CARRITO
+// FUNCIONES DE CARRITO
 // ============================================
 
 function agregarAlCarrito(clave) {
@@ -3331,7 +2806,7 @@ async function enviarCorreoConAdjuntoAppsScript(datos) {
 }
 
 // ============================================
-// ⭐ NUEVA FUNCIÓN PARA ENVIAR CORREO DE PAGO DE CRÉDITO (BONITO)
+// ⭐ FUNCIÓN PARA ENVIAR CORREO DE PAGO DE CRÉDITO (BONITO)
 // ============================================
 
 async function enviarCorreoPagoCreditoBonito(datos) {
@@ -3521,7 +2996,6 @@ async function marcarColumnaPCliente(idVenta) {
             return { success: false, mensaje: 'No se encontró la venta en Clientes' };
         }
         
-        // ⭐ Enviar a Apps Script para marcar columna P (índice 16)
         const body = {
             action: 'marcarColumnaPCliente',
             fila: filaReal,
@@ -3651,4 +3125,947 @@ async function procesarPagoCreditoPendiente() {
             btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Pago';
         }
     }
+}
+
+// ============================================
+// ⭐ FUNCIONES PARA "MIS COMPRAS" - HISTORIAL
+// ============================================
+
+async function cargarHistorialCompras() {
+    try {
+        const codigoCliente = sessionStorage.getItem('codigoCliente');
+        if (!codigoCliente) {
+            console.warn('⚠️ No hay código de cliente disponible');
+            return;
+        }
+        
+        console.log('📥 Cargando historial de compras para cliente:', codigoCliente);
+        
+        const urlClientes = `https://docs.google.com/spreadsheets/d/${ID_ESTADISTICAS}/gviz/tq?tqx=out:json&sheet=${HOJA_EST_CLIENTES}`;
+        const responseClientes = await fetch(urlClientes);
+        const textClientes = await responseClientes.text();
+        const jsonStrClientes = textClientes.substring(textClientes.indexOf('(') + 1, textClientes.lastIndexOf(')'));
+        const dataClientes = JSON.parse(jsonStrClientes);
+        const rowsClientes = dataClientes.table.rows;
+        
+        const idsVenta = [];
+        const ventasMap = new Map();
+        
+        for (let i = 1; i < rowsClientes.length; i++) {
+            const values = rowsClientes[i].c.map(cell => cell ? cell.v : '');
+            const codigo = String(values[2] || '').trim();
+            const idVenta = String(values[1] || '').trim();
+            let fecha = values[0];
+            if (fecha && typeof fecha === 'object' && fecha.v !== undefined) {
+                fecha = fecha.v;
+            }
+            const total = parseFloat(values[4]) || 0;
+            const estado = String(values[12] || '').trim();
+            const formaPago = String(values[9] || '').trim();
+            const creditoPendiente = parseFloat(values[5]) || 0;
+            const montoPagado = parseFloat(values[6]) || 0;
+            const columnaP = String(values[15] || '').trim().toUpperCase(); // Columna P (índice 15)
+            
+            if (codigo === codigoCliente && idVenta) {
+                idsVenta.push(idVenta);
+                const fechaObj = parseFechaGoogleSheets(fecha);
+                ventasMap.set(idVenta, {
+                    idVenta: idVenta,
+                    fecha: fecha,
+                    fechaObj: fechaObj,
+                    total: total,
+                    estado: estado || 'Validando pago',
+                    codigoCliente: codigo,
+                    tipoPago: formaPago,
+                    saldoPendiente: creditoPendiente,
+                    montoPagado: montoPagado,
+                    anticipo: montoPagado,
+                    columnaP: columnaP === 'SI'
+                });
+            }
+        }
+        
+        console.log(`📦 IDs de venta encontrados: ${idsVenta.length}`);
+        
+        if (idsVenta.length === 0) {
+            renderizarHistorialVacio();
+            return;
+        }
+        
+        const urlProductos = `https://docs.google.com/spreadsheets/d/${ID_ESTADISTICAS}/gviz/tq?tqx=out:json&sheet=${HOJA_EST_PRODUCTOS}`;
+        const responseProductos = await fetch(urlProductos);
+        const textProductos = await responseProductos.text();
+        const jsonStrProductos = textProductos.substring(textProductos.indexOf('(') + 1, textProductos.lastIndexOf(')'));
+        const dataProductos = JSON.parse(jsonStrProductos);
+        const rowsProductos = dataProductos.table.rows;
+        
+        const productosPorVenta = new Map();
+        const contadorProductos = new Map();
+        
+        for (let i = 1; i < rowsProductos.length; i++) {
+            const values = rowsProductos[i].c.map(cell => cell ? cell.v : '');
+            const idVenta = String(values[1] || '').trim();
+            const nombreProducto = String(values[2] || '').trim();
+            const cantidad = parseFloat(values[3]) || 0;
+            const importe = parseFloat(values[4]) || 0;
+            const creditoPendiente = parseFloat(values[7]) || 0;
+            const montoPagado = parseFloat(values[8]) || 0;
+            const diasCredito = parseFloat(values[9]) || 0;
+            const fechaPagoStr = String(values[10] || '').trim();
+            
+            if (idsVenta.includes(idVenta) && nombreProducto) {
+                if (!productosPorVenta.has(idVenta)) {
+                    productosPorVenta.set(idVenta, []);
+                }
+                productosPorVenta.get(idVenta).push({
+                    nombre: nombreProducto,
+                    cantidad: cantidad,
+                    importe: importe
+                });
+                
+                if (!ventasMap.has(idVenta)) {
+                    ventasMap.set(idVenta, {});
+                }
+                const ventaInfo = ventasMap.get(idVenta);
+                ventaInfo.diasCredito = diasCredito || ventaInfo.diasCredito || 0;
+                if (fechaPagoStr && !ventaInfo.fechaPago) {
+                    ventaInfo.fechaPago = fechaPagoStr;
+                }
+                
+                if (contadorProductos.has(nombreProducto)) {
+                    const data = contadorProductos.get(nombreProducto);
+                    data.cantidad += cantidad;
+                    data.veces++;
+                    data.totalImporte += importe;
+                } else {
+                    contadorProductos.set(nombreProducto, {
+                        nombre: nombreProducto,
+                        cantidad: cantidad,
+                        veces: 1,
+                        totalImporte: importe
+                    });
+                }
+            }
+        }
+        
+        historialVentas = [];
+        
+        for (const [idVenta, info] of ventasMap) {
+            const productos = productosPorVenta.get(idVenta) || [];
+            const subtotal = productos.reduce((sum, p) => sum + p.importe, 0);
+            historialVentas.push({
+                ...info,
+                productos: productos,
+                subtotal: subtotal,
+                iva: subtotal * 0.16,
+                totalConIva: subtotal * 1.16,
+                fechaPago: info.fechaPago || null,
+                diasCredito: info.diasCredito || 0,
+                columnaP: info.columnaP || false
+            });
+        }
+        
+        historialVentas.sort((a, b) => {
+            const fechaA = a.fechaObj || parseFechaGoogleSheets(a.fecha);
+            const fechaB = b.fechaObj || parseFechaGoogleSheets(b.fecha);
+            if (!fechaA && !fechaB) return 0;
+            if (!fechaA) return 1;
+            if (!fechaB) return -1;
+            return fechaB - fechaA;
+        });
+        
+        productosMasComprados = Array.from(contadorProductos.values());
+        productosMasComprados.sort((a, b) => b.totalImporte - a.totalImporte);
+        
+        console.log(`📦 Historial cargado: ${historialVentas.length} ventas`);
+        
+        renderizarOrdenes();
+        renderizarHistorialCompras();
+        renderizarEstadisticasProductos();
+        cargarCreditosPendientes();
+        
+    } catch (error) {
+        console.error('❌ Error al cargar historial de compras:', error);
+        renderizarHistorialVacio();
+    }
+}
+
+function renderizarOrdenes() {
+    const container = document.getElementById('ordenesContent');
+    if (!container) return;
+    
+    const hoy = new Date();
+    const hace15Dias = new Date(hoy);
+    hace15Dias.setDate(hace15Dias.getDate() - 15);
+    
+    const ordenesRecientes = historialVentas.filter(v => {
+        const fecha = v.fechaObj || parseFechaGoogleSheets(v.fecha);
+        if (!fecha) return false;
+        return fecha >= hace15Dias;
+    });
+    
+    if (ordenesRecientes.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-clock"></i>
+                <h4>Sin órdenes recientes</h4>
+                <p>No tienes compras en los últimos 15 días.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    ordenesRecientes.sort((a, b) => {
+        const fechaA = a.fechaObj || parseFechaGoogleSheets(a.fecha);
+        const fechaB = b.fechaObj || parseFechaGoogleSheets(b.fecha);
+        if (!fechaA && !fechaB) return 0;
+        if (!fechaA) return 1;
+        if (!fechaB) return -1;
+        return fechaB - fechaA;
+    });
+    
+    const estadoColors = {
+        'Validando pago': '#f59e0b',
+        'En preparación': '#3b82f6',
+        'En camino': '#8b5cf6',
+        'Entregado': '#10b981'
+    };
+    
+    const estadoIcons = {
+        'Validando pago': 'fa-clock',
+        'En preparación': 'fa-box',
+        'En camino': 'fa-truck',
+        'Entregado': 'fa-check-circle'
+    };
+    
+    let html = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:0.5rem;">
+            <h3 style="margin:0; color:var(--primary-dark);">📦 Tus Órdenes Recientes</h3>
+            <span style="font-size:0.85rem; color:var(--text-gray);">Últimos 15 días</span>
+        </div>
+        <div style="position:relative; padding-left: 2rem;">
+    `;
+    
+    ordenesRecientes.forEach((venta, index) => {
+        const estado = venta.estado || 'Validando pago';
+        const color = estadoColors[estado] || '#6b7280';
+        const icon = estadoIcons[estado] || 'fa-circle';
+        const fecha = venta.fechaObj || parseFechaGoogleSheets(venta.fecha);
+        const fechaFormateada = fecha ? fecha.toLocaleDateString('es-MX', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        }) : 'Fecha no disponible';
+        
+        if (index < ordenesRecientes.length - 1) {
+            html += `<div style="position:absolute; left:10px; top:40px; bottom:0; width:2px; background:#e5e7eb;"></div>`;
+        }
+        
+        html += `
+            <div style="position:relative; margin-bottom: 2rem; padding-left: 1.5rem; cursor:pointer;" onclick="verDetalleVenta('${venta.idVenta}')">
+                <div style="position:absolute; left:-2px; top:5px; width:20px; height:20px; border-radius:50%; background:${color}; display:flex; align-items:center; justify-content:center; z-index:1; box-shadow: 0 0 0 4px rgba(255,255,255,0.8);">
+                    <i class="fas ${icon}" style="color:white; font-size:10px;"></i>
+                </div>
+                <div style="background:white; border-radius:12px; padding:1.2rem 1.5rem; box-shadow:0 2px 8px rgba(0,0,0,0.04); border:1px solid #f3f4f6; transition:all 0.3s;" 
+                     onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.08)';" 
+                     onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.04)';">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+                        <div>
+                            <span style="font-weight:700; color:var(--primary-dark); font-size:1.1rem;">${venta.idVenta}</span>
+                            <span style="font-size:0.85rem; color:var(--text-gray); margin-left:0.5rem;">${fechaFormateada}</span>
+                        </div>
+                        <div>
+                            <span style="display:inline-block; padding:0.2rem 1rem; border-radius:50px; font-size:0.75rem; font-weight:600; color:white; background:${color};">
+                                ${estado}
+                            </span>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem; flex-wrap:wrap; gap:0.5rem;">
+                        <span style="font-size:0.9rem; color:var(--text-gray);">
+                            <strong>${venta.productos.length}</strong> productos
+                        </span>
+                        <span style="font-weight:700; color:var(--primary-dark); font-size:1.1rem;">
+                            ${formatoMexicano(venta.totalConIva || venta.total)}
+                        </span>
+                    </div>
+                    <div style="margin-top:0.5rem; font-size:0.8rem; color:var(--text-gray);">
+                        <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i> Haz clic para ver detalles
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+function renderizarHistorialCompras(filtroAno, filtroMes) {
+    const container = document.getElementById('historialContent');
+    if (!container) return;
+    
+    let ventasFiltradas = [...historialVentas];
+    
+    if (filtroAno && filtroAno !== 'todos') {
+        const anoNum = parseInt(filtroAno);
+        ventasFiltradas = ventasFiltradas.filter(v => {
+            const fecha = v.fechaObj || parseFechaGoogleSheets(v.fecha);
+            return fecha && fecha.getFullYear() === anoNum;
+        });
+    }
+    
+    if (filtroMes && filtroMes !== 'todos') {
+        const mesNum = parseInt(filtroMes);
+        ventasFiltradas = ventasFiltradas.filter(v => {
+            const fecha = v.fechaObj || parseFechaGoogleSheets(v.fecha);
+            return fecha && (fecha.getMonth() + 1) === mesNum;
+        });
+    }
+    
+    const totalPeriodo = ventasFiltradas.reduce((sum, v) => sum + (v.totalConIva || v.total), 0);
+    
+    if (ventasFiltradas.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-receipt"></i>
+                <h4>Sin compras en este período</h4>
+                <p>No hay registros de compras para los filtros seleccionados.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:0.5rem;">
+            <h3 style="margin:0; color:var(--primary-dark);">📋 Historial de Compras</h3>
+            <span style="font-weight:700; color:var(--primary-dark); font-size:1.1rem;">
+                Total: ${formatoMexicano(totalPeriodo)}
+            </span>
+        </div>
+        <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+                <thead>
+                    <tr style="background:#f8f9fa;">
+                        <th style="padding:0.8rem; text-align:left; font-weight:600; color:var(--primary-dark); border-bottom:2px solid #e2e8f0;">Folio</th>
+                        <th style="padding:0.8rem; text-align:left; font-weight:600; color:var(--primary-dark); border-bottom:2px solid #e2e8f0;">Fecha</th>
+                        <th style="padding:0.8rem; text-align:center; font-weight:600; color:var(--primary-dark); border-bottom:2px solid #e2e8f0;">Productos</th>
+                        <th style="padding:0.8rem; text-align:right; font-weight:600; color:var(--primary-dark); border-bottom:2px solid #e2e8f0;">Total</th>
+                        <th style="padding:0.8rem; text-align:center; font-weight:600; color:var(--primary-dark); border-bottom:2px solid #e2e8f0;">Estatus</th>
+                        <th style="padding:0.8rem; text-align:center; font-weight:600; color:var(--primary-dark); border-bottom:2px solid #e2e8f0;">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    ventasFiltradas.forEach(venta => {
+        const estado = venta.estado || 'Validando pago';
+        const estadoColors = {
+            'Validando pago': '#f59e0b',
+            'En preparación': '#3b82f6',
+            'En camino': '#8b5cf6',
+            'Entregado': '#10b981'
+        };
+        const color = estadoColors[estado] || '#6b7280';
+        const fecha = venta.fechaObj || parseFechaGoogleSheets(venta.fecha);
+        const fechaFormateada = fecha ? fecha.toLocaleDateString('es-MX', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        }) : 'Fecha no disponible';
+        
+        html += `
+            <tr style="border-bottom:1px solid #f3f4f6;">
+                <td style="padding:0.8rem; font-weight:600; color:var(--primary-dark);">${venta.idVenta}</td>
+                <td style="padding:0.8rem; color:var(--text-gray);">${fechaFormateada}</td>
+                <td style="padding:0.8rem; text-align:center; color:var(--text-gray);">${venta.productos.length}</td>
+                <td style="padding:0.8rem; text-align:right; font-weight:600; color:var(--primary-dark);">${formatoMexicano(venta.totalConIva || venta.total)}</td>
+                <td style="padding:0.8rem; text-align:center;">
+                    <span style="display:inline-block; padding:0.2rem 1rem; border-radius:50px; font-size:0.75rem; font-weight:600; color:white; background:${color};">
+                        ${estado}
+                    </span>
+                </td>
+                <td style="padding:0.8rem; text-align:center;">
+                    <button onclick="verDetalleVenta('${venta.idVenta}')" style="padding:0.4rem 1rem; background:var(--primary-blue); color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.8rem; transition:all 0.3s; font-family: 'Inter', sans-serif;">
+                        <i class="fas fa-eye"></i> Ver
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+function renderizarEstadisticasProductos() {
+    const container = document.getElementById('estadisticasContent');
+    if (!container) return;
+    
+    if (productosMasComprados.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-chart-bar"></i>
+                <h4>Sin datos de productos</h4>
+                <p>No hay suficientes datos para mostrar estadísticas.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const topProductos = productosMasComprados.slice(0, 10);
+    const maxImporte = topProductos.length > 0 ? topProductos[0].totalImporte : 1;
+    
+    let html = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:0.5rem;">
+            <h3 style="margin:0; color:var(--primary-dark);">📊 Productos más comprados</h3>
+            <span style="font-size:0.85rem; color:var(--text-gray);">Top ${topProductos.length} productos</span>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+    `;
+    
+    topProductos.forEach((prod, index) => {
+        const porcentaje = (prod.totalImporte / maxImporte) * 100;
+        
+        html += `
+            <div style="background:white; border-radius:12px; padding:1rem; border:1px solid #f3f4f6; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.3rem;">
+                    <span style="font-weight:600; color:var(--primary-dark); font-size:0.95rem;">${prod.nombre}</span>
+                    <span style="font-weight:700; color:var(--primary-dark); font-size:0.9rem;">${formatoMexicano(prod.totalImporte)}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-gray); margin-bottom:0.3rem;">
+                    <span>${prod.cantidad} unidades</span>
+                    <span>${prod.veces} compras</span>
+                </div>
+                <div style="width:100%; height:6px; background:#f3f4f6; border-radius:3px; overflow:hidden;">
+                    <div style="height:100%; border-radius:3px; background:linear-gradient(90deg, #3b82f6, #8b5cf6); width:${porcentaje}%; transition:width 1s ease;"></div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `</div>`;
+    
+    const comprasPorMes = new Map();
+    historialVentas.forEach(v => {
+        const fecha = v.fechaObj || parseFechaGoogleSheets(v.fecha);
+        if (!fecha) return;
+        const key = `${fecha.getFullYear()}-${String(fecha.getMonth()+1).padStart(2,'0')}`;
+        const label = `${fecha.toLocaleString('es-MX', {month:'short'})} ${fecha.getFullYear()}`;
+        if (!comprasPorMes.has(key)) {
+            comprasPorMes.set(key, { label, total: 0, cantidad: 0 });
+        }
+        const data = comprasPorMes.get(key);
+        data.total += (v.totalConIva || v.total);
+        data.cantidad += 1;
+    });
+    
+    const mesesOrdenados = Array.from(comprasPorMes.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    const ultimosMeses = mesesOrdenados.slice(-6);
+    
+    ultimosMeses.forEach(([key, data]) => {
+        const promedio = data.cantidad > 0 ? data.total / data.cantidad : 0;
+        html += `
+            <div style="background:white; border-radius:12px; padding:1rem; border:1px solid #f3f4f6; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                <div style="font-weight:600; color:var(--primary-dark); font-size:1rem;">${data.label}</div>
+                <div style="font-size:1.5rem; font-weight:700; color:var(--primary-dark);">${data.cantidad}</div>
+                <div style="font-size:0.75rem; color:var(--text-gray);">compras</div>
+                <div style="font-size:0.85rem; color:var(--primary-dark); font-weight:600; margin-top:0.3rem;">${formatoMexicano(data.total)}</div>
+                <div style="font-size:0.7rem; color:var(--text-gray);">Promedio: ${formatoMexicano(promedio)}</div>
+            </div>
+        `;
+    });
+    
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+function verDetalleVenta(idVenta) {
+    const venta = historialVentas.find(v => v.idVenta === idVenta);
+    if (!venta) {
+        mostrarNotificacion('❌ No se encontró la venta');
+        return;
+    }
+    
+    const fecha = venta.fechaObj || parseFechaGoogleSheets(venta.fecha);
+    const fechaFormateada = fecha ? fecha.toLocaleDateString('es-MX', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+    }) : 'Fecha no disponible';
+    
+    const estadoColors = {
+        'Validando pago': '#f59e0b',
+        'En preparación': '#3b82f6',
+        'En camino': '#8b5cf6',
+        'Entregado': '#10b981'
+    };
+    const color = estadoColors[venta.estado] || '#6b7280';
+    
+    let htmlProductos = '';
+    venta.productos.forEach(p => {
+        htmlProductos += `
+            <tr style="border-bottom:1px solid #f3f4f6;">
+                <td style="padding:0.6rem; color:var(--text-gray);">${p.nombre}</td>
+                <td style="padding:0.6rem; text-align:center; color:var(--text-gray);">${p.cantidad}</td>
+                <td style="padding:0.6rem; text-align:right; color:var(--text-gray);">${formatoMexicano(p.importe)}</td>
+            </tr>
+        `;
+    });
+    
+    const total = venta.totalConIva || venta.total;
+    const subtotal = total / 1.16;
+    const iva = total - subtotal;
+    
+    const modalHtml = `
+        <div id="modalDetalleVenta" class="modal-overlay active" onclick="if(event.target===this) cerrarModalDetalleVenta()">
+            <div class="modal" style="max-width:700px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                    <h2 style="color:var(--primary-dark); margin:0;">🧾 ${venta.idVenta}</h2>
+                    <button onclick="cerrarModalDetalleVenta()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-gray); transition:all 0.3s;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.5rem; background:var(--gray-light); padding:1rem; border-radius:12px;">
+                    <div>
+                        <div style="font-size:0.75rem; color:var(--text-gray);">Fecha</div>
+                        <div style="font-weight:600; color:var(--primary-dark);">${fechaFormateada}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem; color:var(--text-gray);">Estatus</div>
+                        <div><span style="display:inline-block; padding:0.2rem 1rem; border-radius:50px; font-size:0.75rem; font-weight:600; color:white; background:${color};">${venta.estado}</span></div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem; color:var(--text-gray);">Productos</div>
+                        <div style="font-weight:600; color:var(--primary-dark);">${venta.productos.length}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem; color:var(--text-gray);">Total</div>
+                        <div style="font-weight:700; color:var(--primary-dark); font-size:1.1rem;">${formatoMexicano(total)}</div>
+                    </div>
+                </div>
+                
+                <h3 style="color:var(--primary-dark); margin-bottom:0.5rem;">📦 Productos</h3>
+                <div style="overflow-x:auto; margin-bottom:1.5rem;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+                        <thead>
+                            <tr style="background:#f8f9fa;">
+                                <th style="padding:0.6rem; text-align:left; font-weight:600; color:var(--primary-dark); border-bottom:2px solid #e2e8f0;">Producto</th>
+                                <th style="padding:0.6rem; text-align:center; font-weight:600; color:var(--primary-dark); border-bottom:2px solid #e2e8f0;">Cantidad</th>
+                                <th style="padding:0.6rem; text-align:right; font-weight:600; color:var(--primary-dark); border-bottom:2px solid #e2e8f0;">Importe</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${htmlProductos}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div style="text-align:right; padding-top:1rem; border-top:2px solid #e2e8f0;">
+                    <p style="margin:0.2rem 0;"><strong>Subtotal:</strong> ${formatoMexicano(subtotal)}</p>
+                    <p style="margin:0.2rem 0;"><strong>IVA (16%):</strong> ${formatoMexicano(iva)}</p>
+                    <p style="margin:0.2rem 0; font-size:1.2rem; font-weight:700; color:var(--primary-dark);"><strong>Total:</strong> ${formatoMexicano(total)}</p>
+                </div>
+                
+                <div style="display:flex; gap:0.5rem; margin-top:1rem; flex-wrap:wrap;">
+                    <button onclick="cerrarModalDetalleVenta()" class="btn-cerrar-modal" style="flex:1;">
+                        <i class="fas fa-times"></i> Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const existing = document.getElementById('modalDetalleVenta');
+    if (existing) existing.remove();
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function cerrarModalDetalleVenta() {
+    const modal = document.getElementById('modalDetalleVenta');
+    if (modal) modal.remove();
+}
+
+function renderizarHistorialVacio() {
+    const container = document.getElementById('historialContent');
+    if (container) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-receipt"></i>
+                <h4>Sin compras registradas</h4>
+                <p>Aún no tienes compras en tu historial.</p>
+            </div>
+        `;
+    }
+    
+    const ordenesContainer = document.getElementById('ordenesContent');
+    if (ordenesContainer) {
+        ordenesContainer.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-clock"></i>
+                <h4>Sin órdenes recientes</h4>
+                <p>No tienes compras en los últimos 15 días.</p>
+            </div>
+        `;
+    }
+    
+    const estadisticasContainer = document.getElementById('estadisticasContent');
+    if (estadisticasContainer) {
+        estadisticasContainer.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-chart-bar"></i>
+                <h4>Sin datos de productos</h4>
+                <p>No hay suficientes datos para mostrar estadísticas.</p>
+            </div>
+        `;
+    }
+}
+
+function filtrarHistorial() {
+    const anoSelect = document.getElementById('filtroAno');
+    const mesSelect = document.getElementById('filtroMes');
+    const ano = anoSelect ? anoSelect.value : 'todos';
+    const mes = mesSelect ? mesSelect.value : 'todos';
+    renderizarHistorialCompras(ano, mes);
+}
+
+// ============================================
+// ⭐ FUNCIONES PARA CRÉDITOS PENDIENTES
+// ============================================
+
+function cargarCreditosPendientes() {
+    console.log('📋 Cargando créditos pendientes...');
+    
+    const container = document.getElementById('creditosPendientesContent');
+    if (!container) return;
+    
+    creditosPendientes = historialVentas.filter(v => {
+        const tipoPago = v.tipoPago || '';
+        const saldoPendiente = v.saldoPendiente || v.total || 0;
+        return (tipoPago === 'Crédito' || tipoPago === 'Crédito Parcial') && saldoPendiente > 0.01;
+    });
+    
+    console.log(`📊 Créditos pendientes encontrados: ${creditosPendientes.length}`);
+    
+    if (creditosPendientes.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-check-circle" style="color:#16a34a;"></i>
+                <h4>Sin créditos pendientes</h4>
+                <p>No tienes compras a crédito pendientes de liquidar.</p>
+            </div>
+        `;
+        document.getElementById('totalCreditoPendiente').textContent = 'Total: $0.00';
+        return;
+    }
+    
+    let totalPendiente = 0;
+    let html = `<div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">`;
+    
+    creditosPendientes.forEach((venta, index) => {
+        const saldoPendiente = venta.saldoPendiente || venta.total || 0;
+        totalPendiente += saldoPendiente;
+        
+        const fecha = venta.fechaObj || parseFechaGoogleSheets(venta.fecha);
+        const fechaFormateada = fecha ? fecha.toLocaleDateString('es-MX', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        }) : 'Fecha no disponible';
+        
+        let fechaPago = null;
+        let fechaPagoFormateada = 'No definida';
+        
+        if (venta.fechaPago) {
+            fechaPago = new Date(venta.fechaPago);
+            if (!isNaN(fechaPago.getTime())) {
+                fechaPagoFormateada = fechaPago.toLocaleDateString('es-MX', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                });
+            }
+        }
+        
+        if (!fechaPago || isNaN(fechaPago.getTime())) {
+            const fechaVenta = venta.fechaObj || parseFechaGoogleSheets(venta.fecha);
+            const diasCredito = venta.diasCredito || 20;
+            if (fechaVenta) {
+                fechaPago = new Date(fechaVenta);
+                fechaPago.setDate(fechaPago.getDate() + diasCredito);
+                if (!isNaN(fechaPago.getTime())) {
+                    fechaPagoFormateada = fechaPago.toLocaleDateString('es-MX', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                    });
+                }
+            }
+        }
+        
+        const estaVencido = fechaPago && !isNaN(fechaPago.getTime()) && fechaPago < new Date();
+        const estadoColor = estaVencido ? '#dc2626' : '#92400e';
+        
+        // ⭐ VERIFICAR SI LA COLUMNA P ESTÁ EN "SI" - Mostrar "Validando pago"
+        let estadoTexto = 'Pendiente';
+        if (venta.columnaP === true) {
+            estadoTexto = 'Validando pago';
+        } else if (estaVencido) {
+            estadoTexto = '⚠️ VENCIDO';
+        }
+        
+        html += `
+            <div style="background:white; border-radius:12px; padding:1.2rem; border:1px solid ${estaVencido && !venta.columnaP ? '#fecaca' : '#fef3c7'}; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
+                    <div>
+                        <span style="font-weight:700; color:var(--primary-dark); font-size:1rem;">${venta.idVenta}</span>
+                        <span style="font-size:0.75rem; color:var(--text-gray); margin-left:0.5rem;">${fechaFormateada}</span>
+                        <div style="font-size:0.8rem; color:var(--text-gray); margin-top:0.2rem;">
+                            <span class="badge badge-warning">${venta.tipoPago || 'Crédito'}</span>
+                            ${estaVencido && !venta.columnaP ? '<span class="badge badge-danger" style="margin-left:0.5rem;">VENCIDO</span>' : ''}
+                            ${venta.diasCredito ? `<span style="font-size:0.7rem; color:var(--text-gray); margin-left:0.5rem;">${venta.diasCredito} días</span>` : ''}
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-weight:700; color:${estaVencido && !venta.columnaP ? '#dc2626' : '#92400e'}; font-size:1.1rem;">
+                            ${formatoMexicano(saldoPendiente)}
+                        </div>
+                        <div style="font-size:0.7rem; color:var(--text-gray);">Límite: ${fechaPagoFormateada}</div>
+                        <div style="font-size:0.7rem; color:${estadoColor}; font-weight:600;">${estadoTexto}</div>
+                    </div>
+                </div>
+                <div style="margin-top:0.5rem; padding-top:0.5rem; border-top:1px solid #f3f4f6;">
+                    <div style="font-size:0.8rem; color:var(--text-gray);">
+                        <strong>Productos:</strong> ${venta.productos ? venta.productos.length : 0}
+                    </div>
+                    <div style="font-size:0.8rem; color:var(--text-gray);">
+                        <strong>Total:</strong> ${formatoMexicano(venta.total || 0)}
+                        ${venta.anticipo ? ` | <strong>Pagado:</strong> ${formatoMexicano(venta.anticipo)}` : ''}
+                    </div>
+                </div>
+                <button class="btn-primary" style="width:100%; margin-top:0.8rem; padding:0.5rem; font-size:0.85rem;" 
+                        onclick="abrirModalPagoCreditoPendiente('${venta.idVenta}')">
+                    <i class="fas fa-university"></i> Liquidar con Transferencia
+                </button>
+            </div>
+        `;
+    });
+    
+    html += `</div>`;
+    container.innerHTML = html;
+    document.getElementById('totalCreditoPendiente').textContent = `Total: ${formatoMexicano(totalPendiente)}`;
+}
+
+// ============================================
+// FUNCIONES PARA MODAL DE PAGO DE CRÉDITO PENDIENTE
+// ============================================
+
+let comprobanteCreditoBase64 = null;
+let comprobanteCreditoNombre = null;
+
+function abrirModalPagoCreditoPendiente(idVenta) {
+    const venta = creditosPendientes.find(v => v.idVenta === idVenta);
+    if (!venta) {
+        mostrarNotificacion('❌ No se encontró la venta');
+        return;
+    }
+    
+    creditoSeleccionadoParaPago = venta;
+    const saldoPendiente = venta.saldoPendiente || venta.total || 0;
+    
+    const modalHtml = `
+        <div id="modalPagoCredito" class="modal-overlay active" onclick="if(event.target===this) cerrarModalPagoCredito()">
+            <div class="modal" style="max-width:500px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                    <h2 style="color:var(--primary-dark); margin:0;">💳 Liquidar Crédito</h2>
+                    <button onclick="cerrarModalPagoCredito()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-gray);">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div id="modalPagoCreditoMensaje" style="display:none;"></div>
+                
+                <div style="background:#fef3c7; padding:1rem; border-radius:12px; margin-bottom:1rem; border:1px solid #fde68a;">
+                    <p style="margin:0; font-weight:600; color:#92400e;">🧾 ${venta.idVenta}</p>
+                    <p style="margin:0.3rem 0 0 0; font-size:0.9rem; color:#92400e;">
+                        <strong>Saldo pendiente:</strong> ${formatoMexicano(saldoPendiente)}
+                    </p>
+                </div>
+                
+                <div class="datos-bancarios">
+                    <p><strong>PROCONSTRUCCIONMX SAS DE CV</strong></p>
+                    <p><strong>BANCO:</strong> BBVA</p>
+                    <p><strong>NÚMERO DE CUENTA:</strong> 0127744064</p>
+                    <p><strong>CUENTA CLABE:</strong> 012180001277440643</p>
+                </div>
+                
+                <div class="form-group">
+                    <label>Monto a transferir: <strong id="montoTransferenciaCredito">${formatoMexicano(saldoPendiente)}</strong></label>
+                </div>
+                <div class="form-group">
+                    <label>Número de referencia o folio de transferencia <span style="color:red;">*</span></label>
+                    <input type="text" id="referenciaTransferenciaCredito" placeholder="Ej: 1234567890">
+                </div>
+                <div class="form-group">
+                    <label>Subir comprobante de transferencia <span style="color:red;">*</span></label>
+                    <div class="file-upload" onclick="document.getElementById('comprobanteFileCredito').click()">
+                        <i class="fas fa-cloud-upload-alt" style="font-size:2rem; color: var(--accent-orange);"></i>
+                        <p>Haz clic para seleccionar tu comprobante</p>
+                        <p class="file-name" id="fileNameCredito">Ningún archivo seleccionado</p>
+                        <input type="file" id="comprobanteFileCredito" accept="*/*" onchange="cargarComprobanteCredito(event)">
+                    </div>
+                </div>
+                
+                <button class="btn-enviar" id="btnConfirmarPagoCredito" onclick="procesarPagoCreditoPendiente()" disabled>
+                    <i class="fas fa-paper-plane"></i> Confirmar Pago
+                </button>
+                <button class="btn-cerrar-modal" onclick="cerrarModalPagoCredito()">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+            </div>
+        </div>
+    `;
+    
+    const existing = document.getElementById('modalPagoCredito');
+    if (existing) existing.remove();
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    document.getElementById('referenciaTransferenciaCredito').addEventListener('input', validarCamposCreditoPendiente);
+}
+
+function cargarComprobanteCredito(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        comprobanteCreditoBase64 = e.target.result.split(',')[1];
+        comprobanteCreditoNombre = file.name;
+        document.getElementById('fileNameCredito').textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+        validarCamposCreditoPendiente();
+    };
+    reader.readAsDataURL(file);
+}
+
+function validarCamposCreditoPendiente() {
+    const referencia = document.getElementById('referenciaTransferenciaCredito').value.trim();
+    const archivo = document.getElementById('fileNameCredito').textContent;
+    const btn = document.getElementById('btnConfirmarPagoCredito');
+    
+    if (btn) {
+        if (referencia && archivo && archivo !== 'Ningún archivo seleccionado') {
+            btn.disabled = false;
+            btn.title = '';
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+        } else {
+            btn.disabled = true;
+            btn.title = 'Completa el número de referencia y sube el comprobante';
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+        }
+    }
+}
+
+function cerrarModalPagoCredito() {
+    const modal = document.getElementById('modalPagoCredito');
+    if (modal) modal.remove();
+    comprobanteCreditoBase64 = null;
+    comprobanteCreditoNombre = null;
+    creditoSeleccionadoParaPago = null;
+}
+
+function mostrarMensajeModalPagoCredito(tipo, mensaje) {
+    const div = document.getElementById('modalPagoCreditoMensaje');
+    if (div) {
+        div.className = tipo === 'exito' ? 'mensaje-exito' : 'mensaje-error';
+        div.innerHTML = mensaje;
+        div.style.display = 'block';
+    }
+}
+
+// ============================================
+// FUNCIONES AUXILIARES
+// ============================================
+
+function formatoMexicano(numero) {
+    const num = Number(numero);
+    if (isNaN(num)) return '$0.00';
+    const partes = num.toFixed(2).split('.');
+    const enteros = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return `$${enteros}.${partes[1]}`;
+}
+
+function generarFolio() {
+    const hoy = new Date();
+    const dd = String(hoy.getDate()).padStart(2, '0');
+    const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+    const yyyy = hoy.getFullYear();
+    const prefijo = `CT-${dd}${mm}${yyyy}-`;
+    
+    const numero = String(Math.floor(Math.random() * 9999) + 1).padStart(4, '0');
+    return prefijo + numero;
+}
+
+function mostrarNotificacion(mensaje) {
+    const div = document.createElement('div');
+    div.style.cssText = `
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #0A2540;
+        color: white;
+        padding: 1rem 2rem;
+        border-radius: 12px;
+        font-weight: 600;
+        z-index: 2000;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+        animation: fadeInUp 0.3s ease-out;
+        max-width: 90%;
+        text-align: center;
+    `;
+    div.textContent = mensaje;
+    document.body.appendChild(div);
+    
+    setTimeout(() => {
+        div.style.opacity = '0';
+        div.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => div.remove(), 300);
+    }, 3000);
+}
+
+function mostrarMensajeModal(tipo, mensaje) {
+    const div = document.getElementById('modalMensaje');
+    div.className = tipo === 'exito' ? 'mensaje-exito' : 'mensaje-error';
+    div.innerHTML = mensaje;
+    div.style.display = 'block';
+}
+
+function configurarTabs() {
+    const tabs = document.querySelectorAll('.dashboard-tabs button');
+    const contents = document.querySelectorAll('.tab-content');
+    
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const target = this.dataset.tab;
+            
+            tabs.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            
+            contents.forEach(c => c.classList.remove('active'));
+            document.getElementById(target).classList.add('active');
+            
+            if (target === 'tab-compras' && historialVentas.length === 0) {
+                cargarHistorialCompras();
+            }
+        });
+    });
 }
