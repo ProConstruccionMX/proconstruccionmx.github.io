@@ -61,6 +61,13 @@ let creditosPendientes = [];
 let creditoSeleccionadoParaPago = null;
 
 // ============================================
+// VARIABLES PARA COMPROBANTE DE CRÉDITO
+// ============================================
+let comprobanteCreditoBase64 = null;
+let comprobanteCreditoNombre = null;
+let comprobanteCreditoTipo = null;
+
+// ============================================
 // FUNCIÓN PARA PARSEAR FECHAS CORRECTAMENTE
 // ============================================
 
@@ -2929,19 +2936,29 @@ ProConstruccion MX
 ventas@proconstruccionmx.com
         `;
         
-        // Enviar a Apps Script
+        // ⭐ Preparar el comprobante correctamente
+        let comprobanteBase64Limpio = null;
+        if (datos.comprobante) {
+            if (datos.comprobante.includes(',')) {
+                comprobanteBase64Limpio = datos.comprobante.split(',')[1];
+            } else {
+                comprobanteBase64Limpio = datos.comprobante;
+            }
+            console.log('📎 Comprobante base64 extraído, longitud:', comprobanteBase64Limpio.length);
+        }
+        
         const payload = {
             action: 'enviarCorreoPagoCreditoBonito',
             email: 'ventas@proconstruccionmx.com',
             asunto: `PAGO DE CREDITO - ${datos.idVenta} - ${clienteNombre}`,
             htmlContent: htmlContent,
             textoPlano: textoPlano,
-            comprobanteBase64: datos.comprobante || null,
+            comprobanteBase64: comprobanteBase64Limpio,
             comprobanteNombre: datos.comprobanteNombre || null,
-            comprobanteTipo: datos.comprobanteTipo || 'image/jpeg'
+            comprobanteTipo: datos.comprobanteTipo || 'application/pdf'
         };
         
-        console.log('📤 Enviando a Apps Script:', payload);
+        console.log('📤 Enviando a Apps Script - Comprobante incluido:', !!comprobanteBase64Limpio);
         
         await fetch(APPS_SCRIPT_EMAIL_URL, {
             method: 'POST',
@@ -2969,6 +2986,7 @@ async function marcarColumnaPCliente(idVenta) {
     try {
         console.log(`📝 Buscando fila con ID de venta: ${idVenta} en Clientes para marcar columna P`);
         
+        // ⭐ PRIMERO: Buscar la fila en la hoja Clientes
         const url = `https://docs.google.com/spreadsheets/d/${ID_ESTADISTICAS}/gviz/tq?tqx=out:json&sheet=${HOJA_EST_CLIENTES}`;
         const response = await fetch(url);
         const text = await response.text();
@@ -2996,7 +3014,7 @@ async function marcarColumnaPCliente(idVenta) {
             return { success: false, mensaje: 'No se encontró la venta en Clientes' };
         }
         
-        // ⭐ Enviar a Apps Script para marcar columna P (índice 16)
+        // ⭐ SEGUNDO: Enviar a Apps Script para marcar columna P
         const body = {
             action: 'marcarColumnaPCliente',
             fila: filaReal,
@@ -3006,17 +3024,55 @@ async function marcarColumnaPCliente(idVenta) {
         
         console.log('📤 Enviando a Apps Script:', body);
         
-        await fetch(APPS_SCRIPT_URL, {
+        // ⭐ Usar fetch normal para obtener respuesta
+        const result = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(body)
         });
         
-        console.log(`✅ Columna P marcada como SI para venta ${idVenta}`);
-        return { success: true, fila: filaReal };
+        let respuesta;
+        try {
+            respuesta = await result.json();
+            console.log('📥 Respuesta de Apps Script:', respuesta);
+        } catch (e) {
+            console.warn('⚠️ No se pudo parsear la respuesta como JSON, pero la petición se envió');
+        }
+        
+        // ⭐ TERCERO: Verificar que se haya marcado
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const urlVerificar = `https://docs.google.com/spreadsheets/d/${ID_ESTADISTICAS}/gviz/tq?tqx=out:json&sheet=${HOJA_EST_CLIENTES}`;
+        const responseVerificar = await fetch(urlVerificar);
+        const textVerificar = await responseVerificar.text();
+        const jsonStrVerificar = textVerificar.substring(textVerificar.indexOf('(') + 1, textVerificar.lastIndexOf(')'));
+        const dataVerificar = JSON.parse(jsonStrVerificar);
+        const rowsVerificar = dataVerificar.table.rows;
+        
+        let verificado = false;
+        for (let i = 1; i < rowsVerificar.length; i++) {
+            const values = rowsVerificar[i].c.map(cell => cell ? cell.v : '');
+            const idVentaFila = String(values[1] || '').trim();
+            
+            if (idVentaFila === idVenta) {
+                const columnaP = String(values[15] || '').trim().toUpperCase();
+                console.log(`🔍 Columna P verificada: "${columnaP}"`);
+                if (columnaP === 'SI') {
+                    verificado = true;
+                }
+                break;
+            }
+        }
+        
+        if (verificado) {
+            console.log(`✅ Columna P marcada como SI para venta ${idVenta} - VERIFICADO`);
+        } else {
+            console.warn(`⚠️ No se pudo verificar la columna P para venta ${idVenta}`);
+        }
+        
+        return { success: true, fila: filaReal, verificado: verificado };
         
     } catch (error) {
         console.error('❌ Error al marcar columna P:', error);
@@ -3025,7 +3081,7 @@ async function marcarColumnaPCliente(idVenta) {
 }
 
 // ============================================
-// ⭐ PROCESAR PAGO DE CRÉDITO PENDIENTE (SOLO CORREO + COLUMNA P)
+// ⭐ PROCESAR PAGO DE CRÉDITO PENDIENTE
 // ============================================
 
 async function procesarPagoCreditoPendiente() {
@@ -3062,9 +3118,20 @@ async function procesarPagoCreditoPendiente() {
         console.log(`💰 Monto a liquidar: ${saldoPendiente}`);
         
         // ⭐ 1. MARCAR COLUMNA P EN CLIENTES CON "SI"
-        await marcarColumnaPCliente(idVenta);
+        const resultadoP = await marcarColumnaPCliente(idVenta);
+        console.log('📊 Resultado de marcar columna P:', resultadoP);
         
-        // ⭐ 2. ENVIAR CORREO DE PAGO DE CRÉDITO (con formato bonito)
+        if (!resultadoP.success) {
+            console.error('❌ Error al marcar columna P:', resultadoP.error || resultadoP.mensaje);
+            mostrarMensajeModalPagoCredito('error', '⚠️ Error al marcar el pago. Intenta de nuevo o contacta a tu asesor.');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Pago';
+            }
+            return;
+        }
+        
+        // ⭐ 2. ENVIAR CORREO DE PAGO DE CRÉDITO
         await enviarCorreoPagoCreditoBonito({
             idVenta: idVenta,
             folio: folioOriginal,
@@ -3073,6 +3140,7 @@ async function procesarPagoCreditoPendiente() {
             referencia: referencia,
             comprobante: comprobanteCreditoBase64,
             comprobanteNombre: comprobanteCreditoNombre,
+            comprobanteTipo: comprobanteCreditoTipo || 'application/pdf',
             fecha: new Date(),
             productos: venta.productos || []
         });
@@ -3090,7 +3158,7 @@ async function procesarPagoCreditoPendiente() {
             referencia: referencia,
             comprobante: comprobanteCreditoBase64,
             comprobanteNombre: comprobanteCreditoNombre,
-            comprobanteTipo: 'image/*',
+            comprobanteTipo: comprobanteCreditoTipo || 'image/jpeg',
             requiereFactura: false,
             datosFactura: null,
             nombreDireccion: 'Liquidación de crédito',
@@ -3104,7 +3172,7 @@ async function procesarPagoCreditoPendiente() {
             <strong>Venta original:</strong> ${folioOriginal}<br>
             <strong>Monto liquidado:</strong> ${formatoMexicano(saldoPendiente)}<br>
             <strong>Referencia:</strong> ${referencia}<br><br>
-            Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.
+            Se ha marcado el pago y se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.
         `);
         
         if (btn) {
@@ -3112,7 +3180,6 @@ async function procesarPagoCreditoPendiente() {
             btn.innerHTML = '✅ Pago registrado';
         }
         
-        // ⭐ Recargar historial para actualizar la vista
         setTimeout(() => {
             cerrarModalPagoCredito();
             cargarHistorialCompras();
@@ -3165,7 +3232,7 @@ async function cargarHistorialCompras() {
             const formaPago = String(values[9] || '').trim();
             const creditoPendiente = parseFloat(values[5]) || 0;
             const montoPagado = parseFloat(values[6]) || 0;
-            const columnaP = String(values[15] || '').trim().toUpperCase(); // Columna P (índice 15)
+            const columnaP = String(values[15] || '').trim().toUpperCase();
             
             if (codigo === codigoCliente && idVenta) {
                 idsVenta.push(idVenta);
@@ -3813,7 +3880,7 @@ function cargarCreditosPendientes() {
         const estaVencido = fechaPago && !isNaN(fechaPago.getTime()) && fechaPago < new Date();
         const estadoColor = estaVencido ? '#dc2626' : '#92400e';
         
-        // ⭐ VERIFICAR SI LA COLUMNA P ESTÁ EN "SI" - Mostrar "Validando pago"
+        // ⭐ VERIFICAR SI LA COLUMNA P ESTÁ EN "SI"
         let estadoTexto = 'Pendiente';
         if (venta.columnaP === true) {
             estadoTexto = 'Validando pago';
@@ -3866,9 +3933,6 @@ function cargarCreditosPendientes() {
 // ============================================
 // FUNCIONES PARA MODAL DE PAGO DE CRÉDITO PENDIENTE
 // ============================================
-
-let comprobanteCreditoBase64 = null;
-let comprobanteCreditoNombre = null;
 
 function abrirModalPagoCreditoPendiente(idVenta) {
     const venta = creditosPendientes.find(v => v.idVenta === idVenta);
@@ -3945,11 +4009,16 @@ function cargarComprobanteCredito(event) {
     const file = event.target.files[0];
     if (!file) return;
     
+    console.log('📎 Archivo seleccionado:', file.name, 'Tipo:', file.type, 'Tamaño:', file.size);
+    
     const reader = new FileReader();
     reader.onload = function(e) {
-        comprobanteCreditoBase64 = e.target.result.split(',')[1];
+        comprobanteCreditoBase64 = e.target.result;
         comprobanteCreditoNombre = file.name;
+        comprobanteCreditoTipo = file.type || 'application/octet-stream';
+        
         document.getElementById('fileNameCredito').textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+        console.log('✅ Comprobante cargado:', comprobanteCreditoNombre, 'Tipo:', comprobanteCreditoTipo);
         validarCamposCreditoPendiente();
     };
     reader.readAsDataURL(file);
@@ -3980,6 +4049,7 @@ function cerrarModalPagoCredito() {
     if (modal) modal.remove();
     comprobanteCreditoBase64 = null;
     comprobanteCreditoNombre = null;
+    comprobanteCreditoTipo = null;
     creditoSeleccionadoParaPago = null;
 }
 
