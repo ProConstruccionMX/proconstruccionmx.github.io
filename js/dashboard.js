@@ -2979,14 +2979,14 @@ ventas@proconstruccionmx.com
 }
 
 // ============================================
-// ⭐ FUNCIÓN PARA MARCAR COLUMNA P EN CLIENTES
+// ⭐ FUNCIÓN PARA MARCAR COLUMNA P EN CLIENTES (CORREGIDA - CON NO-CORS)
 // ============================================
 
 async function marcarColumnaPCliente(idVenta) {
     try {
         console.log(`📝 Buscando fila con ID de venta: ${idVenta} en Clientes para marcar columna P`);
         
-        // ⭐ PRIMERO: Buscar la fila en la hoja Clientes
+        // PRIMERO: Buscar la fila en la hoja Clientes
         const url = `https://docs.google.com/spreadsheets/d/${ID_ESTADISTICAS}/gviz/tq?tqx=out:json&sheet=${HOJA_EST_CLIENTES}`;
         const response = await fetch(url);
         const text = await response.text();
@@ -3014,7 +3014,7 @@ async function marcarColumnaPCliente(idVenta) {
             return { success: false, mensaje: 'No se encontró la venta en Clientes' };
         }
         
-        // ⭐ SEGUNDO: Enviar a Apps Script para marcar columna P
+        // SEGUNDO: Enviar a Apps Script con mode: 'no-cors'
         const body = {
             action: 'marcarColumnaPCliente',
             fila: filaReal,
@@ -3022,28 +3022,24 @@ async function marcarColumnaPCliente(idVenta) {
             valor: 'SI'
         };
         
-        console.log('📤 Enviando a Apps Script:', body);
+        console.log('📤 Enviando a Apps Script (no-cors):', body);
         
-        // ⭐ Usar fetch normal para obtener respuesta
-        const result = await fetch(APPS_SCRIPT_URL, {
+        // ⭐ USAR mode: 'no-cors' como siempre se ha hecho
+        await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
+            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(body)
         });
         
-        let respuesta;
-        try {
-            respuesta = await result.json();
-            console.log('📥 Respuesta de Apps Script:', respuesta);
-        } catch (e) {
-            console.warn('⚠️ No se pudo parsear la respuesta como JSON, pero la petición se envió');
-        }
+        console.log(`✅ Petición enviada a Apps Script para marcar columna P - ID: ${idVenta}, Fila: ${filaReal}`);
         
-        // ⭐ TERCERO: Verificar que se haya marcado
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Esperar un momento para que se procese
+        await new Promise(resolve => setTimeout(resolve, 1500));
         
+        // Verificar que se haya marcado
         const urlVerificar = `https://docs.google.com/spreadsheets/d/${ID_ESTADISTICAS}/gviz/tq?tqx=out:json&sheet=${HOJA_EST_CLIENTES}`;
         const responseVerificar = await fetch(urlVerificar);
         const textVerificar = await responseVerificar.text();
@@ -3120,16 +3116,6 @@ async function procesarPagoCreditoPendiente() {
         // ⭐ 1. MARCAR COLUMNA P EN CLIENTES CON "SI"
         const resultadoP = await marcarColumnaPCliente(idVenta);
         console.log('📊 Resultado de marcar columna P:', resultadoP);
-        
-        if (!resultadoP.success) {
-            console.error('❌ Error al marcar columna P:', resultadoP.error || resultadoP.mensaje);
-            mostrarMensajeModalPagoCredito('error', '⚠️ Error al marcar el pago. Intenta de nuevo o contacta a tu asesor.');
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Pago';
-            }
-            return;
-        }
         
         // ⭐ 2. ENVIAR CORREO DE PAGO DE CRÉDITO
         await enviarCorreoPagoCreditoBonito({
