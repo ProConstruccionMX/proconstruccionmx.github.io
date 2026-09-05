@@ -2806,7 +2806,7 @@ async function enviarCorreoConAdjuntoAppsScript(datos) {
 }
 
 // ============================================
-// ⭐ FUNCIÓN PARA ENVIAR CORREO DE PAGO DE CRÉDITO (BONITO)
+// ⭐ FUNCIÓN PARA ENVIAR CORREO DE PAGO DE CRÉDITO (BONITO - SIN EMOJIS)
 // ============================================
 
 async function enviarCorreoPagoCreditoBonito(datos) {
@@ -2852,35 +2852,35 @@ async function enviarCorreoPagoCreditoBonito(datos) {
         const fechaFormateada = datos.fecha ? datos.fecha.toLocaleString('es-MX') : new Date().toLocaleString('es-MX');
         const monto = Number(datos.monto || 0).toFixed(2);
         const clienteNombre = datos.cliente ? datos.cliente.nombre : 'Sin nombre';
-        const clienteCodigo = datos.cliente ? datos.cliente.codigo : 'Sin código';
+        const clienteCodigo = datos.cliente ? datos.cliente.codigo : 'Sin codigo';
         
-        // HTML del correo con formato bonito
+        // HTML del correo con formato bonito - SIN EMOJIS
         const htmlContent = `
             <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px; background: #f8f9fa; border-radius: 12px;">
                 <div style="background: linear-gradient(135deg, #0A2540 0%, #1a4d8c 100%); padding: 25px 30px; border-radius: 12px 12px 0 0; text-align: center;">
-                    <h1 style="color: white; margin: 0; font-size: 24px; letter-spacing: 1px;">💰 PAGO DE CREDITO</h1>
+                    <h1 style="color: white; margin: 0; font-size: 24px; letter-spacing: 1px;">PAGO DE CREDITO</h1>
                     <p style="color: rgba(255,255,255,0.8); margin: 5px 0 0 0; font-size: 14px;">Folio original: <strong style="color: #F5A623;">${datos.idVenta}</strong></p>
                 </div>
                 
                 <div style="background: white; padding: 25px 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
                     <!-- Datos del cliente -->
                     <div style="background: #f0f4f8; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px;">
-                        <h3 style="color: #0A2540; margin: 0 0 10px 0; font-size: 16px;">👤 Datos del Cliente</h3>
+                        <h3 style="color: #0A2540; margin: 0 0 10px 0; font-size: 16px;">Datos del Cliente</h3>
                         <p style="margin: 3px 0; font-size: 14px; color: #333;"><strong>Nombre:</strong> ${clienteNombre}</p>
-                        <p style="margin: 3px 0; font-size: 14px; color: #333;"><strong>Código:</strong> ${clienteCodigo}</p>
+                        <p style="margin: 3px 0; font-size: 14px; color: #333;"><strong>Codigo:</strong> ${clienteCodigo}</p>
                         <p style="margin: 3px 0; font-size: 14px; color: #333;"><strong>Fecha:</strong> ${fechaFormateada}</p>
                     </div>
                     
                     <!-- Monto liquidado -->
                     <div style="background: #dcfce7; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #bbf7d0;">
                         <p style="margin: 0; font-size: 18px; font-weight: bold; color: #16a34a; text-align: center;">
-                            ✅ Monto liquidado: $${monto}
+                            Monto liquidado: $${monto}
                         </p>
                     </div>
                     
                     <!-- Detalles del pago -->
                     <div style="background: #fef3c7; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #fde68a;">
-                        <h3 style="color: #92400e; margin: 0 0 10px 0; font-size: 16px;">📋 Detalles del Pago</h3>
+                        <h3 style="color: #92400e; margin: 0 0 10px 0; font-size: 16px;">Detalles del Pago</h3>
                         <p style="margin: 3px 0; font-size: 14px; color: #92400e;"><strong>Venta original:</strong> ${datos.idVenta}</p>
                         <p style="margin: 3px 0; font-size: 14px; color: #92400e;"><strong>Referencia:</strong> ${datos.referencia}</p>
                         <p style="margin: 3px 0; font-size: 14px; color: #92400e;"><strong>Comprobante:</strong> ${datos.comprobanteNombre || 'No adjunto'}</p>
@@ -2888,19 +2888,19 @@ async function enviarCorreoPagoCreditoBonito(datos) {
                     
                     <!-- Productos -->
                     <div style="margin-bottom: 20px;">
-                        <h3 style="color: #0A2540; margin: 0 0 10px 0; font-size: 16px;">📦 Productos de la venta</h3>
+                        <h3 style="color: #0A2540; margin: 0 0 10px 0; font-size: 16px;">Productos de la venta</h3>
                         ${tablaProductosHTML}
                     </div>
                     
                     <!-- Footer -->
                     <div style="border-top: 2px solid #e2e8f0; padding-top: 15px; text-align: center;">
                         <p style="margin: 0; color: #4a5568; font-size: 13px;">
-                            <strong style="color: #0A2540;">ProConstrucción MX</strong> 
+                            <strong style="color: #0A2540;">ProConstruccion MX</strong> 
                             <span style="color: #F5A623;">|</span> 
-                            📧 ventas@proconstruccionmx.com
+                            ventas@proconstruccionmx.com
                         </p>
                         <p style="margin: 5px 0 0 0; font-size: 12px; color: #a0aec0;">
-                            Este es un correo automático de confirmación de pago.
+                            Este es un correo automatico de confirmacion de pago.
                         </p>
                     </div>
                 </div>
@@ -2914,7 +2914,7 @@ PAGO DE CREDITO
 
 Folio original: ${datos.idVenta}
 Cliente: ${clienteNombre}
-Código: ${clienteCodigo}
+Codigo: ${clienteCodigo}
 Fecha: ${fechaFormateada}
 
 Monto liquidado: $${monto}
@@ -2925,7 +2925,7 @@ Productos:
 ${datos.productos ? datos.productos.map(p => `- ${p.nombre} x ${p.cantidad} = $${(p.importe || 0).toFixed(2)}`).join('\n') : 'No hay productos'}
 
 ---
-ProConstrucción MX
+ProConstruccion MX
 ventas@proconstruccionmx.com
         `;
         
@@ -2996,6 +2996,7 @@ async function marcarColumnaPCliente(idVenta) {
             return { success: false, mensaje: 'No se encontró la venta en Clientes' };
         }
         
+        // ⭐ Enviar a Apps Script para marcar columna P (índice 16)
         const body = {
             action: 'marcarColumnaPCliente',
             fila: filaReal,
@@ -3817,7 +3818,7 @@ function cargarCreditosPendientes() {
         if (venta.columnaP === true) {
             estadoTexto = 'Validando pago';
         } else if (estaVencido) {
-            estadoTexto = '⚠️ VENCIDO';
+            estadoTexto = 'VENCIDO';
         }
         
         html += `
