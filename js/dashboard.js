@@ -28,6 +28,8 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz4MPJ6QmLIOsN8
 
 const APPS_SCRIPT_FACTURACION_URL = 'https://script.google.com/macros/s/AKfycbwcEwB2K17lhR5d52eab8EL-2K7C2mXzEubtyP-TcF-VWcmfNS-lODtFWAYdllNmHz9Mg/exec';
 
+const APPS_SCRIPT_EMAIL_URL = 'https://script.google.com/macros/s/AKfycbzxjyFsLB6go3gcMz1qPNou1HhxsugQoiLvKPl0GAwLOQJZKdEcOyK-QxFU64WukWCY/exec';
+
 const EMAIL_VENTAS = 'ventas@proconstruccionmx.com';
 const DIAS_CREDITO_FIJO = 20;
 const SUCURSAL_WEB = 'Web';
@@ -59,6 +61,9 @@ let infoCreditoCalculado = null;
 
 let creditosPendientes = [];
 let creditoSeleccionadoParaPago = null;
+
+let comprobanteCreditoBase64 = null;
+let comprobanteCreditoNombre = null;
 
 // ============================================
 // FUNCIÓN PARA PARSEAR FECHAS CORRECTAMENTE
@@ -1033,7 +1038,6 @@ async function cargarProductos() {
         let filasProcesadas = 0;
         let filasSaltadas = 0;
         
-        // ⭐ COMIENZA DESDE LA FILA 1 - la fila 0 es el encabezado
         for (let i = 1; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             
@@ -1532,7 +1536,6 @@ function obtenerPrecioFinal(producto) {
 }
 
 function calcularDescuentoProducto(producto, cantidad) {
-    // 1. Verificar precio especial (personalizado)
     const precioEspecial = preciosEspecialesGlobales.find(p => 
         p.codigoCliente === clienteData.codigo && 
         p.claveProducto === producto.clave
@@ -1542,18 +1545,15 @@ function calcularDescuentoProducto(producto, cantidad) {
         return 0;
     }
     
-    // 2. Si tiene NA 'N/A' - sin descuento
     if (producto.na === 'N/A') {
         return 0;
     }
     
-    // 3. Si tiene un número en NA (columna E) - usar ese descuento fijo
     const naNumero = parseFloat(producto.na);
     if (!isNaN(naNumero) && producto.na !== '' && producto.na !== '-' && producto.na !== 'N/A') {
         return naNumero;
     }
     
-    // 4. Si columna E tiene "-" (guión) - usar descuento por GIRO del cliente
     if (producto.na === '-') {
         const giro = clienteData.giro || 'Público en general';
         
@@ -1569,7 +1569,6 @@ function calcularDescuentoProducto(producto, cantidad) {
         
         let descuentoBase = mapGiro[giro] || 0;
         
-        // LÓGICA PXV - APLICA PARA TODOS LOS GIROS
         if (producto.pxv === 'PXV' && producto.pesoCondicion === 'SI') {
             let descuentoAdicional = 0;
             
@@ -1586,11 +1585,9 @@ function calcularDescuentoProducto(producto, cantidad) {
         return descuentoBase;
     }
     
-    // 5. COLUMNA E ESTÁ VACÍA - USAR DESCUENTO BASE DEL CLIENTE
     if (producto.na === '' || producto.na === null || producto.na === undefined) {
         let descuentoBase = clienteData.descuento || 0;
         
-        // LÓGICA PXV - APLICA PARA TODOS LOS GIROS
         if (producto.pxv === 'PXV' && producto.pesoCondicion === 'SI') {
             let descuentoAdicional = 0;
             
@@ -1620,13 +1617,11 @@ function verificarCreditoDisponible() {
     console.log('⚖️ Límite crédito peso:', clienteLimiteCreditoPeso);
     console.log('💰 Límite crédito monto:', clienteLimiteCreditoMonto);
     
-    // ⭐ VERIFICAR SI TIENE CRÉDITOS PENDIENTES
     const tieneCreditosPendientes = creditosPendientes && creditosPendientes.length > 0;
     if (tieneCreditosPendientes) {
         const totalPendiente = creditosPendientes.reduce((sum, v) => sum + (v.saldoPendiente || v.total || 0), 0);
         console.log(`⚠️ Cliente tiene créditos pendientes: ${formatoMexicano(totalPendiente)}`);
         
-        // Si tiene créditos pendientes, NO puede usar crédito
         return {
             puedeCredito: false,
             tipo: 'creditos_pendientes',
@@ -3270,12 +3265,8 @@ function generarPDFComprobante(datos) {
 
 async function enviarCorreoConAdjuntoAppsScript(datos) {
     try {
-        // ⭐ URL DE TU APPS SCRIPT
-        const APPS_SCRIPT_EMAIL_URL = 'https://script.google.com/macros/s/AKfycbzxjyFsLB6go3gcMz1qPNou1HhxsugQoiLvKPl0GAwLOQJZKdEcOyK-QxFU64WukWCY/exec';
-        
         console.log('📧 Enviando correo con adjunto vía Apps Script...');
         
-        // Generar texto de productos
         let productosTexto = '';
         if (datos.productos && datos.productos.length > 0) {
             productosTexto = 'Cant. | Producto | Precio | Dto.% | Importe\n';
@@ -3292,11 +3283,21 @@ async function enviarCorreoConAdjuntoAppsScript(datos) {
             productosTexto = 'No hay productos en esta venta.';
         }
         
-        // Preparar los datos
+        // ⭐ DETERMINAR EL ASUNTO SEGÚN SEA LIQUIDACIÓN DE CRÉDITO O COMPRA NORMAL
+        let asunto = '';
+        let tipoCorreo = 'NUEVA VENTA WEB';
+        
+        if (datos.esLiquidacionCredito) {
+            tipoCorreo = 'PAGO DE CREDITO';
+            asunto = `PAGO DE CREDITO - ${datos.folio} - ${datos.cliente.nombre}`;
+        } else {
+            asunto = `NUEVA VENTA WEB - ${datos.folio} - ${datos.cliente.nombre}`;
+        }
+        
         const payload = {
             action: 'enviarCorreoAdjunto',
             email: 'ventas@proconstruccionmx.com',
-            asunto: `NUEVA VENTA WEB - ${datos.folio} - ${datos.cliente.nombre}`,
+            asunto: asunto,
             folio: datos.folio || 'Sin folio',
             fecha: datos.fecha ? datos.fecha.toLocaleString('es-MX') : new Date().toLocaleString('es-MX'),
             cliente_nombre: datos.cliente ? datos.cliente.nombre : 'Sin nombre',
@@ -3310,7 +3311,6 @@ async function enviarCorreoConAdjuntoAppsScript(datos) {
             iva: Number(datos.iva || 0).toFixed(2),
             total: Number(datos.total || 0).toFixed(2),
             anio: new Date().getFullYear(),
-            // Dirección
             direccion_nombre: datos.nombreDireccion || 'Sin nombre',
             direccion_calle: datos.direccion ? datos.direccion.calle : '',
             direccion_colonia: datos.direccion ? datos.direccion.colonia : '',
@@ -3319,10 +3319,11 @@ async function enviarCorreoConAdjuntoAppsScript(datos) {
             direccion_cp: datos.direccion ? datos.direccion.cp : '',
             direccion_telefono: datos.direccion ? datos.direccion.telefono : '',
             direccion_recibe: datos.direccion ? datos.direccion.nombreRecibe : '',
-            // Facturación
             requiere_factura: datos.requiereFactura || false,
             factura_razon_social: datos.datosFactura ? datos.datosFactura.razonSocial : '',
-            factura_rfc: datos.datosFactura ? datos.datosFactura.rfc : ''
+            factura_rfc: datos.datosFactura ? datos.datosFactura.rfc : '',
+            esLiquidacionCredito: datos.esLiquidacionCredito || false,
+            idVentaOriginal: datos.idVentaOriginal || null
         };
         
         console.log('📤 Enviando a Apps Script:', payload);
@@ -3336,7 +3337,7 @@ async function enviarCorreoConAdjuntoAppsScript(datos) {
             body: JSON.stringify(payload)
         });
         
-        console.log('✅ Correo enviado con adjunto a ventas@proconstruccionmx.com');
+        console.log(`✅ Correo enviado (${tipoCorreo}) a ventas@proconstruccionmx.com`);
         return { success: true };
         
     } catch (error) {
@@ -3420,10 +3421,8 @@ async function procesarPagoTransferencia() {
         
         await guardarVentaEnEstadisticas(datosVenta);
         
-        // ⭐ Enviar correo con adjunto vía Apps Script
         await enviarCorreoConAdjuntoAppsScript(datosVenta);
         
-        // ⭐ Generar PDF
         generarPDFComprobante(datosVenta);
         
         let mensajeExito = `
@@ -3611,10 +3610,8 @@ async function procesarPagoCredito() {
         
         await guardarVentaEnEstadisticas(datosVenta);
         
-        // ⭐ Enviar correo con adjunto vía Apps Script
         await enviarCorreoConAdjuntoAppsScript(datosVenta);
         
-        // ⭐ Generar PDF
         generarPDFComprobante(datosVenta);
         
         let mensajeExito = `
@@ -3717,7 +3714,6 @@ async function guardarVentaEnEstadisticas(datos) {
             let diasCredito = 0;
             let fechaPago = '';
             
-            // ⭐ DETERMINAR SI ES CRÉDITO
             const esCredito = datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial';
             
             if (esCredito) {
@@ -3741,26 +3737,25 @@ async function guardarVentaEnEstadisticas(datos) {
                     fechaPago = datos.fechaPago ? datos.fechaPago.toLocaleDateString('es-MX') : '';
                 }
             } else {
-                // ⭐ TRANSFERENCIA: crédito pendiente = 0, monto pagado = 0
                 creditoPendiente = 0;
-                montoPagado = 0; // ✅ CORREGIDO: antes era producto.importe
+                montoPagado = 0;
                 diasCredito = 0;
                 fechaPago = '';
             }
             
             const filaProducto = [
-                fechaFormateada,                                    // A - Fecha
-                datos.folio,                                        // B - Folio
-                producto.nombre,                                    // C - Producto
-                producto.cantidad,                                  // D - Cantidad
-                producto.importe.toFixed(2),                        // E - Importe
-                ganancia.toFixed(2),                                // F - Ganancia
-                '',                                                 // G - (vacío)
-                creditoPendiente.toFixed(2),                        // H - Crédito pendiente
-                montoPagado.toFixed(2),                             // I - Monto pagado (0 en transferencia)
-                diasCredito,                                        // J - Días de crédito
-                fechaPago,                                          // K - Fecha de pago
-                datos.sucursal                                      // L - Sucursal
+                fechaFormateada,
+                datos.folio,
+                producto.nombre,
+                producto.cantidad,
+                producto.importe.toFixed(2),
+                ganancia.toFixed(2),
+                '',
+                creditoPendiente.toFixed(2),
+                montoPagado.toFixed(2),
+                diasCredito,
+                fechaPago,
+                datos.sucursal
             ];
             
             console.log(`📝 Guardando producto: ${producto.nombre}, crédito: ${creditoPendiente}, pagado: ${montoPagado}, días: ${diasCredito}, fechaPago: ${fechaPago}`);
@@ -3780,13 +3775,12 @@ async function guardarVentaEnEstadisticas(datos) {
             razonSocialFactura = datos.datosFactura.razonSocial || '';
         }
         
-        // ⭐ CORREGIDO: Transferencia → crédito pendiente = 0, monto pagado = 0
         let creditoPendienteTotal = datos.montoCredito || 0;
         let montoPagadoTotal = datos.montoPago || 0;
         
         if (datos.tipoPago === 'Transferencia') {
             creditoPendienteTotal = 0;
-            montoPagadoTotal = 0; // ✅ CORREGIDO: antes era datos.total
+            montoPagadoTotal = 0;
         }
         
         if (datos.tipoPago === 'Crédito' && !datos.esCreditoParcial) {
@@ -3794,22 +3788,30 @@ async function guardarVentaEnEstadisticas(datos) {
             montoPagadoTotal = 0;
         }
         
+        // ⭐ SI ES LIQUIDACIÓN DE CRÉDITO, NO GUARDAR EN CLIENTES
+        if (datos.esLiquidacionCredito) {
+            console.log('📝 Es liquidación de crédito, no se guarda en Clientes');
+            console.log('✅ Liquidación de crédito registrada correctamente');
+            return;
+        }
+        
         const filaCliente = [
-            fechaFormateada,                                    // A - Fecha
-            datos.folio,                                        // B - Folio
-            datos.cliente.codigo,                               // C - Código
-            datos.cliente.nombre,                               // D - Nombre
-            datos.total.toFixed(2),                             // E - Total
-            creditoPendienteTotal.toFixed(2),                   // F - Crédito pendiente
-            montoPagadoTotal.toFixed(2),                        // G - Monto pagado (0 en transferencia)
-            facturaTexto,                                       // H - Factura
-            datos.sucursal,                                     // I - Sucursal
-            formaPago,                                          // J - Forma de pago
-            tipoPago,                                           // K - Tipo de pago
-            '',                                                 // L - (vacío)
-            estadoPago,                                         // M - Estado
-            nombreDireccion,                                    // N - Dirección
-            razonSocialFactura                                  // O - Razón social
+            fechaFormateada,
+            datos.folio,
+            datos.cliente.codigo,
+            datos.cliente.nombre,
+            datos.total.toFixed(2),
+            creditoPendienteTotal.toFixed(2),
+            montoPagadoTotal.toFixed(2),
+            facturaTexto,
+            datos.sucursal,
+            formaPago,
+            tipoPago,
+            '',
+            estadoPago,
+            nombreDireccion,
+            razonSocialFactura,
+            '' // ⭐ COLUMNA P - Estatus de pago (vacío por defecto)
         ];
         
         console.log(`📝 Guardando cliente: ${datos.cliente.nombre}, total: ${datos.total}, crédito: ${creditoPendienteTotal}, pagado: ${montoPagadoTotal}`);
@@ -3860,6 +3862,7 @@ async function cargarHistorialCompras() {
             const formaPago = String(values[9] || '').trim();
             const creditoPendiente = parseFloat(values[5]) || 0;
             const montoPagado = parseFloat(values[6]) || 0;
+            const estatusPago = String(values[15] || '').trim(); // ⭐ COLUMNA P - Estatus de pago
             
             if (codigo === codigoCliente && idVenta) {
                 idsVenta.push(idVenta);
@@ -3874,7 +3877,8 @@ async function cargarHistorialCompras() {
                     tipoPago: formaPago,
                     saldoPendiente: creditoPendiente,
                     montoPagado: montoPagado,
-                    anticipo: montoPagado
+                    anticipo: montoPagado,
+                    estatusPago: estatusPago // ⭐ GUARDAR ESTATUS PAGO
                 });
             }
         }
@@ -3905,7 +3909,7 @@ async function cargarHistorialCompras() {
             const creditoPendiente = parseFloat(values[7]) || 0;
             const montoPagado = parseFloat(values[8]) || 0;
             const diasCredito = parseFloat(values[9]) || 0;
-            const fechaPagoStr = String(values[10] || '').trim(); // ⭐ Columna K - Fecha de pago
+            const fechaPagoStr = String(values[10] || '').trim();
             
             if (idsVenta.includes(idVenta) && nombreProducto) {
                 if (!productosPorVenta.has(idVenta)) {
@@ -3917,7 +3921,6 @@ async function cargarHistorialCompras() {
                     importe: importe
                 });
                 
-                // ⭐ Guardar fecha de pago y días de crédito en el mapa de ventas
                 if (!ventasMap.has(idVenta)) {
                     ventasMap.set(idVenta, {});
                 }
@@ -3955,7 +3958,8 @@ async function cargarHistorialCompras() {
                 iva: subtotal * 0.16,
                 totalConIva: subtotal * 1.16,
                 fechaPago: info.fechaPago || null,
-                diasCredito: info.diasCredito || 0
+                diasCredito: info.diasCredito || 0,
+                estatusPago: info.estatusPago || '' // ⭐ GUARDAR ESTATUS PAGO
             });
         }
         
@@ -4459,7 +4463,10 @@ function cargarCreditosPendientes() {
     creditosPendientes = historialVentas.filter(v => {
         const tipoPago = v.tipoPago || '';
         const saldoPendiente = v.saldoPendiente || v.total || 0;
-        return (tipoPago === 'Crédito' || tipoPago === 'Crédito Parcial') && saldoPendiente > 0.01;
+        const estatusPago = v.estatusPago || '';
+        return (tipoPago === 'Crédito' || tipoPago === 'Crédito Parcial') && 
+               saldoPendiente > 0.01 &&
+               estatusPago !== 'SI';
     });
     
     console.log(`📊 Créditos pendientes encontrados: ${creditosPendientes.length}`);
@@ -4490,11 +4497,9 @@ function cargarCreditosPendientes() {
             year: 'numeric'
         }) : 'Fecha no disponible';
         
-        // ⭐ CALCULAR FECHA LÍMITE DE PAGO - Usar fechaPago de la venta
         let fechaPago = null;
         let fechaPagoFormateada = 'No definida';
         
-        // Intentar obtener fecha de pago de la venta
         if (venta.fechaPago) {
             fechaPago = new Date(venta.fechaPago);
             if (!isNaN(fechaPago.getTime())) {
@@ -4506,7 +4511,6 @@ function cargarCreditosPendientes() {
             }
         }
         
-        // Si no tiene fechaPago, calcular con días de crédito
         if (!fechaPago || isNaN(fechaPago.getTime())) {
             const fechaVenta = venta.fechaObj || parseFechaGoogleSheets(venta.fecha);
             const diasCredito = venta.diasCredito || 20;
@@ -4523,29 +4527,35 @@ function cargarCreditosPendientes() {
             }
         }
         
-        // ⭐ VERIFICAR SI ESTÁ VENCIDO
         const estaVencido = fechaPago && !isNaN(fechaPago.getTime()) && fechaPago < new Date();
         const estadoColor = estaVencido ? '#dc2626' : '#92400e';
         const estadoTexto = estaVencido ? '⚠️ VENCIDO' : 'Pendiente';
         
+        const estatusPago = venta.estatusPago || '';
+        const esPagoEnProceso = estatusPago === 'SI';
+        
+        const estadoFinal = esPagoEnProceso ? 'Validando pago' : estadoTexto;
+        const colorFinal = esPagoEnProceso ? '#3b82f6' : estadoColor;
+        
         html += `
-            <div style="background:white; border-radius:12px; padding:1.2rem; border:1px solid ${estaVencido ? '#fecaca' : '#fef3c7'}; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+            <div style="background:white; border-radius:12px; padding:1.2rem; border:1px solid ${esPagoEnProceso ? '#bfdbfe' : (estaVencido ? '#fecaca' : '#fef3c7')}; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
                     <div>
                         <span style="font-weight:700; color:var(--primary-dark); font-size:1rem;">${venta.idVenta}</span>
                         <span style="font-size:0.75rem; color:var(--text-gray); margin-left:0.5rem;">${fechaFormateada}</span>
                         <div style="font-size:0.8rem; color:var(--text-gray); margin-top:0.2rem;">
                             <span class="badge badge-warning">${venta.tipoPago || 'Crédito'}</span>
-                            ${estaVencido ? '<span class="badge badge-danger" style="margin-left:0.5rem;">VENCIDO</span>' : ''}
+                            ${estaVencido && !esPagoEnProceso ? '<span class="badge badge-danger" style="margin-left:0.5rem;">VENCIDO</span>' : ''}
+                            ${esPagoEnProceso ? '<span class="badge badge-info" style="margin-left:0.5rem;background:#3b82f6;color:white;">Validando pago</span>' : ''}
                             ${venta.diasCredito ? `<span style="font-size:0.7rem; color:var(--text-gray); margin-left:0.5rem;">${venta.diasCredito} días</span>` : ''}
                         </div>
                     </div>
                     <div style="text-align:right;">
-                        <div style="font-weight:700; color:${estaVencido ? '#dc2626' : '#92400e'}; font-size:1.1rem;">
+                        <div style="font-weight:700; color:${colorFinal}; font-size:1.1rem;">
                             ${formatoMexicano(saldoPendiente)}
                         </div>
                         <div style="font-size:0.7rem; color:var(--text-gray);">Límite: ${fechaPagoFormateada}</div>
-                        <div style="font-size:0.7rem; color:${estadoColor}; font-weight:600;">${estadoTexto}</div>
+                        <div style="font-size:0.7rem; color:${colorFinal}; font-weight:600;">${estadoFinal}</div>
                     </div>
                 </div>
                 <div style="margin-top:0.5rem; padding-top:0.5rem; border-top:1px solid #f3f4f6;">
@@ -4557,10 +4567,16 @@ function cargarCreditosPendientes() {
                         ${venta.anticipo ? ` | <strong>Pagado:</strong> ${formatoMexicano(venta.anticipo)}` : ''}
                     </div>
                 </div>
-                <button class="btn-primary" style="width:100%; margin-top:0.8rem; padding:0.5rem; font-size:0.85rem;" 
-                        onclick="abrirModalPagoCreditoPendiente('${venta.idVenta}')">
-                    <i class="fas fa-university"></i> Liquidar con Transferencia
-                </button>
+                ${!esPagoEnProceso ? `
+                    <button class="btn-primary" style="width:100%; margin-top:0.8rem; padding:0.5rem; font-size:0.85rem;" 
+                            onclick="abrirModalPagoCreditoPendiente('${venta.idVenta}')">
+                        <i class="fas fa-university"></i> Liquidar con Transferencia
+                    </button>
+                ` : `
+                    <div style="width:100%; margin-top:0.8rem; padding:0.5rem; text-align:center; background:#eff6ff; border-radius:8px; color:#3b82f6; font-weight:600; font-size:0.85rem;">
+                        <i class="fas fa-spinner fa-spin"></i> Validando pago...
+                    </div>
+                `}
             </div>
         `;
     });
@@ -4641,9 +4657,6 @@ function abrirModalPagoCreditoPendiente(idVenta) {
     document.getElementById('referenciaTransferenciaCredito').addEventListener('input', validarCamposCreditoPendiente);
 }
 
-let comprobanteCreditoBase64 = null;
-let comprobanteCreditoNombre = null;
-
 function cargarComprobanteCredito(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -4723,7 +4736,7 @@ async function procesarPagoCreditoPendiente() {
         const venta = creditoSeleccionadoParaPago;
         const saldoPendiente = venta.saldoPendiente || venta.total || 0;
         
-        const folio = `PAGO-${venta.idVenta}`;
+        const folioOriginal = venta.idVenta;
         const fecha = new Date();
         
         const productosParaVenta = venta.productos ? venta.productos.map(p => ({
@@ -4732,7 +4745,7 @@ async function procesarPagoCreditoPendiente() {
         })) : [];
         
         const datosVenta = {
-            folio: folio,
+            folio: folioOriginal,
             fecha: fecha,
             cliente: clienteData,
             direccion: null,
@@ -4764,8 +4777,24 @@ async function procesarPagoCreditoPendiente() {
         
         console.log('📊 Liquidando crédito:', datosVenta);
         
-        await guardarVentaEnEstadisticas(datosVenta);
         await enviarCorreoConAdjuntoAppsScript(datosVenta);
+        
+        try {
+            const response = await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'actualizarEstatusPago',
+                    idVentaOriginal: venta.idVenta
+                })
+            });
+            console.log('✅ Estatus actualizado a SI para:', venta.idVenta);
+        } catch (error) {
+            console.error('❌ Error al actualizar estatus:', error);
+        }
         
         mostrarMensajeModalPagoCredito('exito', `
             ✅ ¡Pago registrado con éxito!<br>
@@ -4773,6 +4802,8 @@ async function procesarPagoCreditoPendiente() {
             <strong>Monto liquidado:</strong> ${formatoMexicano(saldoPendiente)}<br>
             <strong>Referencia:</strong> ${referencia}<br><br>
             Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.
+            <br><br>
+            <span style="color:#16a34a;font-weight:600;">✅ El estatus de la venta ha sido actualizado a "Validando pago".</span>
         `);
         
         if (btn) {
