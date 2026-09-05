@@ -1033,6 +1033,7 @@ async function cargarProductos() {
         let filasProcesadas = 0;
         let filasSaltadas = 0;
         
+        // ⭐ COMIENZA DESDE LA FILA 1 - la fila 0 es el encabezado
         for (let i = 1; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             
@@ -1531,6 +1532,7 @@ function obtenerPrecioFinal(producto) {
 }
 
 function calcularDescuentoProducto(producto, cantidad) {
+    // 1. Verificar precio especial (personalizado)
     const precioEspecial = preciosEspecialesGlobales.find(p => 
         p.codigoCliente === clienteData.codigo && 
         p.claveProducto === producto.clave
@@ -1540,15 +1542,18 @@ function calcularDescuentoProducto(producto, cantidad) {
         return 0;
     }
     
+    // 2. Si tiene NA 'N/A' - sin descuento
     if (producto.na === 'N/A') {
         return 0;
     }
     
+    // 3. Si tiene un número en NA (columna E) - usar ese descuento fijo
     const naNumero = parseFloat(producto.na);
     if (!isNaN(naNumero) && producto.na !== '' && producto.na !== '-' && producto.na !== 'N/A') {
         return naNumero;
     }
     
+    // 4. Si columna E tiene "-" (guión) - usar descuento por GIRO del cliente
     if (producto.na === '-') {
         const giro = clienteData.giro || 'Público en general';
         
@@ -1564,6 +1569,7 @@ function calcularDescuentoProducto(producto, cantidad) {
         
         let descuentoBase = mapGiro[giro] || 0;
         
+        // LÓGICA PXV - APLICA PARA TODOS LOS GIROS
         if (producto.pxv === 'PXV' && producto.pesoCondicion === 'SI') {
             let descuentoAdicional = 0;
             
@@ -1580,9 +1586,11 @@ function calcularDescuentoProducto(producto, cantidad) {
         return descuentoBase;
     }
     
+    // 5. COLUMNA E ESTÁ VACÍA - USAR DESCUENTO BASE DEL CLIENTE
     if (producto.na === '' || producto.na === null || producto.na === undefined) {
         let descuentoBase = clienteData.descuento || 0;
         
+        // LÓGICA PXV - APLICA PARA TODOS LOS GIROS
         if (producto.pxv === 'PXV' && producto.pesoCondicion === 'SI') {
             let descuentoAdicional = 0;
             
@@ -1603,7 +1611,534 @@ function calcularDescuentoProducto(producto, cantidad) {
 }
 
 // ============================================
-// FUNCIONES DE CARRITO
+// VERIFICACIÓN DE CRÉDITO DISPONIBLE
+// ============================================
+
+function verificarCreditoDisponible() {
+    console.log('🔍 Verificando crédito disponible...');
+    console.log('💳 Cliente crédito habilitado:', clienteCreditoHabilitado);
+    console.log('⚖️ Límite crédito peso:', clienteLimiteCreditoPeso);
+    console.log('💰 Límite crédito monto:', clienteLimiteCreditoMonto);
+    
+    // ⭐ VERIFICAR SI TIENE CRÉDITOS PENDIENTES
+    const tieneCreditosPendientes = creditosPendientes && creditosPendientes.length > 0;
+    if (tieneCreditosPendientes) {
+        const totalPendiente = creditosPendientes.reduce((sum, v) => sum + (v.saldoPendiente || v.total || 0), 0);
+        console.log(`⚠️ Cliente tiene créditos pendientes: ${formatoMexicano(totalPendiente)}`);
+        
+        // Si tiene créditos pendientes, NO puede usar crédito
+        return {
+            puedeCredito: false,
+            tipo: 'creditos_pendientes',
+            mensaje: `⚠️ Tienes créditos pendientes por ${formatoMexicano(totalPendiente)}. Debes liquidarlos antes de solicitar un nuevo crédito.`,
+            pesoTotal: 0,
+            montoCredito: 0,
+            montoPago: carrito.reduce((sum, item) => sum + item.importe, 0),
+            productosCredito: [],
+            productosPago: carrito,
+            excedeLimite: true,
+            puedeUsarCredito: false,
+            montoExcedente: 0
+        };
+    }
+    
+    const productosConPeso = carrito.filter(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        return producto && producto.pesoCondicion === 'SI' && producto.peso > 0;
+    });
+    
+    const productosSinPeso = carrito.filter(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        return producto && (producto.pesoCondicion !== 'SI' || producto.peso === 0);
+    });
+    
+    console.log(`📊 Productos con peso: ${productosConPeso.length}`);
+    console.log(`📊 Productos sin peso: ${productosSinPeso.length}`);
+    
+    let pesoTotal = 0;
+    productosConPeso.forEach(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        if (producto) {
+            pesoTotal += producto.peso * item.cantidad;
+        }
+    });
+    
+    let montoSinPeso = 0;
+    productosSinPeso.forEach(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        if (producto) {
+            const precioFinal = obtenerPrecioFinal(producto);
+            const descuento = calcularDescuentoProducto(producto, item.cantidad);
+            const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+            montoSinPeso += importe;
+        }
+    });
+    
+    let montoConPeso = 0;
+    productosConPeso.forEach(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        if (producto) {
+            const precioFinal = obtenerPrecioFinal(producto);
+            const descuento = calcularDescuentoProducto(producto, item.cantidad);
+            const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+            montoConPeso += importe;
+        }
+    });
+    
+    const totalGeneral = montoConPeso + montoSinPeso;
+    
+    console.log(`⚖️ Peso total (con peso): ${pesoTotal.toFixed(2)} kg`);
+    console.log(`💰 Monto productos con peso: ${formatoMexicano(montoConPeso)}`);
+    console.log(`💰 Monto productos sin peso: ${formatoMexicano(montoSinPeso)}`);
+    console.log(`💰 Total general: ${formatoMexicano(totalGeneral)}`);
+    
+    const hayProductosConPeso = productosConPeso.length > 0;
+    const hayProductosSinPeso = productosSinPeso.length > 0;
+    
+    if (carrito.length === 0) {
+        return {
+            puedeCredito: false,
+            tipo: 'sin_productos',
+            mensaje: '⚠️ No hay productos en el carrito.',
+            pesoTotal: 0,
+            montoCredito: 0,
+            montoPago: 0,
+            productosCredito: [],
+            productosPago: [],
+            excedeLimite: false,
+            puedeUsarCredito: false,
+            montoExcedente: 0
+        };
+    }
+    
+    if (!clienteCreditoHabilitado) {
+        return {
+            puedeCredito: false,
+            tipo: 'no_habilitado',
+            mensaje: '⚠️ El crédito no está habilitado para este cliente.',
+            pesoTotal: 0,
+            montoCredito: 0,
+            montoPago: totalGeneral,
+            productosCredito: [],
+            productosPago: carrito,
+            excedeLimite: true,
+            puedeUsarCredito: false,
+            montoExcedente: totalGeneral
+        };
+    }
+    
+    if (hayProductosConPeso && !hayProductosSinPeso) {
+        console.log('📦 Caso: Solo productos con peso');
+        
+        if (pesoTotal <= clienteLimiteCreditoPeso) {
+            return {
+                puedeCredito: true,
+                tipo: 'credito_total',
+                mensaje: `✅ Todos los productos van a crédito. Peso total: ${pesoTotal.toFixed(2)} kg (límite: ${clienteLimiteCreditoPeso} kg)`,
+                pesoTotal: pesoTotal,
+                montoCredito: totalGeneral,
+                montoPago: 0,
+                productosCredito: carrito,
+                productosPago: [],
+                excedeLimite: false,
+                puedeUsarCredito: true,
+                montoExcedente: 0
+            };
+        } else {
+            const pesoExcedente = pesoTotal - clienteLimiteCreditoPeso;
+            let pesoAcumulado = 0;
+            let productosPago = [];
+            let productosCredito = [];
+            let montoPago = 0;
+            let montoCredito = 0;
+            
+            const productosOrdenados = [...productosConPeso].sort((a, b) => {
+                const prodA = productosGlobales.find(p => p.clave === a.clave);
+                const prodB = productosGlobales.find(p => p.clave === b.clave);
+                return (prodB ? prodB.peso * b.cantidad : 0) - (prodA ? prodA.peso * a.cantidad : 0);
+            });
+            
+            for (const item of productosOrdenados) {
+                const producto = productosGlobales.find(p => p.clave === item.clave);
+                if (!producto) continue;
+                
+                const pesoItem = producto.peso * item.cantidad;
+                const precioFinal = obtenerPrecioFinal(producto);
+                const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                
+                if (pesoAcumulado + pesoItem <= pesoExcedente) {
+                    productosPago.push(item);
+                    montoPago += importe;
+                    pesoAcumulado += pesoItem;
+                } else {
+                    const pesoRestante = pesoExcedente - pesoAcumulado;
+                    if (pesoRestante > 0 && pesoItem > 0) {
+                        const cantidadPago = pesoRestante / producto.peso;
+                        const cantidadCredito = item.cantidad - cantidadPago;
+                        
+                        if (cantidadPago > 0) {
+                            const importePago = precioFinal.precio * cantidadPago * (1 - descuento / 100);
+                            productosPago.push({
+                                ...item,
+                                cantidad: cantidadPago,
+                                _parcial: true
+                            });
+                            montoPago += importePago;
+                        }
+                        
+                        if (cantidadCredito > 0) {
+                            const importeCredito = precioFinal.precio * cantidadCredito * (1 - descuento / 100);
+                            productosCredito.push({
+                                ...item,
+                                cantidad: cantidadCredito,
+                                _parcial: true
+                            });
+                            montoCredito += importeCredito;
+                        }
+                    }
+                    pesoAcumulado = pesoExcedente;
+                }
+            }
+            
+            for (const item of productosConPeso) {
+                if (!productosPago.some(p => p.clave === item.clave && p._parcial === true) && 
+                    !productosPago.some(p => p.clave === item.clave && p._parcial !== true)) {
+                    const producto = productosGlobales.find(p => p.clave === item.clave);
+                    if (!producto) continue;
+                    
+                    const precioFinal = obtenerPrecioFinal(producto);
+                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                    
+                    const yaProcesado = productosPago.some(p => p.clave === item.clave) || 
+                                       productosCredito.some(p => p.clave === item.clave);
+                    
+                    if (!yaProcesado) {
+                        productosCredito.push(item);
+                        montoCredito += importe;
+                    }
+                }
+            }
+            
+            return {
+                puedeCredito: true,
+                tipo: 'credito_parcial',
+                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPago)} deben pagarse. El resto va a crédito.`,
+                pesoTotal: pesoTotal,
+                pesoExcedente: pesoExcedente,
+                montoCredito: montoCredito,
+                montoPago: montoPago,
+                productosCredito: productosCredito,
+                productosPago: productosPago,
+                excedeLimite: true,
+                puedeUsarCredito: true,
+                montoExcedente: montoPago
+            };
+        }
+    }
+    
+    if (!hayProductosConPeso && hayProductosSinPeso) {
+        console.log('📦 Caso: Solo productos sin peso');
+        
+        if (montoSinPeso <= clienteLimiteCreditoMonto) {
+            return {
+                puedeCredito: true,
+                tipo: 'credito_total',
+                mensaje: `✅ Todos los productos van a crédito. Monto: ${formatoMexicano(montoSinPeso)} (límite: ${formatoMexicano(clienteLimiteCreditoMonto)})`,
+                pesoTotal: 0,
+                montoCredito: montoSinPeso,
+                montoPago: 0,
+                productosCredito: carrito,
+                productosPago: [],
+                excedeLimite: false,
+                puedeUsarCredito: true,
+                montoExcedente: 0
+            };
+        } else {
+            const montoExcedente = montoSinPeso - clienteLimiteCreditoMonto;
+            let montoAcumulado = 0;
+            let productosPago = [];
+            let productosCredito = [];
+            let montoPago = 0;
+            let montoCredito = 0;
+            
+            const productosOrdenados = [...productosSinPeso].sort((a, b) => {
+                const prodA = productosGlobales.find(p => p.clave === a.clave);
+                const prodB = productosGlobales.find(p => p.clave === b.clave);
+                const precioA = prodA ? prodA.precio * a.cantidad : 0;
+                const precioB = prodB ? prodB.precio * b.cantidad : 0;
+                return precioB - precioA;
+            });
+            
+            for (const item of productosOrdenados) {
+                const producto = productosGlobales.find(p => p.clave === item.clave);
+                if (!producto) continue;
+                
+                const precioFinal = obtenerPrecioFinal(producto);
+                const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                
+                if (montoAcumulado + importe <= montoExcedente) {
+                    productosPago.push(item);
+                    montoPago += importe;
+                    montoAcumulado += importe;
+                } else {
+                    const montoRestante = montoExcedente - montoAcumulado;
+                    if (montoRestante > 0 && importe > 0) {
+                        const cantidadPago = montoRestante / (precioFinal.precio * (1 - descuento / 100));
+                        const cantidadCredito = item.cantidad - cantidadPago;
+                        
+                        if (cantidadPago > 0) {
+                            const importePago = precioFinal.precio * cantidadPago * (1 - descuento / 100);
+                            productosPago.push({
+                                ...item,
+                                cantidad: cantidadPago,
+                                _parcial: true
+                            });
+                            montoPago += importePago;
+                        }
+                        
+                        if (cantidadCredito > 0) {
+                            const importeCredito = precioFinal.precio * cantidadCredito * (1 - descuento / 100);
+                            productosCredito.push({
+                                ...item,
+                                cantidad: cantidadCredito,
+                                _parcial: true
+                            });
+                            montoCredito += importeCredito;
+                        }
+                    }
+                    montoAcumulado = montoExcedente;
+                }
+            }
+            
+            for (const item of productosSinPeso) {
+                if (!productosPago.some(p => p.clave === item.clave && p._parcial === true) && 
+                    !productosPago.some(p => p.clave === item.clave && p._parcial !== true)) {
+                    const producto = productosGlobales.find(p => p.clave === item.clave);
+                    if (!producto) continue;
+                    
+                    const precioFinal = obtenerPrecioFinal(producto);
+                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                    
+                    const yaProcesado = productosPago.some(p => p.clave === item.clave) || 
+                                       productosCredito.some(p => p.clave === item.clave);
+                    
+                    if (!yaProcesado) {
+                        productosCredito.push(item);
+                        montoCredito += importe;
+                    }
+                }
+            }
+            
+            return {
+                puedeCredito: true,
+                tipo: 'credito_parcial',
+                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPago)} deben pagarse. El resto va a crédito.`,
+                pesoTotal: 0,
+                montoCredito: montoCredito,
+                montoPago: montoPago,
+                productosCredito: productosCredito,
+                productosPago: productosPago,
+                excedeLimite: true,
+                puedeUsarCredito: true,
+                montoExcedente: montoPago
+            };
+        }
+    }
+    
+    if (hayProductosConPeso && hayProductosSinPeso) {
+        console.log('📦 Caso: Productos mixtos');
+        
+        const pesoCumple = pesoTotal <= clienteLimiteCreditoPeso;
+        const montoCumple = montoSinPeso <= clienteLimiteCreditoMonto;
+        
+        if (pesoCumple && montoCumple) {
+            return {
+                puedeCredito: true,
+                tipo: 'credito_total',
+                mensaje: `✅ Todos los productos van a crédito. Peso: ${pesoTotal.toFixed(2)} kg, Monto: ${formatoMexicano(montoSinPeso)}`,
+                pesoTotal: pesoTotal,
+                montoCredito: totalGeneral,
+                montoPago: 0,
+                productosCredito: carrito,
+                productosPago: [],
+                excedeLimite: false,
+                puedeUsarCredito: true,
+                montoExcedente: 0
+            };
+        } else {
+            let productosPago = [];
+            let productosCredito = [];
+            let montoPago = 0;
+            let montoCredito = 0;
+            
+            if (!pesoCumple) {
+                const pesoExcedenteTotal = pesoTotal - clienteLimiteCreditoPeso;
+                let pesoAcumulado = 0;
+                
+                const prodPesoOrdenados = [...productosConPeso].sort((a, b) => {
+                    const prodA = productosGlobales.find(p => p.clave === a.clave);
+                    const prodB = productosGlobales.find(p => p.clave === b.clave);
+                    return (prodB ? prodB.peso * b.cantidad : 0) - (prodA ? prodA.peso * a.cantidad : 0);
+                });
+                
+                for (const item of prodPesoOrdenados) {
+                    const producto = productosGlobales.find(p => p.clave === item.clave);
+                    if (!producto) continue;
+                    
+                    const pesoItem = producto.peso * item.cantidad;
+                    const precioFinal = obtenerPrecioFinal(producto);
+                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                    
+                    if (pesoAcumulado + pesoItem <= pesoExcedenteTotal) {
+                        productosPago.push(item);
+                        montoPago += importe;
+                        pesoAcumulado += pesoItem;
+                    } else {
+                        const pesoRestante = pesoExcedenteTotal - pesoAcumulado;
+                        if (pesoRestante > 0 && pesoItem > 0) {
+                            const cantidadPago = pesoRestante / producto.peso;
+                            const cantidadCredito = item.cantidad - cantidadPago;
+                            
+                            if (cantidadPago > 0) {
+                                const importePago = precioFinal.precio * cantidadPago * (1 - descuento / 100);
+                                productosPago.push({
+                                    ...item,
+                                    cantidad: cantidadPago,
+                                    _parcial: true
+                                });
+                                montoPago += importePago;
+                            }
+                            
+                            if (cantidadCredito > 0) {
+                                const importeCredito = precioFinal.precio * cantidadCredito * (1 - descuento / 100);
+                                productosCredito.push({
+                                    ...item,
+                                    cantidad: cantidadCredito,
+                                    _parcial: true
+                                });
+                                montoCredito += importeCredito;
+                            }
+                        }
+                        pesoAcumulado = pesoExcedenteTotal;
+                    }
+                }
+            }
+            
+            if (!montoCumple) {
+                const montoExcedenteTotal = montoSinPeso - clienteLimiteCreditoMonto;
+                let montoAcumulado = 0;
+                
+                const prodSinPesoOrdenados = [...productosSinPeso].sort((a, b) => {
+                    const prodA = productosGlobales.find(p => p.clave === a.clave);
+                    const prodB = productosGlobales.find(p => p.clave === b.clave);
+                    const precioA = prodA ? prodA.precio * a.cantidad : 0;
+                    const precioB = prodB ? prodB.precio * b.cantidad : 0;
+                    return precioB - precioA;
+                });
+                
+                for (const item of prodSinPesoOrdenados) {
+                    if (productosPago.some(p => p.clave === item.clave) || 
+                        productosCredito.some(p => p.clave === item.clave)) continue;
+                    
+                    const producto = productosGlobales.find(p => p.clave === item.clave);
+                    if (!producto) continue;
+                    
+                    const precioFinal = obtenerPrecioFinal(producto);
+                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                    
+                    if (montoAcumulado + importe <= montoExcedenteTotal) {
+                        productosPago.push(item);
+                        montoPago += importe;
+                        montoAcumulado += importe;
+                    } else {
+                        const montoRestante = montoExcedenteTotal - montoAcumulado;
+                        if (montoRestante > 0 && importe > 0) {
+                            const cantidadPago = montoRestante / (precioFinal.precio * (1 - descuento / 100));
+                            const cantidadCredito = item.cantidad - cantidadPago;
+                            
+                            if (cantidadPago > 0) {
+                                const importePago = precioFinal.precio * cantidadPago * (1 - descuento / 100);
+                                productosPago.push({
+                                    ...item,
+                                    cantidad: cantidadPago,
+                                    _parcial: true
+                                });
+                                montoPago += importePago;
+                            }
+                            
+                            if (cantidadCredito > 0) {
+                                const importeCredito = precioFinal.precio * cantidadCredito * (1 - descuento / 100);
+                                productosCredito.push({
+                                    ...item,
+                                    cantidad: cantidadCredito,
+                                    _parcial: true
+                                });
+                                montoCredito += importeCredito;
+                            }
+                        }
+                        montoAcumulado = montoExcedenteTotal;
+                    }
+                }
+            }
+            
+            for (const item of carrito) {
+                if (!productosPago.some(p => p.clave === item.clave && p._parcial === true) && 
+                    !productosPago.some(p => p.clave === item.clave && p._parcial !== true) &&
+                    !productosCredito.some(p => p.clave === item.clave && p._parcial === true) &&
+                    !productosCredito.some(p => p.clave === item.clave && p._parcial !== true)) {
+                    const producto = productosGlobales.find(p => p.clave === item.clave);
+                    if (!producto) continue;
+                    
+                    const precioFinal = obtenerPrecioFinal(producto);
+                    const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                    const importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                    
+                    productosCredito.push(item);
+                    montoCredito += importe;
+                }
+            }
+            
+            const montoExcedenteTotal = montoPago;
+            
+            return {
+                puedeCredito: true,
+                tipo: 'credito_parcial',
+                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPago)} deben pagarse. El resto va a crédito.`,
+                pesoTotal: pesoTotal,
+                montoCredito: montoCredito,
+                montoPago: montoPago,
+                productosCredito: productosCredito,
+                productosPago: productosPago,
+                excedeLimite: true,
+                puedeUsarCredito: true,
+                montoExcedente: montoExcedenteTotal
+            };
+        }
+    }
+    
+    return {
+        puedeCredito: false,
+        tipo: 'sin_productos',
+        mensaje: '⚠️ No hay productos en el carrito.',
+        pesoTotal: 0,
+        montoCredito: 0,
+        montoPago: 0,
+        productosCredito: [],
+        productosPago: [],
+        excedeLimite: false,
+        puedeUsarCredito: false,
+        montoExcedente: 0
+    };
+}
+
+// ============================================
+// CARRITO
 // ============================================
 
 function agregarAlCarrito(clave) {
@@ -2806,139 +3341,32 @@ async function enviarCorreoConAdjuntoAppsScript(datos) {
 }
 
 // ============================================
-// ⭐ FUNCIÓN PARA ENVIAR CORREO DE PAGO DE CRÉDITO (BONITO - SIN EMOJIS)
+// ⭐ NUEVA FUNCIÓN PARA ENVIAR CORREO DE PAGO DE CRÉDITO
 // ============================================
 
-async function enviarCorreoPagoCreditoBonito(datos) {
+async function enviarCorreoPagoCredito(datos) {
     try {
         const APPS_SCRIPT_EMAIL_URL = 'https://script.google.com/macros/s/AKfycbzxjyFsLB6go3gcMz1qPNou1HhxsugQoiLvKPl0GAwLOQJZKdEcOyK-QxFU64WukWCY/exec';
         
-        console.log('📧 Enviando correo de PAGO DE CREDITO con formato bonito...');
-        
-        // Generar tabla de productos en HTML
-        let tablaProductosHTML = '';
-        if (datos.productos && datos.productos.length > 0) {
-            tablaProductosHTML = `
-                <table style="width:100%; border-collapse:collapse; font-family:Arial, sans-serif; font-size:14px;">
-                    <thead>
-                        <tr style="background:#2a3990; color:white;">
-                            <th style="padding:10px 12px; text-align:left; border:1px solid #ddd;">Producto</th>
-                            <th style="padding:10px 12px; text-align:center; border:1px solid #ddd;">Cantidad</th>
-                            <th style="padding:10px 12px; text-align:right; border:1px solid #ddd;">Importe</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-            datos.productos.forEach(p => {
-                const importe = p.importe || 0;
-                const cantidad = p.cantidad || 0;
-                const nombre = p.nombre || 'Sin nombre';
-                tablaProductosHTML += `
-                    <tr>
-                        <td style="padding:8px 12px; border:1px solid #ddd;">${nombre}</td>
-                        <td style="padding:8px 12px; text-align:center; border:1px solid #ddd;">${cantidad}</td>
-                        <td style="padding:8px 12px; text-align:right; border:1px solid #ddd;">$${Number(importe).toFixed(2)}</td>
-                    </tr>
-                `;
-            });
-            tablaProductosHTML += `
-                    </tbody>
-                </table>
-            `;
-        } else {
-            tablaProductosHTML = '<p style="color:#666;">No hay productos en esta venta.</p>';
-        }
+        console.log('📧 Enviando correo de PAGO DE CREDITO...');
         
         const fechaFormateada = datos.fecha ? datos.fecha.toLocaleString('es-MX') : new Date().toLocaleString('es-MX');
-        const monto = Number(datos.monto || 0).toFixed(2);
-        const clienteNombre = datos.cliente ? datos.cliente.nombre : 'Sin nombre';
-        const clienteCodigo = datos.cliente ? datos.cliente.codigo : 'Sin codigo';
         
-        // HTML del correo con formato bonito - SIN EMOJIS
-        const htmlContent = `
-            <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px; background: #f8f9fa; border-radius: 12px;">
-                <div style="background: linear-gradient(135deg, #0A2540 0%, #1a4d8c 100%); padding: 25px 30px; border-radius: 12px 12px 0 0; text-align: center;">
-                    <h1 style="color: white; margin: 0; font-size: 24px; letter-spacing: 1px;">PAGO DE CREDITO</h1>
-                    <p style="color: rgba(255,255,255,0.8); margin: 5px 0 0 0; font-size: 14px;">Folio original: <strong style="color: #F5A623;">${datos.idVenta}</strong></p>
-                </div>
-                
-                <div style="background: white; padding: 25px 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-                    <!-- Datos del cliente -->
-                    <div style="background: #f0f4f8; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px;">
-                        <h3 style="color: #0A2540; margin: 0 0 10px 0; font-size: 16px;">Datos del Cliente</h3>
-                        <p style="margin: 3px 0; font-size: 14px; color: #333;"><strong>Nombre:</strong> ${clienteNombre}</p>
-                        <p style="margin: 3px 0; font-size: 14px; color: #333;"><strong>Codigo:</strong> ${clienteCodigo}</p>
-                        <p style="margin: 3px 0; font-size: 14px; color: #333;"><strong>Fecha:</strong> ${fechaFormateada}</p>
-                    </div>
-                    
-                    <!-- Monto liquidado -->
-                    <div style="background: #dcfce7; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #bbf7d0;">
-                        <p style="margin: 0; font-size: 18px; font-weight: bold; color: #16a34a; text-align: center;">
-                            Monto liquidado: $${monto}
-                        </p>
-                    </div>
-                    
-                    <!-- Detalles del pago -->
-                    <div style="background: #fef3c7; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #fde68a;">
-                        <h3 style="color: #92400e; margin: 0 0 10px 0; font-size: 16px;">Detalles del Pago</h3>
-                        <p style="margin: 3px 0; font-size: 14px; color: #92400e;"><strong>Venta original:</strong> ${datos.idVenta}</p>
-                        <p style="margin: 3px 0; font-size: 14px; color: #92400e;"><strong>Referencia:</strong> ${datos.referencia}</p>
-                        <p style="margin: 3px 0; font-size: 14px; color: #92400e;"><strong>Comprobante:</strong> ${datos.comprobanteNombre || 'No adjunto'}</p>
-                    </div>
-                    
-                    <!-- Productos -->
-                    <div style="margin-bottom: 20px;">
-                        <h3 style="color: #0A2540; margin: 0 0 10px 0; font-size: 16px;">Productos de la venta</h3>
-                        ${tablaProductosHTML}
-                    </div>
-                    
-                    <!-- Footer -->
-                    <div style="border-top: 2px solid #e2e8f0; padding-top: 15px; text-align: center;">
-                        <p style="margin: 0; color: #4a5568; font-size: 13px;">
-                            <strong style="color: #0A2540;">ProConstruccion MX</strong> 
-                            <span style="color: #F5A623;">|</span> 
-                            ventas@proconstruccionmx.com
-                        </p>
-                        <p style="margin: 5px 0 0 0; font-size: 12px; color: #a0aec0;">
-                            Este es un correo automatico de confirmacion de pago.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        // Texto plano como alternativa
-        const textoPlano = `
-PAGO DE CREDITO
-===============
-
-Folio original: ${datos.idVenta}
-Cliente: ${clienteNombre}
-Codigo: ${clienteCodigo}
-Fecha: ${fechaFormateada}
-
-Monto liquidado: $${monto}
-Referencia: ${datos.referencia}
-Comprobante: ${datos.comprobanteNombre || 'No adjunto'}
-
-Productos:
-${datos.productos ? datos.productos.map(p => `- ${p.nombre} x ${p.cantidad} = $${(p.importe || 0).toFixed(2)}`).join('\n') : 'No hay productos'}
-
----
-ProConstruccion MX
-ventas@proconstruccionmx.com
-        `;
-        
-        // Enviar a Apps Script
         const payload = {
-            action: 'enviarCorreoPagoCreditoBonito',
+            action: 'enviarCorreoPagoCredito',
             email: 'ventas@proconstruccionmx.com',
-            asunto: `PAGO DE CREDITO - ${datos.idVenta} - ${clienteNombre}`,
-            htmlContent: htmlContent,
-            textoPlano: textoPlano,
+            asunto: `PAGO DE CREDITO - ${datos.idVenta} - ${datos.cliente.nombre}`,
+            idVenta: datos.idVenta,
+            folio: datos.idVenta,
+            fecha: fechaFormateada,
+            cliente_nombre: datos.cliente ? datos.cliente.nombre : 'Sin nombre',
+            cliente_codigo: datos.cliente ? datos.cliente.codigo : 'Sin código',
+            monto: Number(datos.monto || 0).toFixed(2),
+            referencia: datos.referencia || 'N/A',
+            comprobante_nombre: datos.comprobanteNombre || 'No adjunto',
             comprobanteBase64: datos.comprobante || null,
-            comprobanteNombre: datos.comprobanteNombre || null,
-            comprobanteTipo: datos.comprobanteTipo || 'image/jpeg'
+            comprobanteTipo: datos.comprobanteTipo || 'image/jpeg',
+            anio: new Date().getFullYear()
         };
         
         console.log('📤 Enviando a Apps Script:', payload);
@@ -2952,7 +3380,7 @@ ventas@proconstruccionmx.com
             body: JSON.stringify(payload)
         });
         
-        console.log('✅ Correo de PAGO DE CREDITO enviado con formato bonito');
+        console.log('✅ Correo de PAGO DE CREDITO enviado a ventas@proconstruccionmx.com');
         return { success: true };
         
     } catch (error) {
@@ -2962,12 +3390,75 @@ ventas@proconstruccionmx.com
 }
 
 // ============================================
-// ⭐ FUNCIÓN PARA MARCAR COLUMNA P EN CLIENTES
+// ⭐ NUEVA FUNCIÓN PARA ACTUALIZAR CRÉDITO EN PRODUCTOS
 // ============================================
 
-async function marcarColumnaPCliente(idVenta) {
+async function actualizarPagoCreditoEnProductos(idVenta, montoPagado) {
     try {
-        console.log(`📝 Buscando fila con ID de venta: ${idVenta} en Clientes para marcar columna P`);
+        console.log(`📝 Buscando filas con ID de venta: ${idVenta} en Productos`);
+        
+        const url = `https://docs.google.com/spreadsheets/d/${ID_ESTADISTICAS}/gviz/tq?tqx=out:json&sheet=${HOJA_EST_PRODUCTOS}`;
+        const response = await fetch(url);
+        const text = await response.text();
+        const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
+        const data = JSON.parse(jsonStr);
+        const rows = data.table.rows;
+        
+        let filasActualizadas = 0;
+        
+        for (let i = 1; i < rows.length; i++) {
+            const values = rows[i].c.map(cell => cell ? cell.v : '');
+            const idVentaFila = String(values[1] || '').trim();
+            
+            if (idVentaFila === idVenta) {
+                const filaReal = i + 1;
+                console.log(`✅ Encontrada fila ${filaReal} para ID ${idVenta}`);
+                
+                const creditoPendienteActual = parseFloat(values[7]) || 0;
+                const montoPagadoActual = parseFloat(values[8]) || 0;
+                
+                const nuevoMontoPagado = montoPagadoActual + montoPagado;
+                const nuevoCreditoPendiente = Math.max(0, creditoPendienteActual - montoPagado);
+                
+                console.log(`📊 Actualizando fila ${filaReal}:`);
+                console.log(`   Crédito pendiente: ${creditoPendienteActual} → ${nuevoCreditoPendiente}`);
+                console.log(`   Monto pagado: ${montoPagadoActual} → ${nuevoMontoPagado}`);
+                
+                await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'actualizarPagoCreditoProductos',
+                        fila: filaReal,
+                        idVenta: idVenta,
+                        creditoPendiente: nuevoCreditoPendiente,
+                        montoPagado: nuevoMontoPagado
+                    })
+                });
+                
+                filasActualizadas++;
+            }
+        }
+        
+        console.log(`✅ Productos actualizados: ${filasActualizadas} filas`);
+        return { success: true, filasActualizadas };
+        
+    } catch (error) {
+        console.error('❌ Error al actualizar Productos:', error);
+        throw error;
+    }
+}
+
+// ============================================
+// ⭐ NUEVA FUNCIÓN PARA ACTUALIZAR CRÉDITO EN CLIENTES
+// ============================================
+
+async function actualizarPagoCreditoEnClientes(idVenta, montoPagado) {
+    try {
+        console.log(`📝 Buscando fila con ID de venta: ${idVenta} en Clientes`);
         
         const url = `https://docs.google.com/spreadsheets/d/${ID_ESTADISTICAS}/gviz/tq?tqx=out:json&sheet=${HOJA_EST_CLIENTES}`;
         const response = await fetch(url);
@@ -2978,6 +3469,8 @@ async function marcarColumnaPCliente(idVenta) {
         
         let filaEncontrada = false;
         let filaReal = null;
+        let creditoPendienteActual = 0;
+        let montoPagadoActual = 0;
         
         for (let i = 1; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
@@ -2986,6 +3479,8 @@ async function marcarColumnaPCliente(idVenta) {
             if (idVentaFila === idVenta) {
                 filaReal = i + 1;
                 filaEncontrada = true;
+                creditoPendienteActual = parseFloat(values[5]) || 0;
+                montoPagadoActual = parseFloat(values[6]) || 0;
                 console.log(`✅ Encontrada fila ${filaReal} para ID ${idVenta}`);
                 break;
             }
@@ -2996,15 +3491,12 @@ async function marcarColumnaPCliente(idVenta) {
             return { success: false, mensaje: 'No se encontró la venta en Clientes' };
         }
         
-        // ⭐ Enviar a Apps Script para marcar columna P (índice 16)
-        const body = {
-            action: 'marcarColumnaPCliente',
-            fila: filaReal,
-            idVenta: idVenta,
-            valor: 'SI'
-        };
+        const nuevoMontoPagado = montoPagadoActual + montoPagado;
+        const nuevoCreditoPendiente = Math.max(0, creditoPendienteActual - montoPagado);
         
-        console.log('📤 Enviando a Apps Script:', body);
+        console.log(`📊 Actualizando cliente fila ${filaReal}:`);
+        console.log(`   Crédito pendiente: ${creditoPendienteActual} → ${nuevoCreditoPendiente}`);
+        console.log(`   Monto pagado: ${montoPagadoActual} → ${nuevoMontoPagado}`);
         
         await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
@@ -3012,20 +3504,352 @@ async function marcarColumnaPCliente(idVenta) {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(body)
+            body: JSON.stringify({
+                action: 'actualizarPagoCreditoClientes',
+                fila: filaReal,
+                idVenta: idVenta,
+                creditoPendiente: nuevoCreditoPendiente,
+                montoPagado: nuevoMontoPagado
+            })
         });
         
-        console.log(`✅ Columna P marcada como SI para venta ${idVenta}`);
+        console.log(`✅ Cliente actualizado correctamente`);
         return { success: true, fila: filaReal };
         
     } catch (error) {
-        console.error('❌ Error al marcar columna P:', error);
-        return { success: false, error: error.message };
+        console.error('❌ Error al actualizar Clientes:', error);
+        throw error;
     }
 }
 
 // ============================================
-// ⭐ PROCESAR PAGO DE CRÉDITO PENDIENTE (SOLO CORREO + COLUMNA P)
+// PROCESAMIENTO DE PAGOS
+// ============================================
+
+async function procesarPagoTransferencia() {
+    const referencia = document.getElementById('referenciaTransferencia').value.trim();
+    
+    if (!referencia) {
+        mostrarMensajeModal('error', '⚠️ El número de referencia o folio de transferencia es obligatorio.');
+        return;
+    }
+    
+    if (!comprobanteBase64) {
+        mostrarMensajeModal('error', '⚠️ Por favor, sube el comprobante de transferencia.');
+        return;
+    }
+    
+    if (!window.datosEnvio || !window.datosEnvio.mapsUrl || window.datosEnvio.mapsUrl === 'No proporcionado') {
+        mostrarMensajeModal('error', '⚠️ La URL de Google Maps es obligatoria. Por favor, proporciona la ubicación exacta.');
+        return;
+    }
+    
+    if (requiereFactura && !datosFacturaSeleccionados) {
+        mostrarMensajeModal('error', '⚠️ Por favor, selecciona una razón social para facturar.');
+        return;
+    }
+    
+    const btn = document.getElementById('btnConfirmarTransferencia');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner"></span> Procesando...';
+    }
+    
+    try {
+        const total = calcularTotal();
+        const folio = generarFolio();
+        const fecha = new Date();
+        
+        let productosParaVenta = carrito.map(item => ({
+            ...item,
+            _tipo: 'pago'
+        }));
+        
+        const datosVenta = {
+            folio: folio,
+            fecha: fecha,
+            cliente: clienteData,
+            direccion: window.datosEnvio || null,
+            productos: productosParaVenta,
+            total: total,
+            subtotal: total / 1.16,
+            iva: total - (total / 1.16),
+            tipoPago: 'Transferencia',
+            referencia: referencia,
+            comprobante: comprobanteBase64,
+            comprobanteNombre: comprobanteNombre,
+            comprobanteTipo: comprobanteTipo,
+            sucursal: SUCURSAL_WEB,
+            nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre',
+            requiereFactura: requiereFactura,
+            datosFactura: datosFacturaSeleccionados,
+            montoPago: total,
+            montoCredito: 0,
+            estadoPago: 'Validando pago',
+            esCreditoParcial: false,
+            diasCredito: 0,
+            fechaPago: null,
+            saldoPendiente: 0,
+            anticipo: total
+        };
+        
+        console.log('📊 Datos de venta a guardar (Transferencia):', datosVenta);
+        
+        await guardarVentaEnEstadisticas(datosVenta);
+        await enviarCorreoConAdjuntoAppsScript(datosVenta);
+        generarPDFComprobante(datosVenta);
+        
+        let mensajeExito = `
+            ✅ ¡Compra realizada con éxito!<br>
+            <strong>Folio:</strong> ${folio}<br>
+            <strong>Total:</strong> ${formatoMexicano(total)}<br>
+            <strong>Método:</strong> Transferencia<br>
+            <strong>Referencia:</strong> ${referencia}<br>
+        `;
+        
+        if (requiereFactura) {
+            mensajeExito += `<strong>Factura:</strong> Sí - ${datosFacturaSeleccionados ? datosFacturaSeleccionados.razonSocial : 'N/A'}<br>`;
+        } else {
+            mensajeExito += `<strong>Factura:</strong> No<br>`;
+        }
+        
+        mensajeExito += `<br>Se ha descargado el comprobante en formato PDF.<br>Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.`;
+        
+        mostrarMensajeModal('exito', mensajeExito);
+        
+        carrito = [];
+        renderizarCarrito();
+        window.datosEnvio = null;
+        window._infoCredito = null;
+        window._esCreditoParcial = false;
+        window._montoPago = 0;
+        window._montoCredito = 0;
+        window._puedeUsarCredito = false;
+        window._montoExcedente = 0;
+        infoCreditoCalculado = null;
+        
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Compra';
+        }
+        
+        setTimeout(() => {
+            cerrarModalPago();
+            cargarHistorialCompras();
+        }, 8000);
+        
+    } catch (error) {
+        console.error('Error al procesar pago:', error);
+        mostrarMensajeModal('error', '❌ Error al procesar el pago. Por favor, intenta de nuevo o contacta a tu asesor.');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Compra';
+        }
+    }
+}
+
+async function procesarPagoCredito() {
+    const dias = DIAS_CREDITO_FIJO;
+    const total = calcularTotal();
+    
+    if (!window._puedeUsarCredito) {
+        mostrarMensajeModal('error', '⚠️ No puedes usar crédito. Por favor, selecciona la opción de transferencia para pagar de contado.');
+        return;
+    }
+    
+    if (!window.datosEnvio || !window.datosEnvio.mapsUrl || window.datosEnvio.mapsUrl === 'No proporcionado') {
+        mostrarMensajeModal('error', '⚠️ La URL de Google Maps es obligatoria. Por favor, proporciona la ubicación exacta.');
+        return;
+    }
+    
+    if (requiereFactura && !datosFacturaSeleccionados) {
+        mostrarMensajeModal('error', '⚠️ Por favor, selecciona una razón social para facturar.');
+        return;
+    }
+    
+    const esCreditoParcial = window._esCreditoParcial || false;
+    const infoCredito = window._infoCredito || infoCreditoCalculado;
+    const montoExcedente = window._montoExcedente || 0;
+    
+    if (esCreditoParcial && montoExcedente > 0) {
+        const referencia = document.getElementById('referenciaTransferencia').value.trim();
+        if (!referencia) {
+            mostrarMensajeModal('error', '⚠️ Para el crédito parcial, debes ingresar el número de referencia o folio de transferencia del excedente.');
+            return;
+        }
+        if (!comprobanteBase64) {
+            mostrarMensajeModal('error', '⚠️ Para el crédito parcial, debes subir el comprobante de transferencia del excedente.');
+            return;
+        }
+    }
+    
+    const btn = document.getElementById('btnConfirmarCredito');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner"></span> Procesando...';
+    }
+    
+    try {
+        const folio = generarFolio();
+        const fecha = new Date();
+        const fechaPago = new Date(fecha);
+        fechaPago.setDate(fechaPago.getDate() + dias);
+        
+        let productosParaVenta = [];
+        let montoPago = 0;
+        let montoCredito = total;
+        let tipoPago = 'Crédito';
+        let estadoPago = 'En preparación';
+        let anticipo = 0;
+        let saldoPendiente = total;
+        let referenciaExcedente = null;
+        let comprobanteExcedente = null;
+        
+        if (esCreditoParcial && infoCredito && infoCredito.excedeLimite) {
+            tipoPago = 'Crédito Parcial';
+            montoPago = infoCredito.montoExcedente || infoCredito.montoPago;
+            montoCredito = infoCredito.montoCredito;
+            estadoPago = 'Validando pago';
+            anticipo = montoPago;
+            saldoPendiente = montoCredito;
+            referenciaExcedente = document.getElementById('referenciaTransferencia').value.trim();
+            comprobanteExcedente = comprobanteBase64;
+            
+            const productosPago = infoCredito.productosPago || [];
+            productosPago.forEach(item => {
+                productosParaVenta.push({
+                    clave: item.clave,
+                    nombre: item.nombre,
+                    cantidad: item.cantidad,
+                    precio: item.precio,
+                    descuento: item.descuento,
+                    importe: item.precio * item.cantidad * (1 - item.descuento / 100),
+                    precioCompra: item.precioCompra || 0,
+                    personalizado: item.personalizado || false,
+                    _tipo: 'pago'
+                });
+            });
+            
+            const productosCredito = infoCredito.productosCredito || [];
+            productosCredito.forEach(item => {
+                productosParaVenta.push({
+                    clave: item.clave,
+                    nombre: item.nombre,
+                    cantidad: item.cantidad,
+                    precio: item.precio,
+                    descuento: item.descuento,
+                    importe: item.precio * item.cantidad * (1 - item.descuento / 100),
+                    precioCompra: item.precioCompra || 0,
+                    personalizado: item.personalizado || false,
+                    _tipo: 'credito'
+                });
+            });
+            
+        } else {
+            productosParaVenta = carrito.map(item => ({
+                ...item,
+                _tipo: 'credito'
+            }));
+        }
+        
+        const datosVenta = {
+            folio: folio,
+            fecha: fecha,
+            cliente: clienteData,
+            direccion: window.datosEnvio || null,
+            productos: productosParaVenta,
+            total: total,
+            subtotal: total / 1.16,
+            iva: total - (total / 1.16),
+            tipoPago: tipoPago,
+            diasCredito: dias,
+            anticipo: anticipo,
+            saldoPendiente: saldoPendiente,
+            fechaPago: fechaPago,
+            sucursal: SUCURSAL_WEB,
+            nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre',
+            requiereFactura: requiereFactura,
+            datosFactura: datosFacturaSeleccionados,
+            montoPago: montoPago,
+            montoCredito: montoCredito,
+            estadoPago: estadoPago,
+            esCreditoParcial: esCreditoParcial,
+            referencia: esCreditoParcial ? referenciaExcedente : 'CRÉDITO',
+            comprobante: esCreditoParcial ? comprobanteExcedente : null,
+            comprobanteNombre: esCreditoParcial ? comprobanteNombre : null,
+            comprobanteTipo: esCreditoParcial ? comprobanteTipo : null
+        };
+        
+        console.log('📊 Datos de venta a guardar (Crédito):', datosVenta);
+        
+        await guardarVentaEnEstadisticas(datosVenta);
+        await enviarCorreoConAdjuntoAppsScript(datosVenta);
+        generarPDFComprobante(datosVenta);
+        
+        let mensajeExito = `
+            ✅ ¡Crédito ${esCreditoParcial ? 'parcial' : ''} aprobado!<br>
+            <strong>Folio:</strong> ${folio}<br>
+            <strong>Total:</strong> ${formatoMexicano(total)}<br>
+            <strong>Días de crédito:</strong> ${dias} días fijos<br>
+            <strong>Fecha de pago:</strong> ${fechaPago.toLocaleDateString('es-MX')}<br>
+        `;
+        
+        if (esCreditoParcial) {
+            mensajeExito += `
+                <strong>Monto pagado (excedente):</strong> ${formatoMexicano(montoPago)}<br>
+                <strong>Monto a crédito:</strong> ${formatoMexicano(montoCredito)}<br>
+                <strong>Referencia excedente:</strong> ${referenciaExcedente || 'N/A'}<br>
+                <span style="color:#92400e;font-size:0.9rem;">⚠️ El saldo a crédito deberá ser liquidado en ${dias} días.</span><br>
+            `;
+        }
+        
+        if (requiereFactura) {
+            mensajeExito += `<strong>Factura:</strong> Sí - ${datosFacturaSeleccionados ? datosFacturaSeleccionados.razonSocial : 'N/A'}<br>`;
+        } else {
+            mensajeExito += `<strong>Factura:</strong> No<br>`;
+        }
+        
+        mensajeExito += `<br>Se ha descargado el comprobante en formato PDF.<br>Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.`;
+        
+        if (esCreditoParcial) {
+            mensajeExito += `<br><span style="color:#92400e;font-size:0.9rem;">✅ El excedente ha sido pagado. El resto queda a crédito.</span>`;
+        }
+        
+        mostrarMensajeModal('exito', mensajeExito);
+        
+        carrito = [];
+        renderizarCarrito();
+        window.datosEnvio = null;
+        window._infoCredito = null;
+        window._esCreditoParcial = false;
+        window._montoPago = 0;
+        window._montoCredito = 0;
+        window._puedeUsarCredito = false;
+        window._montoExcedente = 0;
+        infoCreditoCalculado = null;
+        
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
+        }
+        
+        setTimeout(() => {
+            cerrarModalPago();
+            cargarHistorialCompras();
+        }, 8000);
+        
+    } catch (error) {
+        console.error('Error al procesar crédito:', error);
+        mostrarMensajeModal('error', '❌ Error al procesar el crédito. Por favor, intenta de nuevo o contacta a tu asesor.');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
+        }
+    }
+}
+
+// ============================================
+// ⭐ PROCESAR PAGO DE CRÉDITO PENDIENTE (LIQUIDACIÓN)
 // ============================================
 
 async function procesarPagoCreditoPendiente() {
@@ -3061,11 +3885,14 @@ async function procesarPagoCreditoPendiente() {
         console.log(`📝 Liquidando crédito para venta: ${idVenta}`);
         console.log(`💰 Monto a liquidar: ${saldoPendiente}`);
         
-        // ⭐ 1. MARCAR COLUMNA P EN CLIENTES CON "SI"
-        await marcarColumnaPCliente(idVenta);
+        // ⭐ 1. ACTUALIZAR HOJA PRODUCTOS - Buscar y actualizar filas del ID de venta
+        await actualizarPagoCreditoEnProductos(idVenta, saldoPendiente);
         
-        // ⭐ 2. ENVIAR CORREO DE PAGO DE CRÉDITO (con formato bonito)
-        await enviarCorreoPagoCreditoBonito({
+        // ⭐ 2. ACTUALIZAR HOJA CLIENTES - Buscar y actualizar fila del ID de venta
+        await actualizarPagoCreditoEnClientes(idVenta, saldoPendiente);
+        
+        // ⭐ 3. ENVIAR CORREO DE PAGO DE CRÉDITO
+        await enviarCorreoPagoCredito({
             idVenta: idVenta,
             folio: folioOriginal,
             cliente: clienteData,
@@ -3073,11 +3900,10 @@ async function procesarPagoCreditoPendiente() {
             referencia: referencia,
             comprobante: comprobanteCreditoBase64,
             comprobanteNombre: comprobanteCreditoNombre,
-            fecha: new Date(),
-            productos: venta.productos || []
+            fecha: new Date()
         });
         
-        // ⭐ 3. GENERAR COMPROBANTE DE PAGO
+        // ⭐ 4. GENERAR COMPROBANTE DE PAGO
         const datosComprobante = {
             folio: `PAGO-${folioOriginal}`,
             fecha: new Date(),
@@ -3104,6 +3930,7 @@ async function procesarPagoCreditoPendiente() {
             <strong>Venta original:</strong> ${folioOriginal}<br>
             <strong>Monto liquidado:</strong> ${formatoMexicano(saldoPendiente)}<br>
             <strong>Referencia:</strong> ${referencia}<br><br>
+            Se ha actualizado el crédito pendiente a cero.<br>
             Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.
         `);
         
@@ -3120,7 +3947,7 @@ async function procesarPagoCreditoPendiente() {
         
     } catch (error) {
         console.error('Error al procesar pago:', error);
-        mostrarMensajeModalPagoCredito('error', '❌ Error al procesar el pago: ' + error.message);
+        mostrarMensajeModalPagoCredito('error', '❌ Error al procesar el pago. Por favor, intenta de nuevo.');
         if (btn) {
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Pago';
@@ -3129,7 +3956,149 @@ async function procesarPagoCreditoPendiente() {
 }
 
 // ============================================
-// ⭐ FUNCIONES PARA "MIS COMPRAS" - HISTORIAL
+// FUNCIONES PARA GUARDAR EN ESTADÍSTICAS
+// ============================================
+
+async function guardarVentaEnEstadisticas(datos) {
+    try {
+        console.log('📊 Guardando venta en estadísticas...');
+        console.log('📊 Tipo de pago:', datos.tipoPago);
+        console.log('📊 Monto pago:', datos.montoPago);
+        console.log('📊 Monto crédito:', datos.montoCredito);
+        console.log('📊 Productos:', datos.productos.length);
+        
+        const fechaFormateada = datos.fecha.toLocaleString('es-MX', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+        
+        for (const producto of datos.productos) {
+            let precioCompra = 0;
+            let ganancia = 0;
+            
+            const productoCompleto = productosGlobales.find(p => p.clave === producto.clave);
+            if (productoCompleto) {
+                precioCompra = productoCompleto.precioCompra || 0;
+                const costoTotal = precioCompra * producto.cantidad;
+                ganancia = producto.importe - costoTotal;
+            }
+            
+            let creditoPendiente = 0;
+            let montoPagado = 0;
+            let diasCredito = 0;
+            let fechaPago = '';
+            
+            const esCredito = datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial';
+            
+            if (esCredito) {
+                if (producto._tipo === 'credito') {
+                    if (datos.total > 0 && datos.montoCredito > 0) {
+                        const proporcion = producto.importe / datos.total;
+                        creditoPendiente = datos.montoCredito * proporcion;
+                    } else {
+                        creditoPendiente = producto.importe;
+                    }
+                    montoPagado = 0;
+                    diasCredito = datos.diasCredito || DIAS_CREDITO_FIJO;
+                    fechaPago = datos.fechaPago ? datos.fechaPago.toLocaleDateString('es-MX') : '';
+                } else if (producto._tipo === 'pago') {
+                    creditoPendiente = 0;
+                    montoPagado = producto.importe;
+                } else {
+                    creditoPendiente = producto.importe;
+                    montoPagado = 0;
+                    diasCredito = datos.diasCredito || DIAS_CREDITO_FIJO;
+                    fechaPago = datos.fechaPago ? datos.fechaPago.toLocaleDateString('es-MX') : '';
+                }
+            } else {
+                // ⭐ TRANSFERENCIA: crédito pendiente = 0, monto pagado = 0
+                creditoPendiente = 0;
+                montoPagado = 0;
+                diasCredito = 0;
+                fechaPago = '';
+            }
+            
+            const filaProducto = [
+                fechaFormateada,
+                datos.folio,
+                producto.nombre,
+                producto.cantidad,
+                producto.importe.toFixed(2),
+                ganancia.toFixed(2),
+                '',
+                creditoPendiente.toFixed(2),
+                montoPagado.toFixed(2),
+                diasCredito,
+                fechaPago,
+                datos.sucursal
+            ];
+            
+            console.log(`📝 Guardando producto: ${producto.nombre}, crédito: ${creditoPendiente}, pagado: ${montoPagado}, días: ${diasCredito}, fechaPago: ${fechaPago}`);
+            await guardarFilaGoogleSheets(HOJA_EST_PRODUCTOS, filaProducto);
+        }
+        
+        const facturaTexto = datos.requiereFactura ? 'SÍ' : 'NO';
+        const formaPago = datos.tipoPago === 'Transferencia' ? 'Transferencia bancaria' :
+                          datos.tipoPago === 'Crédito' ? 'Crédito' :
+                          datos.tipoPago === 'Crédito Parcial' ? 'Crédito parcial' : datos.tipoPago;
+        const tipoPago = datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial' ? 'Pago diferido en parcialidades' : 'Pago en una sola exhibición';
+        const estadoPago = datos.estadoPago || (datos.tipoPago === 'Crédito' ? 'En preparación' : 'Validando pago');
+        const nombreDireccion = datos.nombreDireccion || 'Sin nombre';
+        
+        let razonSocialFactura = '';
+        if (datos.requiereFactura && datos.datosFactura) {
+            razonSocialFactura = datos.datosFactura.razonSocial || '';
+        }
+        
+        let creditoPendienteTotal = datos.montoCredito || 0;
+        let montoPagadoTotal = datos.montoPago || 0;
+        
+        if (datos.tipoPago === 'Transferencia') {
+            creditoPendienteTotal = 0;
+            montoPagadoTotal = 0;
+        }
+        
+        if (datos.tipoPago === 'Crédito' && !datos.esCreditoParcial) {
+            creditoPendienteTotal = datos.total;
+            montoPagadoTotal = 0;
+        }
+        
+        const filaCliente = [
+            fechaFormateada,
+            datos.folio,
+            datos.cliente.codigo,
+            datos.cliente.nombre,
+            datos.total.toFixed(2),
+            creditoPendienteTotal.toFixed(2),
+            montoPagadoTotal.toFixed(2),
+            facturaTexto,
+            datos.sucursal,
+            formaPago,
+            tipoPago,
+            '',
+            estadoPago,
+            nombreDireccion,
+            razonSocialFactura
+        ];
+        
+        console.log(`📝 Guardando cliente: ${datos.cliente.nombre}, total: ${datos.total}, crédito: ${creditoPendienteTotal}, pagado: ${montoPagadoTotal}`);
+        await guardarFilaGoogleSheets(HOJA_EST_CLIENTES, filaCliente);
+        
+        console.log('✅ Venta guardada en estadísticas correctamente');
+        
+    } catch (error) {
+        console.error('❌ Error al guardar en estadísticas:', error);
+        throw error;
+    }
+}
+
+// ============================================
+// FUNCIONES PARA "MIS COMPRAS"
 // ============================================
 
 async function cargarHistorialCompras() {
@@ -3165,7 +4134,6 @@ async function cargarHistorialCompras() {
             const formaPago = String(values[9] || '').trim();
             const creditoPendiente = parseFloat(values[5]) || 0;
             const montoPagado = parseFloat(values[6]) || 0;
-            const columnaP = String(values[15] || '').trim().toUpperCase(); // Columna P (índice 15)
             
             if (codigo === codigoCliente && idVenta) {
                 idsVenta.push(idVenta);
@@ -3180,8 +4148,7 @@ async function cargarHistorialCompras() {
                     tipoPago: formaPago,
                     saldoPendiente: creditoPendiente,
                     montoPagado: montoPagado,
-                    anticipo: montoPagado,
-                    columnaP: columnaP === 'SI'
+                    anticipo: montoPagado
                 });
             }
         }
@@ -3261,8 +4228,7 @@ async function cargarHistorialCompras() {
                 iva: subtotal * 0.16,
                 totalConIva: subtotal * 1.16,
                 fechaPago: info.fechaPago || null,
-                diasCredito: info.diasCredito || 0,
-                columnaP: info.columnaP || false
+                diasCredito: info.diasCredito || 0
             });
         }
         
@@ -3279,6 +4245,23 @@ async function cargarHistorialCompras() {
         productosMasComprados.sort((a, b) => b.totalImporte - a.totalImporte);
         
         console.log(`📦 Historial cargado: ${historialVentas.length} ventas`);
+        
+        const anos = [...new Set(historialVentas.map(v => {
+            const fecha = v.fechaObj || parseFechaGoogleSheets(v.fecha);
+            return fecha ? fecha.getFullYear() : null;
+        }).filter(a => a !== null))];
+        
+        const anoSelect = document.getElementById('filtroAno');
+        if (anoSelect) {
+            anoSelect.innerHTML = '<option value="todos">Todos los años</option>';
+            anos.sort((a, b) => b - a);
+            anos.forEach(ano => {
+                const option = document.createElement('option');
+                option.value = ano;
+                option.textContent = ano;
+                anoSelect.appendChild(option);
+            });
+        }
         
         renderizarOrdenes();
         renderizarHistorialCompras();
@@ -3737,7 +4720,7 @@ function filtrarHistorial() {
 }
 
 // ============================================
-// ⭐ FUNCIONES PARA CRÉDITOS PENDIENTES
+// FUNCIONES PARA CRÉDITOS PENDIENTES
 // ============================================
 
 function cargarCreditosPendientes() {
@@ -3812,29 +4795,22 @@ function cargarCreditosPendientes() {
         
         const estaVencido = fechaPago && !isNaN(fechaPago.getTime()) && fechaPago < new Date();
         const estadoColor = estaVencido ? '#dc2626' : '#92400e';
-        
-        // ⭐ VERIFICAR SI LA COLUMNA P ESTÁ EN "SI" - Mostrar "Validando pago"
-        let estadoTexto = 'Pendiente';
-        if (venta.columnaP === true) {
-            estadoTexto = 'Validando pago';
-        } else if (estaVencido) {
-            estadoTexto = 'VENCIDO';
-        }
+        const estadoTexto = estaVencido ? '⚠️ VENCIDO' : 'Pendiente';
         
         html += `
-            <div style="background:white; border-radius:12px; padding:1.2rem; border:1px solid ${estaVencido && !venta.columnaP ? '#fecaca' : '#fef3c7'}; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+            <div style="background:white; border-radius:12px; padding:1.2rem; border:1px solid ${estaVencido ? '#fecaca' : '#fef3c7'}; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
                     <div>
                         <span style="font-weight:700; color:var(--primary-dark); font-size:1rem;">${venta.idVenta}</span>
                         <span style="font-size:0.75rem; color:var(--text-gray); margin-left:0.5rem;">${fechaFormateada}</span>
                         <div style="font-size:0.8rem; color:var(--text-gray); margin-top:0.2rem;">
                             <span class="badge badge-warning">${venta.tipoPago || 'Crédito'}</span>
-                            ${estaVencido && !venta.columnaP ? '<span class="badge badge-danger" style="margin-left:0.5rem;">VENCIDO</span>' : ''}
+                            ${estaVencido ? '<span class="badge badge-danger" style="margin-left:0.5rem;">VENCIDO</span>' : ''}
                             ${venta.diasCredito ? `<span style="font-size:0.7rem; color:var(--text-gray); margin-left:0.5rem;">${venta.diasCredito} días</span>` : ''}
                         </div>
                     </div>
                     <div style="text-align:right;">
-                        <div style="font-weight:700; color:${estaVencido && !venta.columnaP ? '#dc2626' : '#92400e'}; font-size:1.1rem;">
+                        <div style="font-weight:700; color:${estaVencido ? '#dc2626' : '#92400e'}; font-size:1.1rem;">
                             ${formatoMexicano(saldoPendiente)}
                         </div>
                         <div style="font-size:0.7rem; color:var(--text-gray);">Límite: ${fechaPagoFormateada}</div>
@@ -3862,13 +4838,6 @@ function cargarCreditosPendientes() {
     container.innerHTML = html;
     document.getElementById('totalCreditoPendiente').textContent = `Total: ${formatoMexicano(totalPendiente)}`;
 }
-
-// ============================================
-// FUNCIONES PARA MODAL DE PAGO DE CRÉDITO PENDIENTE
-// ============================================
-
-let comprobanteCreditoBase64 = null;
-let comprobanteCreditoNombre = null;
 
 function abrirModalPagoCreditoPendiente(idVenta) {
     const venta = creditosPendientes.find(v => v.idVenta === idVenta);
@@ -3940,6 +4909,9 @@ function abrirModalPagoCreditoPendiente(idVenta) {
     
     document.getElementById('referenciaTransferenciaCredito').addEventListener('input', validarCamposCreditoPendiente);
 }
+
+let comprobanteCreditoBase64 = null;
+let comprobanteCreditoNombre = null;
 
 function cargarComprobanteCredito(event) {
     const file = event.target.files[0];
