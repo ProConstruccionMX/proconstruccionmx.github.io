@@ -1617,9 +1617,15 @@ function verificarCreditoDisponible() {
     console.log('⚖️ Límite crédito peso:', clienteLimiteCreditoPeso);
     console.log('💰 Límite crédito monto:', clienteLimiteCreditoMonto);
     
-    const tieneCreditosPendientes = creditosPendientes && creditosPendientes.length > 0;
+    // ⭐ VERIFICAR SI TIENE CRÉDITOS PENDIENTES (EXCLUYENDO LOS QUE YA ESTÁN EN "Validando pago")
+    const creditosRealmentePendientes = creditosPendientes.filter(v => {
+        const estatusPago = v.estatusPago || '';
+        return estatusPago !== 'SI';
+    });
+    
+    const tieneCreditosPendientes = creditosRealmentePendientes && creditosRealmentePendientes.length > 0;
     if (tieneCreditosPendientes) {
-        const totalPendiente = creditosPendientes.reduce((sum, v) => sum + (v.saldoPendiente || v.total || 0), 0);
+        const totalPendiente = creditosRealmentePendientes.reduce((sum, v) => sum + (v.saldoPendiente || v.total || 0), 0);
         console.log(`⚠️ Cliente tiene créditos pendientes: ${formatoMexicano(totalPendiente)}`);
         
         return {
@@ -3266,6 +3272,7 @@ function generarPDFComprobante(datos) {
 async function enviarCorreoConAdjuntoAppsScript(datos) {
     try {
         console.log('📧 Enviando correo con adjunto vía Apps Script...');
+        console.log('📧 esLiquidacionCredito:', datos.esLiquidacionCredito);
         
         let productosTexto = '';
         if (datos.productos && datos.productos.length > 0) {
@@ -3283,7 +3290,7 @@ async function enviarCorreoConAdjuntoAppsScript(datos) {
             productosTexto = 'No hay productos en esta venta.';
         }
         
-        // ⭐ DETERMINAR EL ASUNTO SEGÚN SEA LIQUIDACIÓN DE CRÉDITO O COMPRA NORMAL
+        // ⭐ DETERMINAR EL ASUNTO - CORREGIDO
         let asunto = '';
         let tipoCorreo = 'NUEVA VENTA WEB';
         
@@ -3293,6 +3300,9 @@ async function enviarCorreoConAdjuntoAppsScript(datos) {
         } else {
             asunto = `NUEVA VENTA WEB - ${datos.folio} - ${datos.cliente.nombre}`;
         }
+        
+        console.log('📧 ASUNTO FINAL:', asunto);
+        console.log('📧 TIPO:', tipoCorreo);
         
         const payload = {
             action: 'enviarCorreoAdjunto',
@@ -3326,9 +3336,9 @@ async function enviarCorreoConAdjuntoAppsScript(datos) {
             idVentaOriginal: datos.idVentaOriginal || null
         };
         
-        console.log('📤 Enviando a Apps Script:', payload);
+        console.log('📤 Enviando a Apps Script con asunto:', payload.asunto);
         
-        const response = await fetch(APPS_SCRIPT_EMAIL_URL, {
+        await fetch(APPS_SCRIPT_EMAIL_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: {
@@ -4460,16 +4470,22 @@ function cargarCreditosPendientes() {
     const container = document.getElementById('creditosPendientesContent');
     if (!container) return;
     
+    // ⭐ FILTRAR: TODOS los créditos con saldo pendiente (incluyendo los que tienen SI)
     creditosPendientes = historialVentas.filter(v => {
         const tipoPago = v.tipoPago || '';
         const saldoPendiente = v.saldoPendiente || v.total || 0;
-        const estatusPago = v.estatusPago || '';
         return (tipoPago === 'Crédito' || tipoPago === 'Crédito Parcial') && 
-               saldoPendiente > 0.01 &&
-               estatusPago !== 'SI';
+               saldoPendiente > 0.01;
     });
     
-    console.log(`📊 Créditos pendientes encontrados: ${creditosPendientes.length}`);
+    console.log(`📊 Créditos encontrados (total): ${creditosPendientes.length}`);
+    
+    // ⭐ SEPARAR: los que tienen SI (Validando pago) y los que no (Pendientes)
+    const creditosEnProceso = creditosPendientes.filter(v => (v.estatusPago || '') === 'SI');
+    const creditosPendientesReales = creditosPendientes.filter(v => (v.estatusPago || '') !== 'SI');
+    
+    console.log(`📊 Créditos en proceso (SI): ${creditosEnProceso.length}`);
+    console.log(`📊 Créditos realmente pendientes: ${creditosPendientesReales.length}`);
     
     if (creditosPendientes.length === 0) {
         container.innerHTML = `
@@ -4486,7 +4502,86 @@ function cargarCreditosPendientes() {
     let totalPendiente = 0;
     let html = `<div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">`;
     
-    creditosPendientes.forEach((venta, index) => {
+    // ⭐ PRIMERO MOSTRAR LOS QUE ESTÁN EN PROCESO (SI) - "Validando pago"
+    creditosEnProceso.forEach((venta, index) => {
+        const saldoPendiente = venta.saldoPendiente || venta.total || 0;
+        totalPendiente += saldoPendiente;
+        
+        const fecha = venta.fechaObj || parseFechaGoogleSheets(venta.fecha);
+        const fechaFormateada = fecha ? fecha.toLocaleDateString('es-MX', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        }) : 'Fecha no disponible';
+        
+        let fechaPago = null;
+        let fechaPagoFormateada = 'No definida';
+        
+        if (venta.fechaPago) {
+            fechaPago = new Date(venta.fechaPago);
+            if (!isNaN(fechaPago.getTime())) {
+                fechaPagoFormateada = fechaPago.toLocaleDateString('es-MX', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                });
+            }
+        }
+        
+        if (!fechaPago || isNaN(fechaPago.getTime())) {
+            const fechaVenta = venta.fechaObj || parseFechaGoogleSheets(venta.fecha);
+            const diasCredito = venta.diasCredito || 20;
+            if (fechaVenta) {
+                fechaPago = new Date(fechaVenta);
+                fechaPago.setDate(fechaPago.getDate() + diasCredito);
+                if (!isNaN(fechaPago.getTime())) {
+                    fechaPagoFormateada = fechaPago.toLocaleDateString('es-MX', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                    });
+                }
+            }
+        }
+        
+        html += `
+            <div style="background:white; border-radius:12px; padding:1.2rem; border:1px solid #bfdbfe; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
+                    <div>
+                        <span style="font-weight:700; color:var(--primary-dark); font-size:1rem;">${venta.idVenta}</span>
+                        <span style="font-size:0.75rem; color:var(--text-gray); margin-left:0.5rem;">${fechaFormateada}</span>
+                        <div style="font-size:0.8rem; color:var(--text-gray); margin-top:0.2rem;">
+                            <span class="badge badge-warning">${venta.tipoPago || 'Crédito'}</span>
+                            <span class="badge badge-info" style="margin-left:0.5rem;background:#3b82f6;color:white;">Validando pago</span>
+                            ${venta.diasCredito ? `<span style="font-size:0.7rem; color:var(--text-gray); margin-left:0.5rem;">${venta.diasCredito} días</span>` : ''}
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-weight:700; color:#3b82f6; font-size:1.1rem;">
+                            ${formatoMexicano(saldoPendiente)}
+                        </div>
+                        <div style="font-size:0.7rem; color:var(--text-gray);">Límite: ${fechaPagoFormateada}</div>
+                        <div style="font-size:0.7rem; color:#3b82f6; font-weight:600;">Validando pago</div>
+                    </div>
+                </div>
+                <div style="margin-top:0.5rem; padding-top:0.5rem; border-top:1px solid #f3f4f6;">
+                    <div style="font-size:0.8rem; color:var(--text-gray);">
+                        <strong>Productos:</strong> ${venta.productos ? venta.productos.length : 0}
+                    </div>
+                    <div style="font-size:0.8rem; color:var(--text-gray);">
+                        <strong>Total:</strong> ${formatoMexicano(venta.total || 0)}
+                        ${venta.anticipo ? ` | <strong>Pagado:</strong> ${formatoMexicano(venta.anticipo)}` : ''}
+                    </div>
+                </div>
+                <div style="width:100%; margin-top:0.8rem; padding:0.5rem; text-align:center; background:#eff6ff; border-radius:8px; color:#3b82f6; font-weight:600; font-size:0.85rem;">
+                    <i class="fas fa-spinner fa-spin"></i> Validando pago...
+                </div>
+            </div>
+        `;
+    });
+    
+    // ⭐ LUEGO MOSTRAR LOS REALMENTE PENDIENTES
+    creditosPendientesReales.forEach((venta, index) => {
         const saldoPendiente = venta.saldoPendiente || venta.total || 0;
         totalPendiente += saldoPendiente;
         
@@ -4531,31 +4626,24 @@ function cargarCreditosPendientes() {
         const estadoColor = estaVencido ? '#dc2626' : '#92400e';
         const estadoTexto = estaVencido ? '⚠️ VENCIDO' : 'Pendiente';
         
-        const estatusPago = venta.estatusPago || '';
-        const esPagoEnProceso = estatusPago === 'SI';
-        
-        const estadoFinal = esPagoEnProceso ? 'Validando pago' : estadoTexto;
-        const colorFinal = esPagoEnProceso ? '#3b82f6' : estadoColor;
-        
         html += `
-            <div style="background:white; border-radius:12px; padding:1.2rem; border:1px solid ${esPagoEnProceso ? '#bfdbfe' : (estaVencido ? '#fecaca' : '#fef3c7')}; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+            <div style="background:white; border-radius:12px; padding:1.2rem; border:1px solid ${estaVencido ? '#fecaca' : '#fef3c7'}; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
                     <div>
                         <span style="font-weight:700; color:var(--primary-dark); font-size:1rem;">${venta.idVenta}</span>
                         <span style="font-size:0.75rem; color:var(--text-gray); margin-left:0.5rem;">${fechaFormateada}</span>
                         <div style="font-size:0.8rem; color:var(--text-gray); margin-top:0.2rem;">
                             <span class="badge badge-warning">${venta.tipoPago || 'Crédito'}</span>
-                            ${estaVencido && !esPagoEnProceso ? '<span class="badge badge-danger" style="margin-left:0.5rem;">VENCIDO</span>' : ''}
-                            ${esPagoEnProceso ? '<span class="badge badge-info" style="margin-left:0.5rem;background:#3b82f6;color:white;">Validando pago</span>' : ''}
+                            ${estaVencido ? '<span class="badge badge-danger" style="margin-left:0.5rem;">VENCIDO</span>' : ''}
                             ${venta.diasCredito ? `<span style="font-size:0.7rem; color:var(--text-gray); margin-left:0.5rem;">${venta.diasCredito} días</span>` : ''}
                         </div>
                     </div>
                     <div style="text-align:right;">
-                        <div style="font-weight:700; color:${colorFinal}; font-size:1.1rem;">
+                        <div style="font-weight:700; color:${estadoColor}; font-size:1.1rem;">
                             ${formatoMexicano(saldoPendiente)}
                         </div>
                         <div style="font-size:0.7rem; color:var(--text-gray);">Límite: ${fechaPagoFormateada}</div>
-                        <div style="font-size:0.7rem; color:${colorFinal}; font-weight:600;">${estadoFinal}</div>
+                        <div style="font-size:0.7rem; color:${estadoColor}; font-weight:600;">${estadoTexto}</div>
                     </div>
                 </div>
                 <div style="margin-top:0.5rem; padding-top:0.5rem; border-top:1px solid #f3f4f6;">
@@ -4567,16 +4655,10 @@ function cargarCreditosPendientes() {
                         ${venta.anticipo ? ` | <strong>Pagado:</strong> ${formatoMexicano(venta.anticipo)}` : ''}
                     </div>
                 </div>
-                ${!esPagoEnProceso ? `
-                    <button class="btn-primary" style="width:100%; margin-top:0.8rem; padding:0.5rem; font-size:0.85rem;" 
-                            onclick="abrirModalPagoCreditoPendiente('${venta.idVenta}')">
-                        <i class="fas fa-university"></i> Liquidar con Transferencia
-                    </button>
-                ` : `
-                    <div style="width:100%; margin-top:0.8rem; padding:0.5rem; text-align:center; background:#eff6ff; border-radius:8px; color:#3b82f6; font-weight:600; font-size:0.85rem;">
-                        <i class="fas fa-spinner fa-spin"></i> Validando pago...
-                    </div>
-                `}
+                <button class="btn-primary" style="width:100%; margin-top:0.8rem; padding:0.5rem; font-size:0.85rem;" 
+                        onclick="abrirModalPagoCreditoPendiente('${venta.idVenta}')">
+                    <i class="fas fa-university"></i> Liquidar con Transferencia
+                </button>
             </div>
         `;
     });
@@ -4730,6 +4812,8 @@ async function procesarPagoCreditoPendiente() {
     if (btn) {
         btn.disabled = true;
         btn.innerHTML = '<span class="loading-spinner"></span> Procesando...';
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
     }
     
     try {
@@ -4780,7 +4864,7 @@ async function procesarPagoCreditoPendiente() {
         await enviarCorreoConAdjuntoAppsScript(datosVenta);
         
         try {
-            const response = await fetch(APPS_SCRIPT_URL, {
+            await fetch(APPS_SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: {
@@ -4809,6 +4893,8 @@ async function procesarPagoCreditoPendiente() {
         if (btn) {
             btn.disabled = true;
             btn.innerHTML = '✅ Pago registrado';
+            btn.style.opacity = '1';
+            btn.style.cursor = 'default';
         }
         
         setTimeout(() => {
@@ -4822,6 +4908,8 @@ async function procesarPagoCreditoPendiente() {
         if (btn) {
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Pago';
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
         }
     }
 }
