@@ -2964,13 +2964,22 @@ function validarCamposCreditoParcial() {
     }
 }
 
+// ============================================
+// FUNCIONES PARA CARGAR COMPROBANTES (CORREGIDAS)
+// ============================================
+
 function cargarComprobante(event) {
     const file = event.target.files[0];
     if (!file) return;
     
     const reader = new FileReader();
     reader.onload = function(e) {
-        comprobanteBase64 = e.target.result.split(',')[1];
+        // ⭐ OBTENER EL BASE64 SIN EL PREFIJO
+        const base64String = e.target.result;
+        // Extraer solo la parte Base64 (después de la coma)
+        const base64Limpio = base64String.split(',')[1] || base64String;
+        
+        comprobanteBase64 = base64Limpio;
         comprobanteNombre = file.name;
         comprobanteTipo = file.type;
         document.getElementById('fileName').textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
@@ -2984,6 +2993,25 @@ function cargarComprobante(event) {
                 validarCamposCreditoParcial();
             }
         }
+    };
+    reader.readAsDataURL(file);
+}
+
+function cargarComprobanteCredito(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        // ⭐ OBTENER EL BASE64 SIN EL PREFIJO
+        const base64String = e.target.result;
+        // Extraer solo la parte Base64 (después de la coma)
+        const base64Limpio = base64String.split(',')[1] || base64String;
+        
+        comprobanteCreditoBase64 = base64Limpio;
+        comprobanteCreditoNombre = file.name;
+        document.getElementById('fileNameCredito').textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+        validarCamposCreditoPendiente();
     };
     reader.readAsDataURL(file);
 }
@@ -3333,6 +3361,7 @@ async function enviarCorreoConAdjuntoAppsScript(datos) {
         
         console.log('📤 Enviando a Apps Script con asunto:', payload.asunto);
         console.log('📤 Comprobante Base64 presente:', !!payload.comprobanteBase64);
+        console.log('📤 Comprobante Base64 longitud:', payload.comprobanteBase64 ? payload.comprobanteBase64.length : 0);
         
         await fetch(APPS_SCRIPT_EMAIL_URL, {
             method: 'POST',
@@ -4735,20 +4764,6 @@ function abrirModalPagoCreditoPendiente(idVenta) {
     document.getElementById('referenciaTransferenciaCredito').addEventListener('input', validarCamposCreditoPendiente);
 }
 
-function cargarComprobanteCredito(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        comprobanteCreditoBase64 = e.target.result.split(',')[1];
-        comprobanteCreditoNombre = file.name;
-        document.getElementById('fileNameCredito').textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
-        validarCamposCreditoPendiente();
-    };
-    reader.readAsDataURL(file);
-}
-
 function validarCamposCreditoPendiente() {
     const referencia = document.getElementById('referenciaTransferenciaCredito').value.trim();
     const archivo = document.getElementById('fileNameCredito').textContent;
@@ -4857,6 +4872,7 @@ async function procesarPagoCreditoPendiente() {
         
         console.log('📊 Liquidando crédito:', datosVenta);
         console.log('📊 Comprobante Base64 presente:', !!datosVenta.comprobante);
+        console.log('📊 Comprobante Base64 longitud:', datosVenta.comprobante ? datosVenta.comprobante.length : 0);
         
         await enviarCorreoConAdjuntoAppsScript(datosVenta);
         
