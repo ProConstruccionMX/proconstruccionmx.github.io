@@ -24,7 +24,8 @@ const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
 const ID_COTIZACIONES = '1S4qoHh3lTDoSUwDNeilmN6QKk8uhmvxjwvRQpEHQbS0';
 const HOJA_COTIZACIONES = 'Hoja 1';
 
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz4MPJ6QmLIOsN85H9bc-E5uxozb0kVicms6c51VLwappox_ZpISSyawzfVrzof6WA3mA/exec';
+// ✅ NUEVA URL DEL APPS SCRIPT (Versión 22)
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrEptElYSBx-jw1AMNV6SelSzVLiopTY1VY7l7AFj7SeRDvTOREYVPyCg005OSmAWe/exec';
 
 const APPS_SCRIPT_FACTURACION_URL = 'https://script.google.com/macros/s/AKfycbwcEwB2K17lhR5d52eab8EL-2K7C2mXzEubtyP-TcF-VWcmfNS-lODtFWAYdllNmHz9Mg/exec';
 
@@ -336,6 +337,7 @@ async function agregarDireccionEnSheets(direccion) {
 
 async function actualizarDireccionEnSheets(fila, datos) {
     try {
+        // ✅ Sumar 1 porque la fila 1 en la hoja es el encabezado
         const filaEnviar = fila + 1;
         console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         console.log('📝 Datos:', datos);
@@ -352,7 +354,8 @@ async function actualizarDireccionEnSheets(fila, datos) {
             cp: datos.cp,
             mapsUrl: datos.mapsUrl || '',
             telefono: datos.telefono,
-            nombreRecibe: datos.nombreRecibe
+            nombreRecibe: datos.nombreRecibe,
+            timestamp: Date.now()
         };
         
         console.log('📝 Body enviado:', JSON.stringify(body));
@@ -367,6 +370,10 @@ async function actualizarDireccionEnSheets(fila, datos) {
         });
         
         console.log('📝 Petición ACTUALIZAR enviada (no-cors) para fila:', filaEnviar);
+        
+        // Esperar un momento para que el Apps Script procese
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
         return { success: true };
         
     } catch (error) {
@@ -377,12 +384,14 @@ async function actualizarDireccionEnSheets(fila, datos) {
 
 async function eliminarDireccionEnSheets(fila) {
     try {
+        // ✅ Sumar 1 porque la fila 1 en la hoja es el encabezado
         const filaEnviar = fila + 1;
         console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         
         const body = {
             action: 'eliminar',
-            fila: filaEnviar
+            fila: filaEnviar,
+            timestamp: Date.now()
         };
         
         console.log('🗑️ Body enviado:', JSON.stringify(body));
@@ -397,6 +406,10 @@ async function eliminarDireccionEnSheets(fila) {
         });
         
         console.log('🗑️ Petición ELIMINAR enviada (no-cors) para fila:', filaEnviar);
+        
+        // Esperar un momento para que el Apps Script procese
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
         return { success: true };
         
     } catch (error) {
@@ -1153,7 +1166,7 @@ async function cargarPreciosEspeciales() {
 }
 
 // ============================================
-// FUNCIONES DE DIRECCIONES - CON i = 2
+// FUNCIONES DE DIRECCIONES
 // ============================================
 
 async function cargarDireccionesCliente() {
@@ -1180,19 +1193,13 @@ async function cargarDireccionesCliente() {
         
         console.log(`📊 Filas en la hoja Direcciones: ${rows.length}`);
         
-        // ⭐ DEBUG: Mostrar todas las filas para ver qué hay
-        for (let i = 0; i < rows.length; i++) {
-            const values = rows[i].c.map(cell => cell ? cell.v : '');
-            console.log(`📋 Fila ${i}:`, values);
-        }
-        
         direccionesCliente = [];
         
-        // ✅ Probar con i = 0
+        // ✅ i = 0 para leer desde la primera fila
         for (let i = 0; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[0] || '').trim();
-            const filaReal = i + 1; // Porque en la hoja, la fila 1 es la primera
+            const filaReal = i + 1; // La fila REAL en la hoja es i+1
             
             console.log(`🔍 Fila ${i} - Código: "${codigo}" - Buscando: "${codigoCliente}"`);
             
