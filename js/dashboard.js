@@ -336,7 +336,8 @@ async function agregarDireccionEnSheets(direccion) {
 
 async function actualizarDireccionEnSheets(fila, datos) {
     try {
-        const filaEnviar = fila + 1;
+        // ✅ CORRECCIÓN: Enviar la fila directamente sin sumar 1
+        const filaEnviar = fila;
         console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         console.log('📝 Datos:', datos);
         
@@ -377,7 +378,8 @@ async function actualizarDireccionEnSheets(fila, datos) {
 
 async function eliminarDireccionEnSheets(fila) {
     try {
-        const filaEnviar = fila + 1;
+        // ✅ CORRECCIÓN: Enviar la fila directamente sin sumar 1
+        const filaEnviar = fila;
         console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         
         const body = {
@@ -1017,7 +1019,7 @@ function actualizarInfoCliente() {
 }
 
 // ============================================
-// CARGA DE PRODUCTOS
+// CARGA DE PRODUCTOS - CON i = 0
 // ============================================
 
 async function cargarProductos() {
@@ -1038,13 +1040,22 @@ async function cargarProductos() {
         let filasProcesadas = 0;
         let filasSaltadas = 0;
         
-        for (let i = 1; i < rows.length; i++) {
+        // ✅ CAMBIO: i = 0 para leer desde la fila 1 de la hoja
+        for (let i = 0; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             
             const clave = String(values[0] || '').trim();
             const nombre = String(values[1] || '').trim();
             
-            if (!clave || !nombre) {
+            // ✅ CAMBIO: Validación mejorada para saltar el encabezado y filas vacías
+            if (!clave || !nombre || 
+                clave.toLowerCase() === 'clave' || 
+                clave.toLowerCase() === 'id' || 
+                clave.toLowerCase() === 'código' ||
+                clave.toLowerCase() === 'codigo' ||
+                clave.toLowerCase() === 'sku' ||
+                clave.toLowerCase() === 'producto' ||
+                isNaN(parseFloat(clave))) {
                 filasSaltadas++;
                 continue;
             }
@@ -2194,7 +2205,7 @@ function agregarAlCarrito(clave) {
             cantidad: 1,
             descuento: descuento,
             importe: precioConDescuento,
-            personalizado: precioFinal.personalizado, // ⭐ SE USA INTERNAMENTE, NO SE MUESTRA
+            personalizado: precioFinal.personalizado,
             pesoCondicion: producto.pesoCondicion,
             peso: producto.peso,
             requiereMinPiezas: producto.requiereMinPiezas,
