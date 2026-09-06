@@ -336,8 +336,8 @@ async function agregarDireccionEnSheets(direccion) {
 
 async function actualizarDireccionEnSheets(fila, datos) {
     try {
-        // ✅ CORRECCIÓN: Enviar la fila directamente sin sumar 1
-        const filaEnviar = fila;
+        // ✅ Sumar 1 porque la fila 1 en la hoja es el encabezado
+        const filaEnviar = fila + 1;
         console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         console.log('📝 Datos:', datos);
         
@@ -378,8 +378,8 @@ async function actualizarDireccionEnSheets(fila, datos) {
 
 async function eliminarDireccionEnSheets(fila) {
     try {
-        // ✅ CORRECCIÓN: Enviar la fila directamente sin sumar 1
-        const filaEnviar = fila;
+        // ✅ Sumar 1 porque la fila 1 en la hoja es el encabezado
+        const filaEnviar = fila + 1;
         console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         
         const body = {
@@ -1019,7 +1019,7 @@ function actualizarInfoCliente() {
 }
 
 // ============================================
-// CARGA DE PRODUCTOS - CON i = 0
+// CARGA DE PRODUCTOS
 // ============================================
 
 async function cargarProductos() {
@@ -1040,14 +1040,12 @@ async function cargarProductos() {
         let filasProcesadas = 0;
         let filasSaltadas = 0;
         
-        // ✅ CAMBIO: i = 0 para leer desde la fila 1 de la hoja
         for (let i = 0; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             
             const clave = String(values[0] || '').trim();
             const nombre = String(values[1] || '').trim();
             
-            // ✅ CAMBIO: Validación mejorada para saltar el encabezado y filas vacías
             if (!clave || !nombre || 
                 clave.toLowerCase() === 'clave' || 
                 clave.toLowerCase() === 'id' || 
@@ -1157,7 +1155,7 @@ async function cargarPreciosEspeciales() {
 }
 
 // ============================================
-// FUNCIONES DE DIRECCIONES
+// FUNCIONES DE DIRECCIONES - CON i = 2
 // ============================================
 
 async function cargarDireccionesCliente() {
@@ -1186,10 +1184,11 @@ async function cargarDireccionesCliente() {
         
         direccionesCliente = [];
         
-        for (let i = 0; i < rows.length; i++) {
+        // ✅ i = 2 como estaba antes
+        for (let i = 2; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[0] || '').trim();
-            const filaReal = i + 1;
+            const filaReal = i - 1; // i=2 → fila REAL 1
             
             if (codigo === codigoCliente) {
                 const nombre = String(values[1] || '').trim();
@@ -1475,7 +1474,6 @@ function buscarProductos() {
     
     let html = `<div class="product-grid">`;
     resultados.forEach(producto => {
-        // ⭐ OBTENER PRECIO FINAL (con precio especial si existe)
         const precioFinal = obtenerPrecioFinal(producto);
         const precioMostrar = precioFinal.precio;
         
@@ -1510,7 +1508,6 @@ function buscarProductos() {
                 <h4>${producto.nombre}</h4>
                 <p class="descripcion">${producto.descripcion || 'Sin descripción'}</p>
                 <p class="precio">${formatoMexicano(precioMostrar)}</p>
-                <!-- ⭐ SIN BADGE DE PRECIO PERSONALIZADO (TRANSPARENTE) -->
                 <button class="btn-agregar" onclick="agregarAlCarrito('${producto.clave}')">
                     <i class="fas fa-plus"></i> Agregar
                 </button>
@@ -1531,13 +1528,11 @@ function limpiarBusqueda() {
 // ============================================
 
 function obtenerPrecioFinal(producto) {
-    // ⭐ BUSCAR PRECIO ESPECIAL PARA ESTE CLIENTE Y PRODUCTO
     const precioEspecial = preciosEspecialesGlobales.find(p => 
         p.codigoCliente === clienteData.codigo && 
         p.claveProducto === producto.clave
     );
     
-    // ⭐ SI TIENE PRECIO ESPECIAL, SE USA (SIN INDICACIÓN VISUAL)
     if (precioEspecial) {
         return {
             precio: precioEspecial.precioPersonalizado,
@@ -1554,7 +1549,6 @@ function obtenerPrecioFinal(producto) {
 }
 
 function calcularDescuentoProducto(producto, cantidad) {
-    // ⭐ 1. PRIORIDAD MÁXIMA: PRECIO ESPECIAL → DESCUENTO 0%
     const precioEspecial = preciosEspecialesGlobales.find(p => 
         p.codigoCliente === clienteData.codigo && 
         p.claveProducto === producto.clave
@@ -1564,18 +1558,15 @@ function calcularDescuentoProducto(producto, cantidad) {
         return 0;
     }
     
-    // ⭐ 2. SI TIENE N/A → DESCUENTO 0%
     if (producto.na === 'N/A') {
         return 0;
     }
     
-    // ⭐ 3. DESCUENTO ESPECÍFICO DEL PRODUCTO (Columna E)
     const naNumero = parseFloat(producto.na);
     if (!isNaN(naNumero) && producto.na !== '' && producto.na !== '-' && producto.na !== 'N/A') {
         return naNumero;
     }
     
-    // ⭐ 4. DESCUENTO POR GIRO (Columna E = '-')
     if (producto.na === '-') {
         const giro = clienteData.giro || 'Público en general';
         
@@ -1591,7 +1582,6 @@ function calcularDescuentoProducto(producto, cantidad) {
         
         let descuentoBase = mapGiro[giro] || 0;
         
-        // ⭐ 5. DESCUENTO POR VOLUMEN (PXV)
         if (producto.pxv === 'PXV' && producto.pesoCondicion === 'SI') {
             let descuentoAdicional = 0;
             
@@ -1608,11 +1598,9 @@ function calcularDescuentoProducto(producto, cantidad) {
         return descuentoBase;
     }
     
-    // ⭐ 6. DESCUENTO BASE DEL CLIENTE (Columna E vacía)
     if (producto.na === '' || producto.na === null || producto.na === undefined) {
         let descuentoBase = clienteData.descuento || 0;
         
-        // ⭐ 7. DESCUENTO POR VOLUMEN (PXV)
         if (producto.pxv === 'PXV' && producto.pesoCondicion === 'SI') {
             let descuentoAdicional = 0;
             
@@ -1642,7 +1630,6 @@ function verificarCreditoDisponible() {
     console.log('⚖️ Límite crédito peso:', clienteLimiteCreditoPeso);
     console.log('💰 Límite crédito monto:', clienteLimiteCreditoMonto);
     
-    // ⭐ VERIFICAR SI TIENE CRÉDITOS PENDIENTES - ORIGINAL (NO FILTRA POR SI)
     const tieneCreditosPendientes = creditosPendientes && creditosPendientes.length > 0;
     if (tieneCreditosPendientes) {
         const totalPendiente = creditosPendientes.reduce((sum, v) => sum + (v.saldoPendiente || v.total || 0), 0);
@@ -2190,9 +2177,7 @@ function agregarAlCarrito(clave) {
         existente.cantidad += 1;
         actualizarItemCarrito(existente);
     } else {
-        // ⭐ OBTENER PRECIO FINAL (CON PRECIO ESPECIAL SI EXISTE)
         const precioFinal = obtenerPrecioFinal(producto);
-        // ⭐ CALCULAR DESCUENTO (EL PRECIO ESPECIAL DA DESCUENTO 0%)
         const descuento = calcularDescuentoProducto(producto, 1);
         const precioConDescuento = precioFinal.precio * (1 - descuento / 100);
         
@@ -2381,7 +2366,6 @@ function renderizarCarrito() {
             <tr>
                 <td>
                     <strong>${item.nombre}</strong>
-                    <!-- ⭐ SIN BADGE DE PRECIO PERSONALIZADO (TRANSPARENTE) -->
                     ${pesoInfo}
                     ${minPiezasInfo}
                     ${pxvInfo}
@@ -2992,7 +2976,7 @@ function validarCamposCreditoParcial() {
 }
 
 // ============================================
-// FUNCIONES PARA CARGAR COMPROBANTES (CORREGIDAS)
+// FUNCIONES PARA CARGAR COMPROBANTES
 // ============================================
 
 function cargarComprobante(event) {
@@ -3001,9 +2985,7 @@ function cargarComprobante(event) {
     
     const reader = new FileReader();
     reader.onload = function(e) {
-        // ⭐ OBTENER EL BASE64 SIN EL PREFIJO
         const base64String = e.target.result;
-        // Extraer solo la parte Base64 (después de la coma)
         const base64Limpio = base64String.split(',')[1] || base64String;
         
         comprobanteBase64 = base64Limpio;
@@ -3030,9 +3012,7 @@ function cargarComprobanteCredito(event) {
     
     const reader = new FileReader();
     reader.onload = function(e) {
-        // ⭐ OBTENER EL BASE64 SIN EL PREFIJO
         const base64String = e.target.result;
-        // Extraer solo la parte Base64 (después de la coma)
         const base64Limpio = base64String.split(',')[1] || base64String;
         
         comprobanteCreditoBase64 = base64Limpio;
@@ -3093,7 +3073,6 @@ function generarPDFComprobante(datos) {
 
         let tablaProductos = '';
         datos.productos.forEach(producto => {
-            // ⭐ SIN INDICACIÓN DE PRECIO PERSONALIZADO EN EL PDF
             let precioInfo = formatoMexicano(producto.precio);
             
             tablaProductos += `
@@ -3338,7 +3317,6 @@ async function enviarCorreoConAdjuntoAppsScript(datos) {
             productosTexto = 'No hay productos en esta venta.';
         }
         
-        // ⭐ DETERMINAR EL ASUNTO
         let asunto = '';
         let tipoCorreo = 'NUEVA VENTA WEB';
         
@@ -3848,7 +3826,6 @@ async function guardarVentaEnEstadisticas(datos) {
             montoPagadoTotal = 0;
         }
         
-        // ⭐ SI ES LIQUIDACIÓN DE CRÉDITO, NO GUARDAR EN CLIENTES
         if (datos.esLiquidacionCredito) {
             console.log('📝 Es liquidación de crédito, no se guarda en Clientes');
             console.log('✅ Liquidación de crédito registrada correctamente');
@@ -3871,7 +3848,7 @@ async function guardarVentaEnEstadisticas(datos) {
             estadoPago,
             nombreDireccion,
             razonSocialFactura,
-            '' // ⭐ COLUMNA P - Estatus de pago (vacío por defecto)
+            ''
         ];
         
         console.log(`📝 Guardando cliente: ${datos.cliente.nombre}, total: ${datos.total}, crédito: ${creditoPendienteTotal}, pagado: ${montoPagadoTotal}`);
@@ -4520,7 +4497,6 @@ function cargarCreditosPendientes() {
     const container = document.getElementById('creditosPendientesContent');
     if (!container) return;
     
-    // ⭐ FILTRAR: TODOS los créditos con saldo pendiente
     creditosPendientes = historialVentas.filter(v => {
         const tipoPago = v.tipoPago || '';
         const saldoPendiente = v.saldoPendiente || v.total || 0;
@@ -4530,7 +4506,6 @@ function cargarCreditosPendientes() {
     
     console.log(`📊 Créditos encontrados (total): ${creditosPendientes.length}`);
     
-    // ⭐ SEPARAR: los que tienen SI (Validando pago) y los que no (Pendientes)
     const creditosEnProceso = creditosPendientes.filter(v => (v.estatusPago || '') === 'SI');
     const creditosPendientesReales = creditosPendientes.filter(v => (v.estatusPago || '') !== 'SI');
     
@@ -4552,7 +4527,6 @@ function cargarCreditosPendientes() {
     let totalPendiente = 0;
     let html = `<div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">`;
     
-    // ⭐ PRIMERO MOSTRAR LOS QUE ESTÁN EN PROCESO (SI) - "Validando pago"
     creditosEnProceso.forEach((venta, index) => {
         const saldoPendiente = venta.saldoPendiente || venta.total || 0;
         totalPendiente += saldoPendiente;
@@ -4630,7 +4604,6 @@ function cargarCreditosPendientes() {
         `;
     });
     
-    // ⭐ LUEGO MOSTRAR LOS REALMENTE PENDIENTES
     creditosPendientesReales.forEach((venta, index) => {
         const saldoPendiente = venta.saldoPendiente || venta.total || 0;
         totalPendiente += saldoPendiente;
