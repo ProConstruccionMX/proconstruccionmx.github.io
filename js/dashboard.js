@@ -4852,7 +4852,7 @@ async function procesarPagoCreditoPendiente() {
             referencia: referencia,
             comprobante: comprobanteCreditoBase64,
             comprobanteNombre: comprobanteCreditoNombre,
-            comprobanteTipo: 'image/*',
+            comprobanteTipo: 'image/jpeg',
             sucursal: SUCURSAL_WEB,
             nombreDireccion: 'Liquidación de crédito',
             requiereFactura: false,
@@ -4873,6 +4873,8 @@ async function procesarPagoCreditoPendiente() {
         console.log('📊 Liquidando crédito:', datosVenta);
         console.log('📊 Comprobante Base64 presente:', !!datosVenta.comprobante);
         console.log('📊 Comprobante Base64 longitud:', datosVenta.comprobante ? datosVenta.comprobante.length : 0);
+        console.log('📊 Comprobante Nombre:', datosVenta.comprobanteNombre);
+        console.log('📊 Comprobante Tipo:', datosVenta.comprobanteTipo);
         
         await enviarCorreoConAdjuntoAppsScript(datosVenta);
         
