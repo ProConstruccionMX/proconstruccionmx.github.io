@@ -336,7 +336,6 @@ async function agregarDireccionEnSheets(direccion) {
 
 async function actualizarDireccionEnSheets(fila, datos) {
     try {
-        // ✅ Sumar 1 porque la fila 1 en la hoja es el encabezado
         const filaEnviar = fila + 1;
         console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         console.log('📝 Datos:', datos);
@@ -378,7 +377,6 @@ async function actualizarDireccionEnSheets(fila, datos) {
 
 async function eliminarDireccionEnSheets(fila) {
     try {
-        // ✅ Sumar 1 porque la fila 1 en la hoja es el encabezado
         const filaEnviar = fila + 1;
         console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         
@@ -1184,11 +1182,11 @@ async function cargarDireccionesCliente() {
         
         direccionesCliente = [];
         
-        // ✅ i = 2 como estaba antes
-        for (let i = 2; i < rows.length; i++) {
+        // ✅ i = 1 para saltar el encabezado
+        for (let i = 1; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[0] || '').trim();
-            const filaReal = i - 1; // i=2 → fila REAL 1
+            const filaReal = i; // i=1 → fila REAL 1
             
             if (codigo === codigoCliente) {
                 const nombre = String(values[1] || '').trim();
