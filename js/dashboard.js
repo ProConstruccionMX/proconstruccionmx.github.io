@@ -1109,8 +1109,13 @@ async function cargarProductos() {
     }
 }
 
+// ============================================
+// ⭐ CARGA DE PRECIOS ESPECIALES
+// ============================================
+
 async function cargarPreciosEspeciales() {
     try {
+        console.log('💰 Cargando precios especiales desde Google Sheets...');
         const url = `https://docs.google.com/spreadsheets/d/${ID_ARCHIVO_PRECIOS_ESPECIALES}/gviz/tq?tqx=out:json&sheet=${HOJA_PRECIOS_ESPECIALES}`;
         const response = await fetch(url);
         const text = await response.text();
@@ -1134,9 +1139,9 @@ async function cargarPreciosEspeciales() {
                 });
             }
         }
-        console.log('💰 Precios especiales cargados:', preciosEspecialesGlobales.length);
+        console.log(`💰 Precios especiales cargados: ${preciosEspecialesGlobales.length}`);
     } catch (error) {
-        console.error('Error al cargar precios especiales:', error);
+        console.error('❌ Error al cargar precios especiales:', error);
     }
 }
 
@@ -1459,8 +1464,8 @@ function buscarProductos() {
     
     let html = `<div class="product-grid">`;
     resultados.forEach(producto => {
+        // ⭐ OBTENER PRECIO FINAL (con precio especial si existe)
         const precioFinal = obtenerPrecioFinal(producto);
-        const tienePersonalizado = precioFinal.personalizado;
         const precioMostrar = precioFinal.precio;
         
         let etiquetaPeso = '';
@@ -1494,7 +1499,7 @@ function buscarProductos() {
                 <h4>${producto.nombre}</h4>
                 <p class="descripcion">${producto.descripcion || 'Sin descripción'}</p>
                 <p class="precio">${formatoMexicano(precioMostrar)}</p>
-                ${tienePersonalizado ? '<span class="precio-personalizado">⭐ Precio Personalizado</span>' : ''}
+                <!-- ⭐ SIN BADGE DE PRECIO PERSONALIZADO (TRANSPARENTE) -->
                 <button class="btn-agregar" onclick="agregarAlCarrito('${producto.clave}')">
                     <i class="fas fa-plus"></i> Agregar
                 </button>
@@ -1511,15 +1516,17 @@ function limpiarBusqueda() {
 }
 
 // ============================================
-// PRECIOS Y DESCUENTOS
+// ⭐ PRECIOS Y DESCUENTOS (CON PRECIOS ESPECIALES)
 // ============================================
 
 function obtenerPrecioFinal(producto) {
+    // ⭐ BUSCAR PRECIO ESPECIAL PARA ESTE CLIENTE Y PRODUCTO
     const precioEspecial = preciosEspecialesGlobales.find(p => 
         p.codigoCliente === clienteData.codigo && 
         p.claveProducto === producto.clave
     );
     
+    // ⭐ SI TIENE PRECIO ESPECIAL, SE USA (SIN INDICACIÓN VISUAL)
     if (precioEspecial) {
         return {
             precio: precioEspecial.precioPersonalizado,
@@ -1536,6 +1543,7 @@ function obtenerPrecioFinal(producto) {
 }
 
 function calcularDescuentoProducto(producto, cantidad) {
+    // ⭐ 1. PRIORIDAD MÁXIMA: PRECIO ESPECIAL → DESCUENTO 0%
     const precioEspecial = preciosEspecialesGlobales.find(p => 
         p.codigoCliente === clienteData.codigo && 
         p.claveProducto === producto.clave
@@ -1545,15 +1553,18 @@ function calcularDescuentoProducto(producto, cantidad) {
         return 0;
     }
     
+    // ⭐ 2. SI TIENE N/A → DESCUENTO 0%
     if (producto.na === 'N/A') {
         return 0;
     }
     
+    // ⭐ 3. DESCUENTO ESPECÍFICO DEL PRODUCTO (Columna E)
     const naNumero = parseFloat(producto.na);
     if (!isNaN(naNumero) && producto.na !== '' && producto.na !== '-' && producto.na !== 'N/A') {
         return naNumero;
     }
     
+    // ⭐ 4. DESCUENTO POR GIRO (Columna E = '-')
     if (producto.na === '-') {
         const giro = clienteData.giro || 'Público en general';
         
@@ -1569,6 +1580,7 @@ function calcularDescuentoProducto(producto, cantidad) {
         
         let descuentoBase = mapGiro[giro] || 0;
         
+        // ⭐ 5. DESCUENTO POR VOLUMEN (PXV)
         if (producto.pxv === 'PXV' && producto.pesoCondicion === 'SI') {
             let descuentoAdicional = 0;
             
@@ -1585,9 +1597,11 @@ function calcularDescuentoProducto(producto, cantidad) {
         return descuentoBase;
     }
     
+    // ⭐ 6. DESCUENTO BASE DEL CLIENTE (Columna E vacía)
     if (producto.na === '' || producto.na === null || producto.na === undefined) {
         let descuentoBase = clienteData.descuento || 0;
         
+        // ⭐ 7. DESCUENTO POR VOLUMEN (PXV)
         if (producto.pxv === 'PXV' && producto.pesoCondicion === 'SI') {
             let descuentoAdicional = 0;
             
@@ -2165,7 +2179,9 @@ function agregarAlCarrito(clave) {
         existente.cantidad += 1;
         actualizarItemCarrito(existente);
     } else {
+        // ⭐ OBTENER PRECIO FINAL (CON PRECIO ESPECIAL SI EXISTE)
         const precioFinal = obtenerPrecioFinal(producto);
+        // ⭐ CALCULAR DESCUENTO (EL PRECIO ESPECIAL DA DESCUENTO 0%)
         const descuento = calcularDescuentoProducto(producto, 1);
         const precioConDescuento = precioFinal.precio * (1 - descuento / 100);
         
@@ -2178,7 +2194,7 @@ function agregarAlCarrito(clave) {
             cantidad: 1,
             descuento: descuento,
             importe: precioConDescuento,
-            personalizado: precioFinal.personalizado,
+            personalizado: precioFinal.personalizado, // ⭐ SE USA INTERNAMENTE, NO SE MUESTRA
             pesoCondicion: producto.pesoCondicion,
             peso: producto.peso,
             requiereMinPiezas: producto.requiereMinPiezas,
@@ -2354,7 +2370,7 @@ function renderizarCarrito() {
             <tr>
                 <td>
                     <strong>${item.nombre}</strong>
-                    ${item.personalizado ? '<span class="precio-personalizado">⭐ Personalizado</span>' : ''}
+                    <!-- ⭐ SIN BADGE DE PRECIO PERSONALIZADO (TRANSPARENTE) -->
                     ${pesoInfo}
                     ${minPiezasInfo}
                     ${pxvInfo}
@@ -3066,10 +3082,8 @@ function generarPDFComprobante(datos) {
 
         let tablaProductos = '';
         datos.productos.forEach(producto => {
+            // ⭐ SIN INDICACIÓN DE PRECIO PERSONALIZADO EN EL PDF
             let precioInfo = formatoMexicano(producto.precio);
-            if (producto.personalizado) {
-                precioInfo = `${formatoMexicano(producto.precio)} <span class="precio-personalizado">PERSONALIZADO</span>`;
-            }
             
             tablaProductos += `
                 <tr>
