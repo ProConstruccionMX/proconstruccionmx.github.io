@@ -1617,15 +1617,10 @@ function verificarCreditoDisponible() {
     console.log('⚖️ Límite crédito peso:', clienteLimiteCreditoPeso);
     console.log('💰 Límite crédito monto:', clienteLimiteCreditoMonto);
     
-    // ⭐ VERIFICAR SI TIENE CRÉDITOS PENDIENTES (EXCLUYENDO LOS QUE YA ESTÁN EN "Validando pago")
-    const creditosRealmentePendientes = creditosPendientes.filter(v => {
-        const estatusPago = v.estatusPago || '';
-        return estatusPago !== 'SI';
-    });
-    
-    const tieneCreditosPendientes = creditosRealmentePendientes && creditosRealmentePendientes.length > 0;
+    // ⭐ VERIFICAR SI TIENE CRÉDITOS PENDIENTES - ORIGINAL (NO FILTRA POR SI)
+    const tieneCreditosPendientes = creditosPendientes && creditosPendientes.length > 0;
     if (tieneCreditosPendientes) {
-        const totalPendiente = creditosRealmentePendientes.reduce((sum, v) => sum + (v.saldoPendiente || v.total || 0), 0);
+        const totalPendiente = creditosPendientes.reduce((sum, v) => sum + (v.saldoPendiente || v.total || 0), 0);
         console.log(`⚠️ Cliente tiene créditos pendientes: ${formatoMexicano(totalPendiente)}`);
         
         return {
@@ -3290,7 +3285,7 @@ async function enviarCorreoConAdjuntoAppsScript(datos) {
             productosTexto = 'No hay productos en esta venta.';
         }
         
-        // ⭐ DETERMINAR EL ASUNTO - CORREGIDO
+        // ⭐ DETERMINAR EL ASUNTO
         let asunto = '';
         let tipoCorreo = 'NUEVA VENTA WEB';
         
@@ -3337,6 +3332,7 @@ async function enviarCorreoConAdjuntoAppsScript(datos) {
         };
         
         console.log('📤 Enviando a Apps Script con asunto:', payload.asunto);
+        console.log('📤 Comprobante Base64 presente:', !!payload.comprobanteBase64);
         
         await fetch(APPS_SCRIPT_EMAIL_URL, {
             method: 'POST',
@@ -3872,7 +3868,7 @@ async function cargarHistorialCompras() {
             const formaPago = String(values[9] || '').trim();
             const creditoPendiente = parseFloat(values[5]) || 0;
             const montoPagado = parseFloat(values[6]) || 0;
-            const estatusPago = String(values[15] || '').trim(); // ⭐ COLUMNA P - Estatus de pago
+            const estatusPago = String(values[15] || '').trim();
             
             if (codigo === codigoCliente && idVenta) {
                 idsVenta.push(idVenta);
@@ -3888,7 +3884,7 @@ async function cargarHistorialCompras() {
                     saldoPendiente: creditoPendiente,
                     montoPagado: montoPagado,
                     anticipo: montoPagado,
-                    estatusPago: estatusPago // ⭐ GUARDAR ESTATUS PAGO
+                    estatusPago: estatusPago
                 });
             }
         }
@@ -3969,7 +3965,7 @@ async function cargarHistorialCompras() {
                 totalConIva: subtotal * 1.16,
                 fechaPago: info.fechaPago || null,
                 diasCredito: info.diasCredito || 0,
-                estatusPago: info.estatusPago || '' // ⭐ GUARDAR ESTATUS PAGO
+                estatusPago: info.estatusPago || ''
             });
         }
         
@@ -4470,7 +4466,7 @@ function cargarCreditosPendientes() {
     const container = document.getElementById('creditosPendientesContent');
     if (!container) return;
     
-    // ⭐ FILTRAR: TODOS los créditos con saldo pendiente (incluyendo los que tienen SI)
+    // ⭐ FILTRAR: TODOS los créditos con saldo pendiente
     creditosPendientes = historialVentas.filter(v => {
         const tipoPago = v.tipoPago || '';
         const saldoPendiente = v.saldoPendiente || v.total || 0;
@@ -4860,6 +4856,7 @@ async function procesarPagoCreditoPendiente() {
         };
         
         console.log('📊 Liquidando crédito:', datosVenta);
+        console.log('📊 Comprobante Base64 presente:', !!datosVenta.comprobante);
         
         await enviarCorreoConAdjuntoAppsScript(datosVenta);
         
