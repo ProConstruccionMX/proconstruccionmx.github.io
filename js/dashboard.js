@@ -24,7 +24,6 @@ const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
 const ID_COTIZACIONES = '1S4qoHh3lTDoSUwDNeilmN6QKk8uhmvxjwvRQpEHQbS0';
 const HOJA_COTIZACIONES = 'Hoja 1';
 
-// ✅ NUEVA URL DEL APPS SCRIPT (Versión 22)
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrEptElYSBx-jw1AMNV6SelSzVLiopTY1VY7l7AFj7SeRDvTOREYVPyCg005OSmAWe/exec';
 
 const APPS_SCRIPT_FACTURACION_URL = 'https://script.google.com/macros/s/AKfycbwcEwB2K17lhR5d52eab8EL-2K7C2mXzEubtyP-TcF-VWcmfNS-lODtFWAYdllNmHz9Mg/exec';
@@ -337,7 +336,6 @@ async function agregarDireccionEnSheets(direccion) {
 
 async function actualizarDireccionEnSheets(fila, datos) {
     try {
-        // ✅ Sumar 1 porque la fila 1 en la hoja es el encabezado
         const filaEnviar = fila + 1;
         console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         console.log('📝 Datos:', datos);
@@ -371,7 +369,6 @@ async function actualizarDireccionEnSheets(fila, datos) {
         
         console.log('📝 Petición ACTUALIZAR enviada (no-cors) para fila:', filaEnviar);
         
-        // Esperar un momento para que el Apps Script procese
         await new Promise(resolve => setTimeout(resolve, 2000));
         
         return { success: true };
@@ -384,7 +381,6 @@ async function actualizarDireccionEnSheets(fila, datos) {
 
 async function eliminarDireccionEnSheets(fila) {
     try {
-        // ✅ Sumar 1 porque la fila 1 en la hoja es el encabezado
         const filaEnviar = fila + 1;
         console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila original:', fila, '→ Enviando:', filaEnviar);
         
@@ -407,7 +403,6 @@ async function eliminarDireccionEnSheets(fila) {
         
         console.log('🗑️ Petición ELIMINAR enviada (no-cors) para fila:', filaEnviar);
         
-        // Esperar un momento para que el Apps Script procese
         await new Promise(resolve => setTimeout(resolve, 2000));
         
         return { success: true };
@@ -1195,11 +1190,10 @@ async function cargarDireccionesCliente() {
         
         direccionesCliente = [];
         
-        // ✅ i = 0 para leer desde la primera fila
         for (let i = 0; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[0] || '').trim();
-            const filaReal = i + 1; // La fila REAL en la hoja es i+1
+            const filaReal = i + 1;
             
             console.log(`🔍 Fila ${i} - Código: "${codigo}" - Buscando: "${codigoCliente}"`);
             
@@ -3913,6 +3907,8 @@ async function cargarHistorialCompras() {
             const creditoPendiente = parseFloat(values[5]) || 0;
             const montoPagado = parseFloat(values[6]) || 0;
             const estatusPago = String(values[15] || '').trim();
+            // ⭐ NUEVO: Leer columna F (índice 5) - "Validado"
+            const validado = String(values[5] || '').trim().toUpperCase() === 'VALIDADO';
             
             if (codigo === codigoCliente && idVenta) {
                 idsVenta.push(idVenta);
@@ -3928,7 +3924,8 @@ async function cargarHistorialCompras() {
                     saldoPendiente: creditoPendiente,
                     montoPagado: montoPagado,
                     anticipo: montoPagado,
-                    estatusPago: estatusPago
+                    estatusPago: estatusPago,
+                    validado: validado  // ⭐ NUEVO: Guardar si está validado
                 });
             }
         }
@@ -4047,7 +4044,8 @@ async function cargarHistorialCompras() {
         renderizarOrdenes();
         renderizarHistorialCompras();
         renderizarEstadisticasProductos();
-        cargarCreditosPendientes();
+        // ⭐ Usar la nueva función con validación
+        cargarCreditosPendientesConValidacion();
         
     } catch (error) {
         console.error('❌ Error al cargar historial de compras:', error);
@@ -4501,15 +4499,235 @@ function filtrarHistorial() {
 }
 
 // ============================================
-// FUNCIONES PARA CRÉDITOS PENDIENTES
+// NUEVA FUNCIÓN PARA CRÉDITOS PENDIENTES CON VALIDACIÓN
 // ============================================
 
-function cargarCreditosPendientes() {
-    console.log('📋 Cargando créditos pendientes...');
+function cargarCreditosPendientesConValidacion() {
+    console.log('📋 Cargando créditos pendientes con validación...');
     
     const container = document.getElementById('creditosPendientesContent');
     if (!container) return;
     
+    // ⭐ FILTRAR: Créditos con saldo pendiente Y que NO tengan "VALIDADO" en columna F
+    const creditosFiltrados = historialVentas.filter(v => {
+        const tipoPago = v.tipoPago || '';
+        const saldoPendiente = v.saldoPendiente || v.total || 0;
+        
+        const esCredito = (tipoPago === 'Crédito' || tipoPago === 'Crédito Parcial');
+        const tieneSaldo = saldoPendiente > 0.01;
+        
+        if (!esCredito || !tieneSaldo) return false;
+        
+        // ⭐ Verificar si está VALIDADO en la columna F
+        const estaValidado = v.validado === true;
+        
+        return !estaValidado;
+    });
+    
+    // Asignar a la variable global creditosPendientes
+    creditosPendientes = creditosFiltrados;
+    
+    console.log(`📊 Créditos encontrados (después de filtro VALIDADO): ${creditosPendientes.length}`);
+    
+    // ⭐ SEPARAR: los que tienen SI (Validando pago) y los que no (Pendientes)
+    const creditosEnProceso = creditosPendientes.filter(v => (v.estatusPago || '') === 'SI');
+    const creditosPendientesReales = creditosPendientes.filter(v => (v.estatusPago || '') !== 'SI');
+    
+    console.log(`📊 Créditos en proceso (SI): ${creditosEnProceso.length}`);
+    console.log(`📊 Créditos realmente pendientes: ${creditosPendientesReales.length}`);
+    
+    if (creditosPendientes.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-check-circle" style="color:#16a34a;"></i>
+                <h4>Sin créditos pendientes</h4>
+                <p>No tienes compras a crédito pendientes de liquidar.</p>
+            </div>
+        `;
+        document.getElementById('totalCreditoPendiente').textContent = 'Total: $0.00';
+        return;
+    }
+    
+    let totalPendiente = 0;
+    let html = `<div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">`;
+    
+    // ⭐ PRIMERO MOSTRAR LOS QUE ESTÁN EN PROCESO (SI) - "Validando pago"
+    creditosEnProceso.forEach((venta, index) => {
+        const saldoPendiente = venta.saldoPendiente || venta.total || 0;
+        totalPendiente += saldoPendiente;
+        
+        const fecha = venta.fechaObj || parseFechaGoogleSheets(venta.fecha);
+        const fechaFormateada = fecha ? fecha.toLocaleDateString('es-MX', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        }) : 'Fecha no disponible';
+        
+        let fechaPago = null;
+        let fechaPagoFormateada = 'No definida';
+        
+        if (venta.fechaPago) {
+            fechaPago = new Date(venta.fechaPago);
+            if (!isNaN(fechaPago.getTime())) {
+                fechaPagoFormateada = fechaPago.toLocaleDateString('es-MX', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                });
+            }
+        }
+        
+        if (!fechaPago || isNaN(fechaPago.getTime())) {
+            const fechaVenta = venta.fechaObj || parseFechaGoogleSheets(venta.fecha);
+            const diasCredito = venta.diasCredito || 20;
+            if (fechaVenta) {
+                fechaPago = new Date(fechaVenta);
+                fechaPago.setDate(fechaPago.getDate() + diasCredito);
+                if (!isNaN(fechaPago.getTime())) {
+                    fechaPagoFormateada = fechaPago.toLocaleDateString('es-MX', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                    });
+                }
+            }
+        }
+        
+        html += `
+            <div style="background:white; border-radius:12px; padding:1.2rem; border:1px solid #bfdbfe; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
+                    <div>
+                        <span style="font-weight:700; color:var(--primary-dark); font-size:1rem;">${venta.idVenta}</span>
+                        <span style="font-size:0.75rem; color:var(--text-gray); margin-left:0.5rem;">${fechaFormateada}</span>
+                        <div style="font-size:0.8rem; color:var(--text-gray); margin-top:0.2rem;">
+                            <span class="badge badge-warning">${venta.tipoPago || 'Crédito'}</span>
+                            <span class="badge badge-info" style="margin-left:0.5rem;background:#3b82f6;color:white;">Validando pago</span>
+                            ${venta.diasCredito ? `<span style="font-size:0.7rem; color:var(--text-gray); margin-left:0.5rem;">${venta.diasCredito} días</span>` : ''}
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-weight:700; color:#3b82f6; font-size:1.1rem;">
+                            ${formatoMexicano(saldoPendiente)}
+                        </div>
+                        <div style="font-size:0.7rem; color:var(--text-gray);">Límite: ${fechaPagoFormateada}</div>
+                        <div style="font-size:0.7rem; color:#3b82f6; font-weight:600;">Validando pago</div>
+                    </div>
+                </div>
+                <div style="margin-top:0.5rem; padding-top:0.5rem; border-top:1px solid #f3f4f6;">
+                    <div style="font-size:0.8rem; color:var(--text-gray);">
+                        <strong>Productos:</strong> ${venta.productos ? venta.productos.length : 0}
+                    </div>
+                    <div style="font-size:0.8rem; color:var(--text-gray);">
+                        <strong>Total:</strong> ${formatoMexicano(venta.total || 0)}
+                        ${venta.anticipo ? ` | <strong>Pagado:</strong> ${formatoMexicano(venta.anticipo)}` : ''}
+                    </div>
+                </div>
+                <div style="width:100%; margin-top:0.8rem; padding:0.5rem; text-align:center; background:#eff6ff; border-radius:8px; color:#3b82f6; font-weight:600; font-size:0.85rem;">
+                    <i class="fas fa-spinner fa-spin"></i> Validando pago...
+                </div>
+            </div>
+        `;
+    });
+    
+    // ⭐ LUEGO MOSTRAR LOS REALMENTE PENDIENTES
+    creditosPendientesReales.forEach((venta, index) => {
+        const saldoPendiente = venta.saldoPendiente || venta.total || 0;
+        totalPendiente += saldoPendiente;
+        
+        const fecha = venta.fechaObj || parseFechaGoogleSheets(venta.fecha);
+        const fechaFormateada = fecha ? fecha.toLocaleDateString('es-MX', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        }) : 'Fecha no disponible';
+        
+        let fechaPago = null;
+        let fechaPagoFormateada = 'No definida';
+        
+        if (venta.fechaPago) {
+            fechaPago = new Date(venta.fechaPago);
+            if (!isNaN(fechaPago.getTime())) {
+                fechaPagoFormateada = fechaPago.toLocaleDateString('es-MX', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                });
+            }
+        }
+        
+        if (!fechaPago || isNaN(fechaPago.getTime())) {
+            const fechaVenta = venta.fechaObj || parseFechaGoogleSheets(venta.fecha);
+            const diasCredito = venta.diasCredito || 20;
+            if (fechaVenta) {
+                fechaPago = new Date(fechaVenta);
+                fechaPago.setDate(fechaPago.getDate() + diasCredito);
+                if (!isNaN(fechaPago.getTime())) {
+                    fechaPagoFormateada = fechaPago.toLocaleDateString('es-MX', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                    });
+                }
+            }
+        }
+        
+        const estaVencido = fechaPago && !isNaN(fechaPago.getTime()) && fechaPago < new Date();
+        const estadoColor = estaVencido ? '#dc2626' : '#92400e';
+        const estadoTexto = estaVencido ? '⚠️ VENCIDO' : 'Pendiente';
+        
+        html += `
+            <div style="background:white; border-radius:12px; padding:1.2rem; border:1px solid ${estaVencido ? '#fecaca' : '#fef3c7'}; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
+                    <div>
+                        <span style="font-weight:700; color:var(--primary-dark); font-size:1rem;">${venta.idVenta}</span>
+                        <span style="font-size:0.75rem; color:var(--text-gray); margin-left:0.5rem;">${fechaFormateada}</span>
+                        <div style="font-size:0.8rem; color:var(--text-gray); margin-top:0.2rem;">
+                            <span class="badge badge-warning">${venta.tipoPago || 'Crédito'}</span>
+                            ${estaVencido ? '<span class="badge badge-danger" style="margin-left:0.5rem;">VENCIDO</span>' : ''}
+                            ${venta.diasCredito ? `<span style="font-size:0.7rem; color:var(--text-gray); margin-left:0.5rem;">${venta.diasCredito} días</span>` : ''}
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-weight:700; color:${estadoColor}; font-size:1.1rem;">
+                            ${formatoMexicano(saldoPendiente)}
+                        </div>
+                        <div style="font-size:0.7rem; color:var(--text-gray);">Límite: ${fechaPagoFormateada}</div>
+                        <div style="font-size:0.7rem; color:${estadoColor}; font-weight:600;">${estadoTexto}</div>
+                    </div>
+                </div>
+                <div style="margin-top:0.5rem; padding-top:0.5rem; border-top:1px solid #f3f4f6;">
+                    <div style="font-size:0.8rem; color:var(--text-gray);">
+                        <strong>Productos:</strong> ${venta.productos ? venta.productos.length : 0}
+                    </div>
+                    <div style="font-size:0.8rem; color:var(--text-gray);">
+                        <strong>Total:</strong> ${formatoMexicano(venta.total || 0)}
+                        ${venta.anticipo ? ` | <strong>Pagado:</strong> ${formatoMexicano(venta.anticipo)}` : ''}
+                    </div>
+                </div>
+                <button class="btn-primary" style="width:100%; margin-top:0.8rem; padding:0.5rem; font-size:0.85rem;" 
+                        onclick="abrirModalPagoCreditoPendiente('${venta.idVenta}')">
+                    <i class="fas fa-university"></i> Liquidar con Transferencia
+                </button>
+            </div>
+        `;
+    });
+    
+    html += `</div>`;
+    container.innerHTML = html;
+    document.getElementById('totalCreditoPendiente').textContent = `Total: ${formatoMexicano(totalPendiente)}`;
+}
+
+// ============================================
+// FUNCIONES PARA CRÉDITOS PENDIENTES (ORIGINAL - MANTENIDA POR COMPATIBILIDAD)
+// ============================================
+
+function cargarCreditosPendientes() {
+    console.log('📋 Cargando créditos pendientes (original)...');
+    
+    const container = document.getElementById('creditosPendientesContent');
+    if (!container) return;
+    
+    // Mantener la función original sin cambios
     creditosPendientes = historialVentas.filter(v => {
         const tipoPago = v.tipoPago || '';
         const saldoPendiente = v.saldoPendiente || v.total || 0;
