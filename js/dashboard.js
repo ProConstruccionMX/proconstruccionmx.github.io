@@ -3907,8 +3907,8 @@ async function cargarHistorialCompras() {
             const creditoPendiente = parseFloat(values[5]) || 0;
             const montoPagado = parseFloat(values[6]) || 0;
             const estatusPago = String(values[15] || '').trim();
-            // ⭐ NUEVO: Leer columna F (índice 5) - "Validado"
-            const validado = String(values[5] || '').trim().toUpperCase() === 'VALIDADO';
+            // ⭐ Leer columna P (índice 15) - "VALIDADO"
+            const validado = String(values[15] || '').trim().toUpperCase() === 'VALIDADO';
             
             if (codigo === codigoCliente && idVenta) {
                 idsVenta.push(idVenta);
@@ -3925,7 +3925,7 @@ async function cargarHistorialCompras() {
                     montoPagado: montoPagado,
                     anticipo: montoPagado,
                     estatusPago: estatusPago,
-                    validado: validado  // ⭐ NUEVO: Guardar si está validado
+                    validado: validado  // ⭐ Guardar si está validado (columna P)
                 });
             }
         }
@@ -4044,7 +4044,7 @@ async function cargarHistorialCompras() {
         renderizarOrdenes();
         renderizarHistorialCompras();
         renderizarEstadisticasProductos();
-        // ⭐ Usar la nueva función con validación
+        // ⭐ Usar la nueva función con validación de columna P
         cargarCreditosPendientesConValidacion();
         
     } catch (error) {
@@ -4499,16 +4499,16 @@ function filtrarHistorial() {
 }
 
 // ============================================
-// NUEVA FUNCIÓN PARA CRÉDITOS PENDIENTES CON VALIDACIÓN
+// NUEVA FUNCIÓN PARA CRÉDITOS PENDIENTES CON VALIDACIÓN (COLUMNA P)
 // ============================================
 
 function cargarCreditosPendientesConValidacion() {
-    console.log('📋 Cargando créditos pendientes con validación...');
+    console.log('📋 Cargando créditos pendientes con validación (columna P)...');
     
     const container = document.getElementById('creditosPendientesContent');
     if (!container) return;
     
-    // ⭐ FILTRAR: Créditos con saldo pendiente Y que NO tengan "VALIDADO" en columna F
+    // ⭐ FILTRAR: Créditos con saldo pendiente Y que NO tengan "VALIDADO" en columna P
     const creditosFiltrados = historialVentas.filter(v => {
         const tipoPago = v.tipoPago || '';
         const saldoPendiente = v.saldoPendiente || v.total || 0;
@@ -4518,7 +4518,8 @@ function cargarCreditosPendientesConValidacion() {
         
         if (!esCredito || !tieneSaldo) return false;
         
-        // ⭐ Verificar si está VALIDADO en la columna F
+        // ⭐ Verificar si está VALIDADO en la columna P
+        // Si validado es true, NO se muestra en créditos pendientes
         const estaValidado = v.validado === true;
         
         return !estaValidado;
@@ -4527,7 +4528,7 @@ function cargarCreditosPendientesConValidacion() {
     // Asignar a la variable global creditosPendientes
     creditosPendientes = creditosFiltrados;
     
-    console.log(`📊 Créditos encontrados (después de filtro VALIDADO): ${creditosPendientes.length}`);
+    console.log(`📊 Créditos encontrados (después de filtro VALIDADO columna P): ${creditosPendientes.length}`);
     
     // ⭐ SEPARAR: los que tienen SI (Validando pago) y los que no (Pendientes)
     const creditosEnProceso = creditosPendientes.filter(v => (v.estatusPago || '') === 'SI');
@@ -4727,7 +4728,6 @@ function cargarCreditosPendientes() {
     const container = document.getElementById('creditosPendientesContent');
     if (!container) return;
     
-    // Mantener la función original sin cambios
     creditosPendientes = historialVentas.filter(v => {
         const tipoPago = v.tipoPago || '';
         const saldoPendiente = v.saldoPendiente || v.total || 0;
