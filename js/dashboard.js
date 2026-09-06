@@ -1180,13 +1180,21 @@ async function cargarDireccionesCliente() {
         
         console.log(`📊 Filas en la hoja Direcciones: ${rows.length}`);
         
+        // ⭐ DEBUG: Mostrar todas las filas para ver qué hay
+        for (let i = 0; i < rows.length; i++) {
+            const values = rows[i].c.map(cell => cell ? cell.v : '');
+            console.log(`📋 Fila ${i}:`, values);
+        }
+        
         direccionesCliente = [];
         
-        // ✅ i = 1 para saltar el encabezado
-        for (let i = 1; i < rows.length; i++) {
+        // ✅ Probar con i = 0
+        for (let i = 0; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[0] || '').trim();
-            const filaReal = i; // i=1 → fila REAL 1
+            const filaReal = i + 1; // Porque en la hoja, la fila 1 es la primera
+            
+            console.log(`🔍 Fila ${i} - Código: "${codigo}" - Buscando: "${codigoCliente}"`);
             
             if (codigo === codigoCliente) {
                 const nombre = String(values[1] || '').trim();
