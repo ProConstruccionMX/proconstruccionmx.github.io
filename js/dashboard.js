@@ -268,7 +268,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 
 // ============================================
-// FUNCIONES PARA APPS SCRIPT (CON NO-CORS)
+// FUNCIONES PARA APPS SCRIPT (CON CORS)
 // ============================================
 
 async function guardarFilaGoogleSheets(sheetName, datos) {
@@ -282,20 +282,32 @@ async function guardarFilaGoogleSheets(sheetName, datos) {
             datos: datos
         };
         
-        await fetch(APPS_SCRIPT_URL, {
+        const response = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors',
+            mode: 'cors',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(body)
         });
         
-        console.log(`✅ Petición enviada a ${sheetName} (no-cors)`);
-        return { success: true };
+        if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log(`✅ Respuesta de ${sheetName}:`, result);
+        
+        if (result.success) {
+            console.log(`✅ Fila guardada en ${sheetName}`);
+            return { success: true };
+        } else {
+            console.error(`❌ Error al guardar en ${sheetName}:`, result.error);
+            return { success: false, error: result.error };
+        }
         
     } catch (error) {
-        console.error('❌ Error al guardar fila:', error);
+        console.error(`❌ Error al guardar fila en ${sheetName}:`, error);
         return { success: false, error: error.toString() };
     }
 }
@@ -304,9 +316,9 @@ async function agregarDireccionEnSheets(direccion) {
     try {
         console.log('📝 Enviando a Apps Script - AGREGAR:', direccion);
         
-        await fetch(APPS_SCRIPT_URL, {
+        const response = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors',
+            mode: 'cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -325,8 +337,20 @@ async function agregarDireccionEnSheets(direccion) {
             })
         });
         
-        console.log('📝 Petición AGREGAR enviada (no-cors)');
-        return { success: true };
+        if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('✅ Respuesta AGREGAR:', result);
+        
+        if (result.success) {
+            console.log('📝 Petición AGREGAR exitosa');
+            return { success: true };
+        } else {
+            console.error('❌ Error al agregar dirección:', result.error);
+            return { success: false, error: result.error };
+        }
         
     } catch (error) {
         console.error('Error al agregar dirección:', error);
@@ -356,22 +380,30 @@ async function actualizarDireccionEnSheets(fila, datos) {
             timestamp: Date.now()
         };
         
-        console.log('📝 Body enviado:', JSON.stringify(body));
-        
-        await fetch(APPS_SCRIPT_URL, {
+        const response = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors',
+            mode: 'cors',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(body)
         });
         
-        console.log('📝 Petición ACTUALIZAR enviada (no-cors) para fila:', filaEnviar);
+        if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
         
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        const result = await response.json();
+        console.log('✅ Respuesta ACTUALIZAR:', result);
         
-        return { success: true };
+        if (result.success) {
+            console.log('📝 Petición ACTUALIZAR exitosa para fila:', filaEnviar);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            return { success: true };
+        } else {
+            console.error('❌ Error al actualizar dirección:', result.error);
+            return { success: false, error: result.error };
+        }
         
     } catch (error) {
         console.error('Error al actualizar dirección:', error);
@@ -390,22 +422,30 @@ async function eliminarDireccionEnSheets(fila) {
             timestamp: Date.now()
         };
         
-        console.log('🗑️ Body enviado:', JSON.stringify(body));
-        
-        await fetch(APPS_SCRIPT_URL, {
+        const response = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors',
+            mode: 'cors',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(body)
         });
         
-        console.log('🗑️ Petición ELIMINAR enviada (no-cors) para fila:', filaEnviar);
+        if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
         
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        const result = await response.json();
+        console.log('✅ Respuesta ELIMINAR:', result);
         
-        return { success: true };
+        if (result.success) {
+            console.log('🗑️ Petición ELIMINAR exitosa para fila:', filaEnviar);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            return { success: true };
+        } else {
+            console.error('❌ Error al eliminar dirección:', result.error);
+            return { success: false, error: result.error };
+        }
         
     } catch (error) {
         console.error('Error al eliminar dirección:', error);
@@ -674,9 +714,9 @@ async function guardarEdicionFacturacion() {
         console.log('📝 Datos:', datosActualizados);
         console.log('📝 Fila:', fila);
         
-        await fetch(APPS_SCRIPT_FACTURACION_URL, {
+        const response = await fetch(APPS_SCRIPT_FACTURACION_URL, {
             method: 'POST',
-            mode: 'no-cors',
+            mode: 'cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -694,15 +734,23 @@ async function guardarEdicionFacturacion() {
             })
         });
         
-        console.log('✅ Petición enviada (no-cors)');
+        if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
         
-        facturacionCliente[index] = { ...fact, ...datosActualizados, fila: fila };
-        renderizarFacturacion();
-        actualizarSelectorFacturacion();
-        cerrarModalEditarFacturacion();
-        mostrarNotificacion('✅ Datos de facturación actualizados correctamente');
+        const result = await response.json();
+        console.log('✅ Respuesta ACTUALIZAR FACTURACIÓN:', result);
         
-        setTimeout(() => cargarFacturacionCliente(), 1500);
+        if (result.success) {
+            facturacionCliente[index] = { ...fact, ...datosActualizados, fila: fila };
+            renderizarFacturacion();
+            actualizarSelectorFacturacion();
+            cerrarModalEditarFacturacion();
+            mostrarNotificacion('✅ Datos de facturación actualizados correctamente');
+            setTimeout(() => cargarFacturacionCliente(), 1500);
+        } else {
+            mostrarNotificacion('❌ Error al actualizar: ' + (result.error || 'Error desconocido'));
+        }
         
     } catch (error) {
         console.error('❌ Error al actualizar facturación:', error);
@@ -730,12 +778,9 @@ async function eliminarFacturacion(index) {
     if (!confirm(`¿Seguro que quieres eliminar los datos de facturación de "${fact.nombre}"?`)) return;
     
     try {
-        console.log('🗑️ Enviando a Apps Script - ELIMINAR FACTURACIÓN');
-        console.log('🗑️ Fila:', fact.fila);
-        
-        await fetch(APPS_SCRIPT_FACTURACION_URL, {
+        const response = await fetch(APPS_SCRIPT_FACTURACION_URL, {
             method: 'POST',
-            mode: 'no-cors',
+            mode: 'cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -745,14 +790,22 @@ async function eliminarFacturacion(index) {
             })
         });
         
-        console.log('✅ Petición ELIMINAR enviada (no-cors)');
+        if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
         
-        facturacionCliente.splice(index, 1);
-        renderizarFacturacion();
-        actualizarSelectorFacturacion();
-        mostrarNotificacion('🗑️ Datos de facturación eliminados correctamente');
+        const result = await response.json();
+        console.log('✅ Respuesta ELIMINAR FACTURACIÓN:', result);
         
-        setTimeout(() => cargarFacturacionCliente(), 1500);
+        if (result.success) {
+            facturacionCliente.splice(index, 1);
+            renderizarFacturacion();
+            actualizarSelectorFacturacion();
+            mostrarNotificacion('🗑️ Datos de facturación eliminados correctamente');
+            setTimeout(() => cargarFacturacionCliente(), 1500);
+        } else {
+            mostrarNotificacion('❌ Error al eliminar: ' + (result.error || 'Error desconocido'));
+        }
         
     } catch (error) {
         console.error('❌ Error al eliminar facturación:', error);
@@ -809,12 +862,9 @@ async function guardarNuevaFacturacion() {
     btn.innerHTML = '<span class="loading-spinner"></span> Guardando...';
     
     try {
-        console.log('📝 Enviando a Apps Script - AGREGAR FACTURACIÓN');
-        console.log('📝 Datos:', datos);
-        
-        await fetch(APPS_SCRIPT_FACTURACION_URL, {
+        const response = await fetch(APPS_SCRIPT_FACTURACION_URL, {
             method: 'POST',
-            mode: 'no-cors',
+            mode: 'cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -831,12 +881,20 @@ async function guardarNuevaFacturacion() {
             })
         });
         
-        console.log('✅ Petición AGREGAR enviada (no-cors)');
+        if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
         
-        cerrarModalAgregarFacturacion();
-        mostrarNotificacion('✅ Datos de facturación agregados correctamente');
+        const result = await response.json();
+        console.log('✅ Respuesta AGREGAR FACTURACIÓN:', result);
         
-        setTimeout(() => cargarFacturacionCliente(), 1500);
+        if (result.success) {
+            cerrarModalAgregarFacturacion();
+            mostrarNotificacion('✅ Datos de facturación agregados correctamente');
+            setTimeout(() => cargarFacturacionCliente(), 1500);
+        } else {
+            mostrarMensajeModalAgregar('error', '❌ Error al guardar: ' + (result.error || 'Error desconocido'));
+        }
         
     } catch (error) {
         console.error('❌ Error al agregar facturación:', error);
@@ -903,12 +961,9 @@ async function guardarNuevaFacturacionDesdePago() {
     btn.innerHTML = '<span class="loading-spinner"></span> Guardando...';
     
     try {
-        console.log('📝 Enviando a Apps Script - AGREGAR FACTURACIÓN (desde pago)');
-        console.log('📝 Datos:', datos);
-        
-        await fetch(APPS_SCRIPT_FACTURACION_URL, {
+        const response = await fetch(APPS_SCRIPT_FACTURACION_URL, {
             method: 'POST',
-            mode: 'no-cors',
+            mode: 'cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -925,15 +980,23 @@ async function guardarNuevaFacturacionDesdePago() {
             })
         });
         
-        console.log('✅ Petición AGREGAR enviada (no-cors)');
+        if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
         
-        cerrarModalAgregarFacturacionPago();
-        mostrarNotificacion('✅ Datos de facturación agregados correctamente');
+        const result = await response.json();
+        console.log('✅ Respuesta AGREGAR FACTURACIÓN (desde pago):', result);
         
-        setTimeout(() => {
-            cargarFacturacionCliente();
-            setTimeout(() => actualizarSelectorFacturacion(), 500);
-        }, 1500);
+        if (result.success) {
+            cerrarModalAgregarFacturacionPago();
+            mostrarNotificacion('✅ Datos de facturación agregados correctamente');
+            setTimeout(() => {
+                cargarFacturacionCliente();
+                setTimeout(() => actualizarSelectorFacturacion(), 500);
+            }, 1500);
+        } else {
+            mostrarMensajeModalAgregarPago('error', '❌ Error al guardar: ' + (result.error || 'Error desconocido'));
+        }
         
     } catch (error) {
         console.error('❌ Error al agregar facturación:', error);
@@ -1356,15 +1419,18 @@ async function guardarEdicionDireccion() {
     }
     
     try {
-        await actualizarDireccionEnSheets(fila, datosActualizados);
+        const result = await actualizarDireccionEnSheets(fila, datosActualizados);
         
-        direccionesCliente[index] = { ...dir, ...datosActualizados, fila: fila };
-        renderizarDirecciones();
-        actualizarSelectorDirecciones();
-        cerrarModalEditarDireccion();
-        mostrarNotificacion('✅ Dirección actualizada correctamente');
-        
-        setTimeout(() => cargarDireccionesCliente(), 1500);
+        if (result.success) {
+            direccionesCliente[index] = { ...dir, ...datosActualizados, fila: fila };
+            renderizarDirecciones();
+            actualizarSelectorDirecciones();
+            cerrarModalEditarDireccion();
+            mostrarNotificacion('✅ Dirección actualizada correctamente');
+            setTimeout(() => cargarDireccionesCliente(), 1500);
+        } else {
+            mostrarNotificacion('❌ Error al actualizar: ' + (result.error || 'Error desconocido'));
+        }
         
     } catch (error) {
         console.error('❌ Error al actualizar dirección:', error);
@@ -1389,14 +1455,17 @@ async function eliminarDireccion(index) {
     if (!confirm(`¿Seguro que quieres eliminar "${dir.nombre}" (Fila ${dir.fila})?`)) return;
     
     try {
-        await eliminarDireccionEnSheets(dir.fila);
+        const result = await eliminarDireccionEnSheets(dir.fila);
         
-        direccionesCliente.splice(index, 1);
-        renderizarDirecciones();
-        actualizarSelectorDirecciones();
-        mostrarNotificacion('🗑️ Dirección eliminada correctamente');
-        
-        setTimeout(() => cargarDireccionesCliente(), 1500);
+        if (result.success) {
+            direccionesCliente.splice(index, 1);
+            renderizarDirecciones();
+            actualizarSelectorDirecciones();
+            mostrarNotificacion('🗑️ Dirección eliminada correctamente');
+            setTimeout(() => cargarDireccionesCliente(), 1500);
+        } else {
+            mostrarNotificacion('❌ Error al eliminar: ' + (result.error || 'Error desconocido'));
+        }
         
     } catch (error) {
         console.error('❌ Error al eliminar dirección:', error);
@@ -1429,11 +1498,16 @@ async function guardarNuevaDireccion(datos) {
             nombreRecibe: datos.nombreRecibe
         };
         
-        await agregarDireccionEnSheets(nuevaDireccion);
+        const result = await agregarDireccionEnSheets(nuevaDireccion);
         
-        mostrarNotificacion('✅ Dirección guardada correctamente');
-        await cargarDireccionesCliente();
-        return true;
+        if (result.success) {
+            mostrarNotificacion('✅ Dirección guardada correctamente');
+            await cargarDireccionesCliente();
+            return true;
+        } else {
+            mostrarNotificacion('❌ Error al guardar: ' + (result.error || 'Error desconocido'));
+            return false;
+        }
         
     } catch (error) {
         console.error('❌ Error al guardar dirección:', error);
@@ -3373,17 +3447,29 @@ async function enviarCorreoConAdjuntoAppsScript(datos) {
         console.log('📤 Comprobante Base64 presente:', !!payload.comprobanteBase64);
         console.log('📤 Comprobante Base64 longitud:', payload.comprobanteBase64 ? payload.comprobanteBase64.length : 0);
         
-        await fetch(APPS_SCRIPT_EMAIL_URL, {
+        const response = await fetch(APPS_SCRIPT_EMAIL_URL, {
             method: 'POST',
-            mode: 'no-cors',
+            mode: 'cors',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(payload)
         });
         
-        console.log(`✅ Correo enviado (${tipoCorreo}) a ventas@proconstruccionmx.com`);
-        return { success: true };
+        if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('✅ Respuesta CORREO:', result);
+        
+        if (result.success) {
+            console.log(`✅ Correo enviado (${tipoCorreo}) a ventas@proconstruccionmx.com`);
+            return { success: true };
+        } else {
+            console.error('❌ Error al enviar correo:', result.error);
+            return { success: false, error: result.error };
+        }
         
     } catch (error) {
         console.error('❌ Error al enviar correo con adjunto:', error);
@@ -3464,7 +3550,11 @@ async function procesarPagoTransferencia() {
         
         console.log('📊 Datos de venta a guardar (Transferencia):', datosVenta);
         
-        await guardarVentaEnEstadisticas(datosVenta);
+        const resultadoGuardado = await guardarVentaEnEstadisticas(datosVenta);
+        
+        if (!resultadoGuardado.success) {
+            throw new Error(resultadoGuardado.error || 'Error al guardar la venta');
+        }
         
         await enviarCorreoConAdjuntoAppsScript(datosVenta);
         
@@ -3511,7 +3601,7 @@ async function procesarPagoTransferencia() {
         
     } catch (error) {
         console.error('Error al procesar pago:', error);
-        mostrarMensajeModal('error', '❌ Error al procesar el pago. Por favor, intenta de nuevo o contacta a tu asesor.');
+        mostrarMensajeModal('error', '❌ Error al procesar el pago: ' + error.message);
         if (btn) {
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Compra';
@@ -3653,7 +3743,11 @@ async function procesarPagoCredito() {
         
         console.log('📊 Datos de venta a guardar (Crédito):', datosVenta);
         
-        await guardarVentaEnEstadisticas(datosVenta);
+        const resultadoGuardado = await guardarVentaEnEstadisticas(datosVenta);
+        
+        if (!resultadoGuardado.success) {
+            throw new Error(resultadoGuardado.error || 'Error al guardar la venta');
+        }
         
         await enviarCorreoConAdjuntoAppsScript(datosVenta);
         
@@ -3713,7 +3807,7 @@ async function procesarPagoCredito() {
         
     } catch (error) {
         console.error('Error al procesar crédito:', error);
-        mostrarMensajeModal('error', '❌ Error al procesar el crédito. Por favor, intenta de nuevo o contacta a tu asesor.');
+        mostrarMensajeModal('error', '❌ Error al procesar el crédito: ' + error.message);
         if (btn) {
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
@@ -3742,6 +3836,9 @@ async function guardarVentaEnEstadisticas(datos) {
             second: '2-digit',
             hour12: false
         });
+        
+        let todosExitosos = true;
+        let errores = [];
         
         for (const producto of datos.productos) {
             let precioCompra = 0;
@@ -3804,7 +3901,11 @@ async function guardarVentaEnEstadisticas(datos) {
             ];
             
             console.log(`📝 Guardando producto: ${producto.nombre}, crédito: ${creditoPendiente}, pagado: ${montoPagado}, días: ${diasCredito}, fechaPago: ${fechaPago}`);
-            await guardarFilaGoogleSheets(HOJA_EST_PRODUCTOS, filaProducto);
+            const resultado = await guardarFilaGoogleSheets(HOJA_EST_PRODUCTOS, filaProducto);
+            if (!resultado.success) {
+                todosExitosos = false;
+                errores.push(`Producto ${producto.nombre}: ${resultado.error}`);
+            }
         }
         
         const facturaTexto = datos.requiereFactura ? 'SÍ' : 'NO';
@@ -3836,7 +3937,7 @@ async function guardarVentaEnEstadisticas(datos) {
         if (datos.esLiquidacionCredito) {
             console.log('📝 Es liquidación de crédito, no se guarda en Clientes');
             console.log('✅ Liquidación de crédito registrada correctamente');
-            return;
+            return { success: true };
         }
         
         const filaCliente = [
@@ -3859,13 +3960,24 @@ async function guardarVentaEnEstadisticas(datos) {
         ];
         
         console.log(`📝 Guardando cliente: ${datos.cliente.nombre}, total: ${datos.total}, crédito: ${creditoPendienteTotal}, pagado: ${montoPagadoTotal}`);
-        await guardarFilaGoogleSheets(HOJA_EST_CLIENTES, filaCliente);
+        const resultadoCliente = await guardarFilaGoogleSheets(HOJA_EST_CLIENTES, filaCliente);
+        
+        if (!resultadoCliente.success) {
+            todosExitosos = false;
+            errores.push(`Cliente: ${resultadoCliente.error}`);
+        }
+        
+        if (!todosExitosos) {
+            console.warn('⚠️ Algunos errores al guardar:', errores);
+            return { success: false, error: errores.join('; ') };
+        }
         
         console.log('✅ Venta guardada en estadísticas correctamente');
+        return { success: true };
         
     } catch (error) {
         console.error('❌ Error al guardar en estadísticas:', error);
-        throw error;
+        return { success: false, error: error.toString() };
     }
 }
 
@@ -5105,12 +5217,18 @@ async function procesarPagoCreditoPendiente() {
         console.log('📊 Comprobante Nombre:', datosVenta.comprobanteNombre);
         console.log('📊 Comprobante Tipo:', datosVenta.comprobanteTipo);
         
+        const resultadoGuardado = await guardarVentaEnEstadisticas(datosVenta);
+        
+        if (!resultadoGuardado.success) {
+            console.warn('⚠️ La venta se guardó pero con advertencias:', resultadoGuardado.error);
+        }
+        
         await enviarCorreoConAdjuntoAppsScript(datosVenta);
         
         try {
-            await fetch(APPS_SCRIPT_URL, {
+            const response = await fetch(APPS_SCRIPT_URL, {
                 method: 'POST',
-                mode: 'no-cors',
+                mode: 'cors',
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -5119,7 +5237,19 @@ async function procesarPagoCreditoPendiente() {
                     idVentaOriginal: venta.idVenta
                 })
             });
-            console.log('✅ Estatus actualizado a SI para:', venta.idVenta);
+            
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            console.log('✅ Respuesta ACTUALIZAR ESTATUS:', result);
+            
+            if (result.success) {
+                console.log('✅ Estatus actualizado a SI para:', venta.idVenta);
+            } else {
+                console.warn('⚠️ No se pudo actualizar estatus:', result.error);
+            }
         } catch (error) {
             console.error('❌ Error al actualizar estatus:', error);
         }
