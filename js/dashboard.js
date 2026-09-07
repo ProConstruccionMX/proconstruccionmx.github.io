@@ -3855,7 +3855,7 @@ async function guardarVentaEnEstadisticas(datos) {
             estadoPago,
             nombreDireccion,
             razonSocialFactura,
-            ''
+            ''  // ⭐ Columna P - Estatus de pago (vacío por defecto)
         ];
         
         console.log(`📝 Guardando cliente: ${datos.cliente.nombre}, total: ${datos.total}, crédito: ${creditoPendienteTotal}, pagado: ${montoPagadoTotal}`);
