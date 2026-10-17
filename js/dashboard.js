@@ -25,7 +25,7 @@ const ID_COTIZACIONES = '1S4qoHh3lTDoSUwDNeilmN6QKk8uhmvxjwvRQpEHQbS0';
 const HOJA_COTIZACIONES = 'Hoja 1';
 
 // ✅ URL CORRECTA del Apps Script (Versión 22)
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrEptElYSBx-jw1AMNV6SelSzVLiopTY1VY7l7AFj7SeRDvTOREYVPyCg005OSmAWe/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz4MPJ6QmLIOsN85H9bc-E5uxozb0kVicms6c51VLwappox_ZpISSyawzfVrzof6WA3mA/exec';
 
 const APPS_SCRIPT_FACTURACION_URL = 'https://script.google.com/macros/s/AKfycbwcEwB2K17lhR5d52eab8EL-2K7C2mXzEubtyP-TcF-VWcmfNS-lODtFWAYdllNmHz9Mg/exec';
 
