@@ -286,18 +286,18 @@ async function guardarFilaGoogleSheets(sheetName, datos) {
             datos: datos
         };
         
-        // ✅ FIX: text/plain evita el preflight que Apps Script no responde
-        await fetch(APPS_SCRIPT_URL, {
+        // ✅ Usa el Worker proxy (oculta la URL real de Google)
+        const response = await fetch('https://proconstruccionmx-proxy.proconstruccionmx.workers.dev', {
             method: 'POST',
-            mode: 'no-cors',
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8',
             },
             body: JSON.stringify(body)
         });
         
-        console.log(`✅ Petición enviada a ${sheetName} (no-cors)`);
-        return { success: true };
+        const result = await response.json();
+        console.log(`✅ Respuesta del Worker para ${sheetName}:`, result);
+        return result;
         
     } catch (error) {
         console.error(`❌ Error al guardar fila en ${sheetName}:`, error);
