@@ -24,8 +24,11 @@ const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
 const ID_COTIZACIONES = '1S4qoHh3lTDoSUwDNeilmN6QKk8uhmvxjwvRQpEHQbS0';
 const HOJA_COTIZACIONES = 'Hoja 1';
 
-// ✅ URL CORRECTA del Apps Script (verificada y funcionando)
+// ✅ URL del Apps Script de ESTADÍSTICAS (ventas) - NO TOCAR
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz4MPJ6QmLIOsN85H9bc-E5uxozb0kVicms6c51VLwappox_ZpISSyawzfVrzof6WA3mA/exec';
+
+// ✅ URL del Apps Script de DIRECCIONES (ID_BASE_CLIENTES) - NUEVA
+const APPS_SCRIPT_DIRECCIONES_URL = 'https://script.google.com/macros/s/AKfycbzrEptElYSBx-jw1AMNV6SelSzVLiopTY1VY7l7AFj7SeRDvTOREYVPyCg005OSmAWe/exec';
 
 const APPS_SCRIPT_FACTURACION_URL = 'https://script.google.com/macros/s/AKfycbwcEwB2K17lhR5d52eab8EL-2K7C2mXzEubtyP-TcF-VWcmfNS-lODtFWAYdllNmHz9Mg/exec';
 
@@ -304,9 +307,9 @@ async function guardarFilaGoogleSheets(sheetName, datos) {
 
 async function agregarDireccionEnSheets(direccion) {
     try {
-        console.log('📝 Enviando a Apps Script - AGREGAR:', direccion);
+        console.log('📝 Enviando a Apps Script DIRECCIONES - AGREGAR:', direccion);
         
-        await fetch(APPS_SCRIPT_URL, {
+        await fetch(APPS_SCRIPT_DIRECCIONES_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: {
@@ -338,8 +341,8 @@ async function agregarDireccionEnSheets(direccion) {
 
 async function actualizarDireccionEnSheets(fila, datos) {
     try {
-        const filaEnviar = fila + 1;
-        console.log('📝 Enviando a Apps Script - ACTUALIZAR - Fila original:', fila, '→ Enviando:', filaEnviar);
+        const filaEnviar = fila;
+        console.log('📝 Enviando a Apps Script DIRECCIONES - ACTUALIZAR - Fila:', filaEnviar);
         console.log('📝 Datos:', datos);
         
         const body = {
@@ -358,7 +361,7 @@ async function actualizarDireccionEnSheets(fila, datos) {
             timestamp: Date.now()
         };
         
-        await fetch(APPS_SCRIPT_URL, {
+        await fetch(APPS_SCRIPT_DIRECCIONES_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: {
@@ -380,8 +383,8 @@ async function actualizarDireccionEnSheets(fila, datos) {
 
 async function eliminarDireccionEnSheets(fila) {
     try {
-        const filaEnviar = fila + 1;
-        console.log('🗑️ Enviando a Apps Script - ELIMINAR - Fila original:', fila, '→ Enviando:', filaEnviar);
+        const filaEnviar = fila;
+        console.log('🗑️ Enviando a Apps Script DIRECCIONES - ELIMINAR - Fila:', filaEnviar);
         
         const body = {
             action: 'eliminar',
@@ -389,7 +392,7 @@ async function eliminarDireccionEnSheets(fila) {
             timestamp: Date.now()
         };
         
-        await fetch(APPS_SCRIPT_URL, {
+        await fetch(APPS_SCRIPT_DIRECCIONES_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: {
@@ -1189,7 +1192,7 @@ async function cargarDireccionesCliente() {
         for (let i = 0; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
             const codigo = String(values[0] || '').trim();
-            const filaReal = i + 1;
+            const filaReal = i + 2;
             
             console.log(`🔍 Fila ${i} - Código: "${codigo}" - Buscando: "${codigoCliente}"`);
             
