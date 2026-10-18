@@ -307,11 +307,10 @@ async function guardarFilaGoogleSheets(sheetName, datos) {
 
 async function agregarDireccionEnSheets(direccion) {
     try {
-        console.log('📝 Enviando a Apps Script DIRECCIONES - AGREGAR:', direccion);
+        console.log('📝 Enviando a Worker DIRECCIONES - AGREGAR:', direccion);
         
-        await fetch(APPS_SCRIPT_DIRECCIONES_URL, {
+        const response = await fetch('https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/direcciones', {
             method: 'POST',
-            mode: 'no-cors',
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8',
             },
@@ -330,8 +329,9 @@ async function agregarDireccionEnSheets(direccion) {
             })
         });
         
-        console.log('📝 Petición AGREGAR enviada (no-cors)');
-        return { success: true };
+        const result = await response.json();
+        console.log('✅ Respuesta del Worker (AGREGAR):', result);
+        return result;
         
     } catch (error) {
         console.error('Error al agregar dirección:', error);
@@ -342,7 +342,7 @@ async function agregarDireccionEnSheets(direccion) {
 async function actualizarDireccionEnSheets(fila, datos) {
     try {
         const filaEnviar = fila;
-        console.log('📝 Enviando a Apps Script DIRECCIONES - ACTUALIZAR - Fila:', filaEnviar);
+        console.log('📝 Enviando a Worker DIRECCIONES - ACTUALIZAR - Fila:', filaEnviar);
         console.log('📝 Datos:', datos);
         
         const body = {
@@ -361,30 +361,27 @@ async function actualizarDireccionEnSheets(fila, datos) {
             timestamp: Date.now()
         };
         
-        await fetch(APPS_SCRIPT_DIRECCIONES_URL, {
+        const response = await fetch('https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/direcciones', {
             method: 'POST',
-            mode: 'no-cors',
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8',
             },
             body: JSON.stringify(body)
         });
         
-        console.log('📝 Petición ACTUALIZAR enviada (no-cors) para fila:', filaEnviar);
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        return { success: true };
+        const result = await response.json();
+        console.log('✅ Respuesta del Worker (ACTUALIZAR):', result);
+        return result;
         
     } catch (error) {
         console.error('Error al actualizar dirección:', error);
         return { success: false, error: error.toString() };
     }
 }
-
 async function eliminarDireccionEnSheets(fila) {
     try {
         const filaEnviar = fila;
-        console.log('🗑️ Enviando a Apps Script DIRECCIONES - ELIMINAR - Fila:', filaEnviar);
+        console.log('🗑️ Enviando a Worker DIRECCIONES - ELIMINAR - Fila:', filaEnviar);
         
         const body = {
             action: 'eliminar',
@@ -392,26 +389,23 @@ async function eliminarDireccionEnSheets(fila) {
             timestamp: Date.now()
         };
         
-        await fetch(APPS_SCRIPT_DIRECCIONES_URL, {
+        const response = await fetch('https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/direcciones', {
             method: 'POST',
-            mode: 'no-cors',
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8',
             },
             body: JSON.stringify(body)
         });
         
-        console.log('🗑️ Petición ELIMINAR enviada (no-cors) para fila:', filaEnviar);
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        return { success: true };
+        const result = await response.json();
+        console.log('✅ Respuesta del Worker (ELIMINAR):', result);
+        return result;
         
     } catch (error) {
         console.error('Error al eliminar dirección:', error);
         return { success: false, error: error.toString() };
     }
 }
-
 // ============================================
 // FUNCIONES DE FACTURACIÓN
 // ============================================
