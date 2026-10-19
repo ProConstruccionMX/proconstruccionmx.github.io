@@ -948,7 +948,7 @@ function mostrarMensajeModalAgregarPago(tipo, mensaje) {
 
 async function cargarDatosCliente(email) {
     try {
-        const url = `https://docs.google.com/spreadsheets/d/${ID_BASE_CLIENTES}/gviz/tq?tqx=out:json&sheet=${HOJA_BASE_CLIENTES}`;
+        const url = `https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/leer?sheetId=${ID_BASE_CLIENTES}&sheetName=${HOJA_BASE_CLIENTES}`;
         const response = await fetch(url);
         const text = await response.text();
         const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
@@ -1022,7 +1022,7 @@ function actualizarInfoCliente() {
 async function cargarProductos() {
     try {
         console.log('📥 Cargando productos desde Google Sheets...');
-        const url = `https://docs.google.com/spreadsheets/d/${ID_PRODUCTOS}/gviz/tq?tqx=out:json&sheet=${HOJA_PRODUCTOS}`;
+        const url = `https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/leer?sheetId=${ID_PRODUCTOS}&sheetName=${HOJA_PRODUCTOS}`;
         const response = await fetch(url);
         const text = await response.text();
         const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
@@ -1122,7 +1122,7 @@ async function cargarProductos() {
 async function cargarPreciosEspeciales() {
     try {
         console.log('💰 Cargando precios especiales desde Google Sheets...');
-        const url = `https://docs.google.com/spreadsheets/d/${ID_ARCHIVO_PRECIOS_ESPECIALES}/gviz/tq?tqx=out:json&sheet=${HOJA_PRECIOS_ESPECIALES}`;
+        const url = `https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/leer?sheetId=${ID_ARCHIVO_PRECIOS_ESPECIALES}&sheetName=${HOJA_PRECIOS_ESPECIALES}`;
         const response = await fetch(url);
         const text = await response.text();
         const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
@@ -1165,7 +1165,7 @@ async function cargarDireccionesCliente() {
         
         console.log('📥 Cargando direcciones para cliente:', codigoCliente);
         
-        const url = `https://docs.google.com/spreadsheets/d/${ID_BASE_CLIENTES}/gviz/tq?tqx=out:json&sheet=${HOJA_DIRECCIONES}`;
+        const url = `https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/leer?sheetId=${ID_BASE_CLIENTES}&sheetName=${HOJA_DIRECCIONES}`;
         console.log('📥 URL:', url);
         
         const response = await fetch(url);
@@ -3873,7 +3873,7 @@ async function cargarHistorialCompras() {
         
         console.log('📥 Cargando historial de compras para cliente:', codigoCliente);
         
-        const urlClientes = `https://docs.google.com/spreadsheets/d/${ID_ESTADISTICAS}/gviz/tq?tqx=out:json&sheet=${HOJA_EST_CLIENTES}`;
+        const urlClientes = `https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/leer?sheetId=${ID_ESTADISTICAS}&sheetName=${HOJA_EST_CLIENTES}`;
         const responseClientes = await fetch(urlClientes);
         const textClientes = await responseClientes.text();
         const jsonStrClientes = textClientes.substring(textClientes.indexOf('(') + 1, textClientes.lastIndexOf(')'));
@@ -3926,7 +3926,7 @@ async function cargarHistorialCompras() {
             return;
         }
         
-        const urlProductos = `https://docs.google.com/spreadsheets/d/${ID_ESTADISTICAS}/gviz/tq?tqx=out:json&sheet=${HOJA_EST_PRODUCTOS}`;
+        const urlProductos = `https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/leer?sheetId=${ID_ESTADISTICAS}&sheetName=${HOJA_EST_PRODUCTOS}`;
         const responseProductos = await fetch(urlProductos);
         const textProductos = await responseProductos.text();
         const jsonStrProductos = textProductos.substring(textProductos.indexOf('(') + 1, textProductos.lastIndexOf(')'));
