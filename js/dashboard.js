@@ -420,8 +420,9 @@ async function cargarFacturacionCliente() {
         
         console.log('📥 Cargando datos de facturación para cliente:', codigoCliente);
         
-        const url = APPS_SCRIPT_FACTURACION_URL;
-        console.log('📥 URL del Apps Script:', url);
+        // ✅ Usa el Worker proxy
+        const url = 'https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/facturacion';
+        console.log('📥 URL del Worker:', url);
         
         const response = await fetch(url);
         const text = await response.text();
@@ -667,14 +668,13 @@ async function guardarEdicionFacturacion() {
         console.log('📝 Datos:', datosActualizados);
         console.log('📝 Fila:', fila);
         
-        await fetch(APPS_SCRIPT_FACTURACION_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8',
-            },
-            body: JSON.stringify({
-                action: 'actualizarFacturacion',
+        const response = await fetch('https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/facturacion', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+    },
+    body: JSON.stringify({
+        action: 'actualizarFacturacion',
                 fila: fila,
                 codigo: fact.codigo,
                 nombre: fact.nombre,
@@ -687,7 +687,8 @@ async function guardarEdicionFacturacion() {
             })
         });
         
-        console.log('✅ Petición enviada (no-cors)');
+        const result = await response.json();
+console.log('✅ Respuesta del Worker (ACTUALIZAR FACTURACIÓN):', result);
         
         facturacionCliente[index] = { ...fact, ...datosActualizados, fila: fila };
         renderizarFacturacion();
@@ -726,19 +727,18 @@ async function eliminarFacturacion(index) {
         console.log('🗑️ Enviando a Apps Script - ELIMINAR FACTURACIÓN');
         console.log('🗑️ Fila:', fact.fila);
         
-        await fetch(APPS_SCRIPT_FACTURACION_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8',
-            },
-            body: JSON.stringify({
-                action: 'eliminarFacturacion',
-                fila: fact.fila
-            })
-        });
-        
-        console.log('✅ Petición ELIMINAR enviada (no-cors)');
+        const response = await fetch('https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/facturacion', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+    },
+    body: JSON.stringify({
+        action: 'eliminarFacturacion',
+        fila: fact.fila
+    })
+});
+const result = await response.json();
+console.log('✅ Respuesta del Worker (ELIMINAR FACTURACIÓN):', result);
         
         facturacionCliente.splice(index, 1);
         renderizarFacturacion();
@@ -805,26 +805,25 @@ async function guardarNuevaFacturacion() {
         console.log('📝 Enviando a Apps Script - AGREGAR FACTURACIÓN');
         console.log('📝 Datos:', datos);
         
-        await fetch(APPS_SCRIPT_FACTURACION_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8',
-            },
-            body: JSON.stringify({
-                action: 'agregarFacturacion',
-                codigo: datos.codigo,
-                nombre: datos.nombre,
-                razonSocial: datos.razonSocial,
-                rfc: datos.rfc,
-                usoCFDI: datos.usoCFDI,
-                cp: datos.cp,
-                regimen: datos.regimen,
-                correo: datos.correo
-            })
-        });
-        
-        console.log('✅ Petición AGREGAR enviada (no-cors)');
+        const response = await fetch('https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/facturacion', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+    },
+    body: JSON.stringify({
+        action: 'agregarFacturacion',
+        codigo: datos.codigo,
+        nombre: datos.nombre,
+        razonSocial: datos.razonSocial,
+        rfc: datos.rfc,
+        usoCFDI: datos.usoCFDI,
+        cp: datos.cp,
+        regimen: datos.regimen,
+        correo: datos.correo
+    })
+});
+const result = await response.json();
+console.log('✅ Respuesta del Worker (AGREGAR FACTURACIÓN):', result);
         
         cerrarModalAgregarFacturacion();
         mostrarNotificacion('✅ Datos de facturación agregados correctamente');
@@ -899,26 +898,25 @@ async function guardarNuevaFacturacionDesdePago() {
         console.log('📝 Enviando a Apps Script - AGREGAR FACTURACIÓN (desde pago)');
         console.log('📝 Datos:', datos);
         
-        await fetch(APPS_SCRIPT_FACTURACION_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8',
-            },
-            body: JSON.stringify({
-                action: 'agregarFacturacion',
-                codigo: datos.codigo,
-                nombre: datos.nombre,
-                razonSocial: datos.razonSocial,
-                rfc: datos.rfc,
-                usoCFDI: datos.usoCFDI,
-                cp: datos.cp,
-                regimen: datos.regimen,
-                correo: datos.correo
-            })
-        });
-        
-        console.log('✅ Petición AGREGAR enviada (no-cors)');
+        const response = await fetch('https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/facturacion', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+    },
+    body: JSON.stringify({
+        action: 'agregarFacturacion',
+        codigo: datos.codigo,
+        nombre: datos.nombre,
+        razonSocial: datos.razonSocial,
+        rfc: datos.rfc,
+        usoCFDI: datos.usoCFDI,
+        cp: datos.cp,
+        regimen: datos.regimen,
+        correo: datos.correo
+    })
+});
+const result = await response.json();
+console.log('✅ Respuesta del Worker (AGREGAR FACTURACIÓN):', result);
         
         cerrarModalAgregarFacturacionPago();
         mostrarNotificacion('✅ Datos de facturación agregados correctamente');
