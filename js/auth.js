@@ -74,47 +74,50 @@ async function obtenerCodigoCliente(email) {
 }
 
 // Función para autenticar usuario
+// Función para autenticar usuario (a través del Worker)
 async function autenticarUsuario(email, password) {
-    const clientes = await obtenerClientes();
-    
-    const emailLimpio = String(email).trim().toLowerCase();
-    const passwordLimpio = String(password).trim();
-    
-    const cliente = clientes.find(c => 
-        String(c.correo).trim().toLowerCase() === emailLimpio
-    );
-    
-    console.log('🔍 Buscando:', emailLimpio);
-    
-    if (!cliente) {
-        return { success: false, message: '❌ Correo no registrado. Contacta a tu asesor.' };
-    }
-    
-    const contrasenaLimpia = String(cliente.contrasena).trim();
-    
-    console.log('🔑 Contraseña guardada:', contrasenaLimpia);
-    console.log('🔑 Contraseña ingresada:', passwordLimpio);
-    console.log('🔑 ¿Coinciden?', contrasenaLimpia === passwordLimpio);
-    
-    if (contrasenaLimpia !== passwordLimpio) {
-        return { success: false, message: '❌ Contraseña incorrecta. Intenta de nuevo.' };
-    }
-    
-    // ⭐ Obtener el código del cliente y guardarlo globalmente
-    const codigo = await obtenerCodigoCliente(email);
-    if (codigo) {
-        codigoClienteGlobal = codigo;
-        sessionStorage.setItem('codigoCliente', codigo);
-    }
-    
-    return { 
-        success: true, 
-        message: '✅ Inicio de sesión exitoso',
-        email: cliente.correo,
-        codigo: codigo
-    };
-}
+    try {
+        const response = await fetch('https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8',
+            },
+            body: JSON.stringify({
+                email: email.trim(),
+                password: password
+            })
+        });
 
+        const result = await response.json();
+
+        if (!result.success) {
+            return {
+                success: false,
+                message: '❌ ' + (result.message || 'Credenciales incorrectas')
+            };
+        }
+
+        // Guardar código de cliente en sessionStorage
+        if (result.cliente && result.cliente.codigo) {
+            codigoClienteGlobal = result.cliente.codigo;
+            sessionStorage.setItem('codigoCliente', result.cliente.codigo);
+        }
+
+        return {
+            success: true,
+            message: '✅ Inicio de sesión exitoso',
+            email: result.cliente ? result.cliente.correo : email,
+            codigo: result.cliente ? result.cliente.codigo : null
+        };
+
+    } catch (error) {
+        console.error('❌ Error en login:', error);
+        return {
+            success: false,
+            message: '❌ Error al conectar con el servidor. Intenta de nuevo.'
+        };
+    }
+}
 // Función para recuperar contraseña
 async function recuperarContrasena(email) {
     const clientes = await obtenerClientes();
