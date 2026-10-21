@@ -2714,7 +2714,7 @@ async function continuarConPago() {
     };
     
     cerrarModalDireccion();
-    abrirModalPago();
+abrirModalFechaEntrega();
 }
 
 function mostrarMensajeModalDireccion(tipo, mensaje) {
@@ -3829,24 +3829,31 @@ async function guardarVentaEnEstadisticas(datos) {
             return;
         }
         
-        const filaCliente = [
-            fechaFormateada,
-            datos.folio,
-            datos.cliente.codigo,
-            datos.cliente.nombre,
-            datos.total.toFixed(2),
-            creditoPendienteTotal.toFixed(2),
-            montoPagadoTotal.toFixed(2),
-            facturaTexto,
-            datos.sucursal,
-            formaPago,
-            tipoPago,
-            '',
-            estadoPago,
-            nombreDireccion,
-            razonSocialFactura,
-            ''
-        ];
+        let fechaEntregaFormateada = '';
+if (window.fechaEntregaSeleccionada && window.fechaEntregaSeleccionada.iso) {
+    const [y, m, d] = window.fechaEntregaSeleccionada.iso.split('-');
+    fechaEntregaFormateada = `${d}/${m}/${y}`;
+}
+
+const filaCliente = [
+    fechaFormateada,
+    datos.folio,
+    datos.cliente.codigo,
+    datos.cliente.nombre,
+    datos.total.toFixed(2),
+    creditoPendienteTotal.toFixed(2),
+    montoPagadoTotal.toFixed(2),
+    facturaTexto,
+    datos.sucursal,
+    formaPago,
+    tipoPago,
+    '',
+    estadoPago,
+    nombreDireccion,
+    razonSocialFactura,
+    '',
+    fechaEntregaFormateada
+];
         
         console.log(`📝 Guardando cliente: ${datos.cliente.nombre}, total: ${datos.total}, crédito: ${creditoPendienteTotal}, pagado: ${montoPagadoTotal}`);
         await guardarFilaGoogleSheets(HOJA_EST_CLIENTES, filaCliente);
@@ -3896,8 +3903,7 @@ async function cargarHistorialCompras() {
             const formaPago = String(values[9] || '').trim();
             const creditoPendiente = parseFloat(values[5]) || 0;
             const montoPagado = parseFloat(values[6]) || 0;
-            const estatusPago = String(values[15] || '').trim();
-            const validado = String(values[15] || '').trim().toUpperCase() === 'VALIDADO';
+            const fechaEntrega = String(values[16] || '').trim();
             
             if (codigo === codigoCliente && idVenta) {
                 idsVenta.push(idVenta);
@@ -3915,6 +3921,7 @@ async function cargarHistorialCompras() {
                     anticipo: montoPagado,
                     estatusPago: estatusPago,
                     validado: validado
+                    fechaEntrega: fechaEntrega
                 });
             }
         }
@@ -4139,6 +4146,11 @@ function renderizarOrdenes() {
                             ${formatoMexicano(venta.totalConIva || venta.total)}
                         </span>
                     </div>
+                                        ${venta.fechaEntrega ? `
+                        <div style="margin-top:0.5rem; padding:0.4rem 0.8rem; background:#dcfce7; border-radius:8px; display:inline-block; font-size:0.8rem; color:#16a34a; font-weight:600;">
+                            <i class="fas fa-truck"></i> Entrega programada: ${venta.fechaEntrega}
+                        </div>
+                    ` : ''}
                     <div style="margin-top:0.5rem; font-size:0.8rem; color:var(--text-gray);">
                         <i class="fas fa-chevron-right" style="font-size:0.7rem;"></i> Haz clic para ver detalles
                     </div>
@@ -5009,4 +5021,141 @@ function configurarTabs() {
             }
         });
     });
+}
+// ============================================
+// MODAL DE FECHA DE ENTREGA
+// ============================================
+
+let fechaEntregaSeleccionada = null;
+
+function abrirModalFechaEntrega() {
+    fechaEntregaSeleccionada = null;
+    document.getElementById('fechaSeleccionadaInfo').style.display = 'none';
+    document.getElementById('btnContinuarAlPago').disabled = true;
+    document.getElementById('modalFechaEntregaMensaje').style.display = 'none';
+    generarCalendario();
+    document.getElementById('modalFechaEntrega').classList.add('active');
+}
+
+function cerrarModalFechaEntrega() {
+    document.getElementById('modalFechaEntrega').classList.remove('active');
+    fechaEntregaSeleccionada = null;
+}
+
+function generarCalendario() {
+    const ahora = new Date();
+    const horaActual = ahora.getHours();
+    const minutosActuales = ahora.getMinutes();
+    
+    const esDespuesDe540 = (horaActual > 17) || (horaActual === 17 && minutosActuales >= 40);
+    const diasBloqueados = esDespuesDe540 ? 2 : 1;
+    
+    const fechaMinima = new Date(ahora);
+    fechaMinima.setDate(fechaMinima.getDate() + diasBloqueados);
+    fechaMinima.setHours(0, 0, 0, 0);
+    
+    const diasAMostrar = 30;
+    const container = document.getElementById('calendarioContainer');
+    
+    let html = `
+        <div style="display:grid; grid-template-columns: repeat(7, 1fr); gap:0.5rem; text-align:center; font-size:0.85rem; font-weight:600; color:var(--text-gray); margin-bottom:0.5rem;">
+            <div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(7, 1fr); gap:0.5rem;">
+    `;
+    
+    const primerDia = new Date(ahora);
+    const diaSemana = primerDia.getDay();
+    
+    for (let i = 0; i < diaSemana; i++) {
+        html += `<div></div>`;
+    }
+    
+    for (let i = 0; i < diasAMostrar; i++) {
+        const fecha = new Date(ahora);
+        fecha.setDate(fecha.getDate() + i);
+        fecha.setHours(0, 0, 0, 0);
+        
+        const diaSemanaFecha = fecha.getDay();
+        const esFinDeSemana = (diaSemanaFecha === 0 || diaSemanaFecha === 6);
+        const esAntesDeFechaMinima = fecha < fechaMinima;
+        const esHoy = (i === 0);
+        
+        const fechaStr = fecha.toISOString().split('T')[0];
+        const diaNumero = fecha.getDate();
+        const mesNombre = fecha.toLocaleDateString('es-MX', { month: 'short' });
+        
+        let deshabilitado = false;
+        let motivoBloqueo = '';
+        
+        if (esHoy) {
+            deshabilitado = true;
+            motivoBloqueo = 'Hoy no disponible';
+        } else if (esFinDeSemana) {
+            deshabilitado = true;
+            motivoBloqueo = 'Fin de semana';
+        } else if (esAntesDeFechaMinima) {
+            deshabilitado = true;
+            motivoBloqueo = esDespuesDe540 ? 'Requiere 2 días de anticipación (después de 5:40 pm)' : 'Requiere 1 día de anticipación';
+        }
+        
+        const estilo = deshabilitado 
+            ? 'background:#f3f4f6; color:#9ca3af; cursor:not-allowed; padding:0.8rem 0.3rem; border-radius:8px; font-size:0.85rem;'
+            : 'background:white; color:var(--primary-dark); cursor:pointer; padding:0.8rem 0.3rem; border-radius:8px; border:2px solid #e2e8f0; font-size:0.85rem; transition:all 0.2s;';
+        
+        const onclick = deshabilitado ? '' : `onclick="seleccionarFechaEntrega('${fechaStr}', '${fecha.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}')"`;
+        const title = deshabilitado ? `title="${motivoBloqueo}"` : '';
+        
+        html += `
+            <div class="${deshabilitado ? 'dia-deshabilitado' : 'dia-disponible'}" style="${estilo}" ${onclick} ${title}>
+                <div style="font-weight:700; font-size:1rem;">${diaNumero}</div>
+                <div style="font-size:0.7rem;">${mesNombre}</div>
+            </div>
+        `;
+    }
+    
+    html += `</div>`;
+    html += `
+        <div style="margin-top:1rem; font-size:0.8rem; color:var(--text-gray); text-align:center;">
+            ${esDespuesDe540 
+                ? '⏰ Son más de las 5:40 pm, por lo que tu pedido requiere 2 días de anticipación.' 
+                : '⏰ Pedidos antes de las 5:40 pm requieren 1 día de anticipación.'}
+            <br>Sábados y domingos no hay entregas.
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+function seleccionarFechaEntrega(fechaISO, fechaTexto) {
+    fechaEntregaSeleccionada = { iso: fechaISO, texto: fechaTexto };
+    document.getElementById('fechaSeleccionadaTexto').textContent = fechaTexto;
+    document.getElementById('fechaSeleccionadaInfo').style.display = 'block';
+    document.getElementById('btnContinuarAlPago').disabled = false;
+    
+    document.querySelectorAll('#calendarioContainer .dia-disponible').forEach(el => {
+        el.style.background = 'white';
+        el.style.borderColor = '#e2e8f0';
+        el.style.color = 'var(--primary-dark)';
+    });
+    
+    const fechaObj = new Date(fechaISO + 'T00:00:00');
+    const diaNumero = fechaObj.getDate();
+    const mesObjetivo = fechaObj.toLocaleDateString('es-MX', { month: 'short' });
+    document.querySelectorAll('#calendarioContainer .dia-disponible').forEach(el => {
+        const diaEl = el.querySelector('div:first-child');
+        const mesEl = el.querySelector('div:last-child');
+        if (diaEl && mesEl && diaEl.textContent === String(diaNumero) && mesEl.textContent === mesObjetivo) {
+            el.style.background = '#fef3c7';
+            el.style.borderColor = 'var(--accent-orange)';
+            el.style.color = 'var(--primary-dark)';
+        }
+    });
+}
+
+function confirmarFechaEntrega() {
+    if (!fechaEntregaSeleccionada) return;
+    window.fechaEntregaSeleccionada = fechaEntregaSeleccionada;
+    cerrarModalFechaEntrega();
+    abrirModalPago();
 }
