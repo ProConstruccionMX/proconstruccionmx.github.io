@@ -64,7 +64,6 @@
             background: #b91c1c;
             transform: translateY(-2px);
         }
-
         .btn-mi-cuenta {
             background: #1a4d8c !important;
             color: white !important;
@@ -115,7 +114,6 @@
             background: #f8f9fa;
             color: #0A2540;
         }
-
         .dashboard-tabs {
             display: flex;
             gap: 0.5rem;
@@ -152,7 +150,6 @@
         .tab-content.active {
             display: block;
         }
-
         .welcome-section {
             background: white;
             border-radius: 16px;
@@ -187,7 +184,6 @@
             color: var(--text-gray);
             font-size: 0.7rem;
         }
-
         .search-section {
             background: white;
             border-radius: 16px;
@@ -241,7 +237,6 @@
         .search-box .btn-limpiar:hover {
             background: #475569;
         }
-
         .results-section {
             background: white;
             border-radius: 16px;
@@ -353,7 +348,6 @@
             color: #cbd5e1;
             margin-bottom: 1rem;
         }
-
         .cart-section {
             background: white;
             border-radius: 16px;
@@ -469,7 +463,6 @@
         .btn-vaciar:hover {
             background: #475569;
         }
-
         .direcciones-grid, .facturacion-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -550,7 +543,6 @@
         .facturacion-card .facturacion-body strong {
             color: var(--primary-dark);
         }
-
         .modal-overlay {
             display: none;
             position: fixed;
@@ -748,7 +740,6 @@
             font-weight: 500;
             cursor: pointer;
         }
-
         .factura-toggle {
             display: flex;
             gap: 1rem;
@@ -773,7 +764,17 @@
             border-color: var(--accent-orange);
             background: #fef3c7;
         }
-
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.8rem;
+            border-radius: 50px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
         @media (max-width: 768px) {
             .dashboard-header { flex-direction: column; align-items: stretch; text-align: center; }
             .user-info { justify-content: center; flex-wrap: wrap; }
@@ -788,7 +789,6 @@
             .direcciones-grid, .facturacion-grid { grid-template-columns: 1fr; }
             .btn-mi-cuenta { font-size: 0.8rem !important; padding: 0.3rem 1rem !important; }
         }
-
         @keyframes fadeInUp {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -807,30 +807,15 @@
             vertical-align: middle;
             margin-right: 8px;
         }
-
-        /* ⭐ ESTILOS PARA CRÉDITOS PENDIENTES ⭐ */
-        .badge {
-            display: inline-block;
-            padding: 0.2rem 0.8rem;
-            border-radius: 50px;
-            font-size: 0.7rem;
-            font-weight: 600;
-        }
-        .badge-warning {
-            background: #fef3c7;
-            color: #92400e;
-        }
     </style>
 </head>
 <body>
 
-    <!-- HEADER CON BOTÓN MI CUENTA -->
     <header class="dashboard-header">
         <a href="index.html" class="logo">ProConstrucción <span>MX</span></a>
         <div class="user-info">
             <span class="user-name" id="userNameDisplay"><i class="fas fa-user"></i> Cliente</span>
             <span class="user-email" id="userEmailDisplay">usuario@correo.com</span>
-            
             <div class="menu-usuario-container">
                 <button class="btn-mi-cuenta" id="btnMiCuenta">
                     <i class="fas fa-user-cog"></i> Mi Cuenta
@@ -844,12 +829,10 @@
                     </a>
                 </div>
             </div>
-            
             <button class="btn-cerrar" onclick="cerrarSesion()"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</button>
         </div>
     </header>
 
-    <!-- TABS -->
     <div class="dashboard-tabs">
         <button class="active" data-tab="tab-cotizar"><i class="fas fa-shopping-cart"></i> Cotizar</button>
         <button data-tab="tab-direcciones"><i class="fas fa-address-book"></i> Mis Direcciones</button>
@@ -857,7 +840,6 @@
         <button data-tab="tab-compras"><i class="fas fa-history"></i> Mis Compras</button>
     </div>
 
-    <!-- ===== TAB 1: COTIZAR ===== -->
     <div id="tab-cotizar" class="tab-content active">
         <div class="welcome-section">
             <h1>👋 ¡Hola, <span id="welcomeName">Cliente</span>!</h1>
@@ -913,7 +895,6 @@
         </div>
     </div>
 
-    <!-- ===== TAB 2: MIS DIRECCIONES ===== -->
     <div id="tab-direcciones" class="tab-content">
         <div class="welcome-section">
             <h1>📍 Mis Direcciones</h1>
@@ -930,7 +911,6 @@
         </div>
     </div>
 
-    <!-- ===== TAB 3: DATOS DE FACTURACIÓN ===== -->
     <div id="tab-facturacion" class="tab-content">
         <div class="welcome-section">
             <h1>📄 Datos de Facturación</h1>
@@ -950,14 +930,11 @@
         </div>
     </div>
 
-    <!-- ===== TAB 4: MIS COMPRAS ===== -->
     <div id="tab-compras" class="tab-content">
         <div class="welcome-section">
             <h1>📋 Mis Compras</h1>
             <p>Aquí puedes ver todas tus compras realizadas y su estado actual.</p>
         </div>
-
-        <!-- ÓRDENES RECIENTES -->
         <div class="cart-section" style="margin-bottom:2rem;">
             <div id="ordenesContent">
                 <div class="empty-state">
@@ -967,8 +944,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- ⭐ CRÉDITOS PENDIENTES ⭐ -->
         <div class="cart-section" style="margin-bottom:2rem;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:0.5rem;">
                 <h2 style="margin:0; color:var(--primary-dark);"><i class="fas fa-hand-holding-usd"></i> Créditos Pendientes</h2>
@@ -982,8 +957,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- HISTORIAL DE COMPRAS -->
         <div class="cart-section" style="margin-bottom:2rem;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
                 <h2 style="margin:0; color:var(--primary-dark);"><i class="fas fa-history"></i> Historial de Compras</h2>
@@ -1017,8 +990,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- ESTADÍSTICAS -->
         <div class="cart-section">
             <div id="estadisticasContent">
                 <div class="empty-state">
@@ -1029,7 +1000,7 @@
             </div>
         </div>
     </div>
-
+    
     <!-- ===== MODAL DE DIRECCIÓN DE ENVÍO ===== -->
     <div class="modal-overlay" id="modalDireccion">
         <div class="modal">
@@ -1093,9 +1064,42 @@
             </div>
 
             <button class="btn-enviar" onclick="continuarConPago()">
-                <i class="fas fa-arrow-right"></i> Continuar al Pago
+                <i class="fas fa-arrow-right"></i> Continuar
             </button>
             <button class="btn-cerrar-modal" onclick="cerrarModalDireccion()">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+        </div>
+    </div>
+
+    <!-- ===== MODAL DE SELECCIÓN DE FECHA DE ENTREGA ===== -->
+    <div class="modal-overlay" id="modalFechaEntrega">
+        <div class="modal">
+            <h2>📅 Fecha de Entrega</h2>
+            <p class="subtitle">Selecciona el día en que deseas recibir tu pedido</p>
+
+            <div id="modalFechaEntregaMensaje" style="display:none;"></div>
+
+            <div style="background:#fef3c7; padding:1rem; border-radius:12px; margin-bottom:1.5rem; border:1px solid #fde68a;">
+                <p style="margin:0; font-size:0.9rem; color:#92400e;">
+                    <i class="fas fa-info-circle"></i> <strong>Nota:</strong> La fecha de entrega seleccionada puede ser ajustada según la disponibilidad de carga de ruta en esos días. Te confirmaremos por correo.
+                </p>
+            </div>
+
+            <div id="calendarioContainer" style="margin-bottom:1.5rem;">
+                <!-- El calendario se genera dinámicamente -->
+            </div>
+
+            <div id="fechaSeleccionadaInfo" style="display:none; background:#dcfce7; padding:1rem; border-radius:12px; margin-bottom:1rem; border:1px solid #bbf7d0;">
+                <p style="margin:0; font-size:0.95rem; color:#16a34a;">
+                    <i class="fas fa-check-circle"></i> <strong>Fecha seleccionada:</strong> <span id="fechaSeleccionadaTexto"></span>
+                </p>
+            </div>
+
+            <button class="btn-enviar" id="btnContinuarAlPago" onclick="confirmarFechaEntrega()" disabled>
+                <i class="fas fa-arrow-right"></i> Continuar al Pago
+            </button>
+            <button class="btn-cerrar-modal" onclick="cerrarModalFechaEntrega()">
                 <i class="fas fa-times"></i> Cancelar
             </button>
         </div>
@@ -1308,7 +1312,6 @@
                 </button>
             </div>
 
-            <!-- ⭐ BLOQUE DE FACTURA - ÚNICO, SE USA PARA AMBOS MÉTODOS ⭐ -->
             <div id="facturaContainer">
                 <div class="form-group">
                     <label>¿Deseas factura? <span style="color:red;">*</span></label>
@@ -1340,7 +1343,6 @@
                 </div>
             </div>
 
-            <!-- FORMULARIO DE TRANSFERENCIA -->
             <div id="formTransferencia" style="display:none;">
                 <div class="datos-bancarios">
                     <p><strong>PROCONSTRUCCIONMX SAS DE CV</strong></p>
@@ -1370,7 +1372,6 @@
                 </button>
             </div>
 
-            <!-- FORMULARIO DE CRÉDITO -->
             <div id="formCredito" style="display:none;">
                 <div class="form-group">
                     <label>Total a pagar: <strong id="totalCredito">$0.00</strong></label>
@@ -1380,7 +1381,6 @@
                     <p style="font-size:0.9rem;color:var(--text-gray);">El crédito es por 20 días. Si no se cumple con el pago, se podrá eliminar el crédito.</p>
                     <input type="hidden" id="diasCredito" value="20">
                 </div>
-                <!-- ⭐ BOTÓN QUE SE REEMPLAZA POR "Pagar Excedente y Finalizar" cuando hay crédito parcial ⭐ -->
                 <button class="btn-enviar" id="btnConfirmarCredito" onclick="procesarPagoCredito()" style="display:none;">
                     <i class="fas fa-check"></i> Confirmar Crédito
                 </button>
@@ -1390,15 +1390,10 @@
         </div>
     </div>
 
-    <!-- Cargar EmailJS -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/dashboard.js"></script>
     <script>
-        // ============================================
-        // FUNCIONES DEL MENÚ MI CUENTA
-        // ============================================
-        
         function toggleMenu() {
             var menu = document.getElementById('menuDesplegable');
             if (menu) {
@@ -1409,7 +1404,6 @@
                 }
             }
         }
-
         document.addEventListener('click', function(event) {
             var container = document.querySelector('.menu-usuario-container');
             var menu = document.getElementById('menuDesplegable');
@@ -1417,61 +1411,44 @@
                 menu.style.display = 'none';
             }
         });
-
         function abrirMisDirecciones() {
-            console.log('📍 Abriendo "Mis Direcciones"...');
-            
             var menu = document.getElementById('menuDesplegable');
             if (menu) menu.style.display = 'none';
-            
             var tabs = document.querySelectorAll('.dashboard-tabs button');
             var contents = document.querySelectorAll('.tab-content');
-            
             tabs.forEach(function(btn) { btn.classList.remove('active'); });
             contents.forEach(function(tab) { tab.classList.remove('active'); });
-            
             var tabDirecciones = document.querySelector('[data-tab="tab-direcciones"]');
             if (tabDirecciones) {
                 tabDirecciones.classList.add('active');
                 var content = document.getElementById('tab-direcciones');
                 if (content) content.classList.add('active');
             }
-            
             if (typeof cargarDireccionesCliente === 'function') {
                 cargarDireccionesCliente();
             }
         }
-
         function abrirDatosFacturacion() {
-            console.log('📄 Abriendo "Datos de Facturación"...');
-            
             var menu = document.getElementById('menuDesplegable');
             if (menu) menu.style.display = 'none';
-            
             var tabs = document.querySelectorAll('.dashboard-tabs button');
             var contents = document.querySelectorAll('.tab-content');
-            
             tabs.forEach(function(btn) { btn.classList.remove('active'); });
             contents.forEach(function(tab) { tab.classList.remove('active'); });
-            
             var tabFacturacion = document.querySelector('[data-tab="tab-facturacion"]');
             if (tabFacturacion) {
                 tabFacturacion.classList.add('active');
                 var content = document.getElementById('tab-facturacion');
                 if (content) content.classList.add('active');
             }
-            
             if (typeof cargarFacturacionCliente === 'function') {
                 cargarFacturacionCliente();
             }
         }
-
         function cerrarSesion() {
             sessionStorage.clear();
             window.location.href = 'login.html';
         }
-
-        // ⭐ Inicializar EmailJS ⭐
         (function() {
             if (typeof emailjs !== 'undefined') {
                 emailjs.init('_gOxtGSQmrhTdoRuX');
