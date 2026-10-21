@@ -4062,21 +4062,27 @@ if (fechaEntregaRaw !== null && fechaEntregaRaw !== undefined && fechaEntregaRaw
         fechaEntrega = String(fechaEntregaRaw.v).trim();
     } 
     // Si es un número (fecha serial de Google Sheets) o string numérico
-    else if (typeof fechaEntregaRaw === 'number' || (!isNaN(fechaEntregaRaw) && String(fechaEntregaRaw).indexOf('/') === -1 && String(fechaEntregaRaw).indexOf('-') === -1)) {
-        const numFecha = Number(fechaEntregaRaw);
-        if (!isNaN(numFecha) && numFecha > 25000 && numFecha < 80000) {
-            // Convertir serial de Google Sheets a fecha
-            const fechaConvertida = new Date(Math.round((numFecha - 25569) * 86400 * 1000));
-            if (!isNaN(fechaConvertida.getTime())) {
-                const d = String(fechaConvertida.getDate()).padStart(2, '0');
-                const m = String(fechaConvertida.getMonth() + 1).padStart(2, '0');
-                const y = fechaConvertida.getFullYear();
-                fechaEntrega = `${d}/${m}/${y}`;
-            }
+   // ⭐ Leer fecha de entrega PROGRAMADA desde la columna R (índice 17)
+// ⭐ Leer fecha de entrega PROGRAMADA desde la columna R (índice 17)
+let fechaEntrega = '';
+const cellFechaEntrega = rowsClientes[i].c[17];
+if (cellFechaEntrega) {
+    if (cellFechaEntrega.f) {
+        fechaEntrega = String(cellFechaEntrega.f).trim();
+    } else if (cellFechaEntrega.v) {
+        const rawV = String(cellFechaEntrega.v);
+        const matchDate = rawV.match(/Date\((\d+),(\d+),(\d+)/);
+        if (matchDate) {
+            const y = parseInt(matchDate[1]);
+            const m = parseInt(matchDate[2]) + 1;
+            const d = parseInt(matchDate[3]);
+            fechaEntrega = `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}`;
         } else {
-            fechaEntrega = String(fechaEntregaRaw).trim();
+            fechaEntrega = rawV.trim();
         }
-    } 
+    }
+}
+    
     // Si ya es un string con formato de fecha
     else {
         fechaEntrega = String(fechaEntregaRaw).trim();
