@@ -2745,10 +2745,10 @@ function generarCalendario() {
     
     const esDespuesDe540 = (horaActual > 17) || (horaActual === 17 && minutosActuales >= 40);
     const diasBloqueados = esDespuesDe540 ? 2 : 1;
-    
-    const fechaMinima = new Date(ahora);
-    fechaMinima.setDate(fechaMinima.getDate() + diasBloqueados);
-    fechaMinima.setHours(0, 0, 0, 0);
+
+const fechaMinima = new Date(ahora);
+fechaMinima.setDate(fechaMinima.getDate() + diasBloqueados + 1);
+fechaMinima.setHours(0, 0, 0, 0);
     
     const diasAMostrar = 30;
     const container = document.getElementById('calendarioContainer');
@@ -4054,7 +4054,34 @@ async function cargarHistorialCompras() {
             const montoPagado = parseFloat(values[6]) || 0;
             const estatusPago = String(values[15] || '').trim();
             const validado = String(values[15] || '').trim().toUpperCase() === 'VALIDADO';
-            const fechaEntrega = String(values[16] || '').trim();  // ⭐ Columna Q
+            let fechaEntrega = '';
+const fechaEntregaRaw = values[16];
+if (fechaEntregaRaw !== null && fechaEntregaRaw !== undefined && fechaEntregaRaw !== '') {
+    // Si es un objeto con .v (gviz a veces devuelve así)
+    if (typeof fechaEntregaRaw === 'object' && fechaEntregaRaw.v !== undefined) {
+        fechaEntrega = String(fechaEntregaRaw.v).trim();
+    } 
+    // Si es un número (fecha serial de Google Sheets) o string numérico
+    else if (typeof fechaEntregaRaw === 'number' || (!isNaN(fechaEntregaRaw) && String(fechaEntregaRaw).indexOf('/') === -1 && String(fechaEntregaRaw).indexOf('-') === -1)) {
+        const numFecha = Number(fechaEntregaRaw);
+        if (!isNaN(numFecha) && numFecha > 25000 && numFecha < 80000) {
+            // Convertir serial de Google Sheets a fecha
+            const fechaConvertida = new Date(Math.round((numFecha - 25569) * 86400 * 1000));
+            if (!isNaN(fechaConvertida.getTime())) {
+                const d = String(fechaConvertida.getDate()).padStart(2, '0');
+                const m = String(fechaConvertida.getMonth() + 1).padStart(2, '0');
+                const y = fechaConvertida.getFullYear();
+                fechaEntrega = `${d}/${m}/${y}`;
+            }
+        } else {
+            fechaEntrega = String(fechaEntregaRaw).trim();
+        }
+    } 
+    // Si ya es un string con formato de fecha
+    else {
+        fechaEntrega = String(fechaEntregaRaw).trim();
+    }
+}
             
             if (codigo === codigoCliente && idVenta) {
                 idsVenta.push(idVenta);
