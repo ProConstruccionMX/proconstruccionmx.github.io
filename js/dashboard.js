@@ -4064,33 +4064,18 @@ if (fechaEntregaRaw !== null && fechaEntregaRaw !== undefined && fechaEntregaRaw
     // Si es un número (fecha serial de Google Sheets) o string numérico
    // ⭐ Leer fecha de entrega PROGRAMADA desde la columna R (índice 17)
 // ⭐ Leer fecha de entrega PROGRAMADA desde la columna R (índice 17)
-let fechaEntrega = '';
-const cellFechaEntrega = rowsClientes[i].c[17];
-if (cellFechaEntrega) {
-    if (cellFechaEntrega.f) {
-        fechaEntrega = String(cellFechaEntrega.f).trim();
-    } else if (cellFechaEntrega.v) {
-        const rawV = String(cellFechaEntrega.v);
-        const matchDate = rawV.match(/Date\((\d+),(\d+),(\d+)/);
-        if (matchDate) {
-            const y = parseInt(matchDate[1]);
-            const m = parseInt(matchDate[2]) + 1;
-            const d = parseInt(matchDate[3]);
-            fechaEntrega = `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}`;
-        } else {
-            fechaEntrega = rawV.trim();
-        }
-    }
-}
-    // ⭐ DEBUG
-console.log(`🔍 DEBUG - Fila ${i} | Folio: ${idVenta} | Col R raw: ${JSON.stringify(cellFechaEntrega)} | fechaEntrega: "${fechaEntrega}"`);
-
-    
-    // Si ya es un string con formato de fecha
-    else {
-        fechaEntrega = String(fechaEntregaRaw).trim();
-    }
-}
+            let fechaEntrega = '';
+            const cellFechaEntrega = rowsClientes[i].c[17];
+            if (cellFechaEntrega) {
+                if (cellFechaEntrega.f && String(cellFechaEntrega.f).trim() !== '') {
+                    fechaEntrega = String(cellFechaEntrega.f).trim();
+                } else if (cellFechaEntrega.v && String(cellFechaEntrega.v).indexOf('Date(') === 0) {
+                    const nums = String(cellFechaEntrega.v).replace('Date(', '').replace(')', '').split(',').map(function(n) { return parseInt(n); });
+                    if (nums.length >= 3 && !isNaN(nums[0]) && !isNaN(nums[1]) && !isNaN(nums[2])) {
+                        fechaEntrega = String(nums[2]).padStart(2,'0') + '/' + String(nums[1]+1).padStart(2,'0') + '/' + nums[0];
+                    }
+                }
+            }
             
             if (codigo === codigoCliente && idVenta) {
                 idsVenta.push(idVenta);
