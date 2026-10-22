@@ -4082,6 +4082,9 @@ if (cellFechaEntrega) {
         }
     }
 }
+    // ⭐ DEBUG
+console.log(`🔍 DEBUG - Fila ${i} | Folio: ${idVenta} | Col R raw: ${JSON.stringify(cellFechaEntrega)} | fechaEntrega: "${fechaEntrega}"`);
+
     
     // Si ya es un string con formato de fecha
     else {
