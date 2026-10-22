@@ -4052,19 +4052,11 @@ async function cargarHistorialCompras() {
             const formaPago = String(values[9] || '').trim();
             const creditoPendiente = parseFloat(values[5]) || 0;
             const montoPagado = parseFloat(values[6]) || 0;
-            const estatusPago = String(values[15] || '').trim();
+                        const estatusPago = String(values[15] || '').trim();
             const validado = String(values[15] || '').trim().toUpperCase() === 'VALIDADO';
+            
+            // ⭐ Leer fecha de entrega PROGRAMADA desde la columna R (índice 17)
             let fechaEntrega = '';
-const fechaEntregaRaw = values[16];
-if (fechaEntregaRaw !== null && fechaEntregaRaw !== undefined && fechaEntregaRaw !== '') {
-    // Si es un objeto con .v (gviz a veces devuelve así)
-    if (typeof fechaEntregaRaw === 'object' && fechaEntregaRaw.v !== undefined) {
-        fechaEntrega = String(fechaEntregaRaw.v).trim();
-    } 
-    // Si es un número (fecha serial de Google Sheets) o string numérico
-   // ⭐ Leer fecha de entrega PROGRAMADA desde la columna R (índice 17)
-// ⭐ Leer fecha de entrega PROGRAMADA desde la columna R (índice 17)
-             let fechaEntrega = '';
             const cellFechaEntrega = rowsClientes[i].c[17];
             if (cellFechaEntrega) {
                 if (cellFechaEntrega.f && String(cellFechaEntrega.f).trim() !== '') {
