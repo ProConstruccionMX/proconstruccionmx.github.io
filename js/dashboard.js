@@ -4064,7 +4064,7 @@ if (fechaEntregaRaw !== null && fechaEntregaRaw !== undefined && fechaEntregaRaw
     // Si es un número (fecha serial de Google Sheets) o string numérico
    // ⭐ Leer fecha de entrega PROGRAMADA desde la columna R (índice 17)
 // ⭐ Leer fecha de entrega PROGRAMADA desde la columna R (índice 17)
-            let fechaEntrega = '';
+             let fechaEntrega = '';
             const cellFechaEntrega = rowsClientes[i].c[17];
             if (cellFechaEntrega) {
                 if (cellFechaEntrega.f && String(cellFechaEntrega.f).trim() !== '') {
