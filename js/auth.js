@@ -102,13 +102,13 @@ async function autenticarUsuario(email, password) {
             sessionStorage.setItem('codigoCliente', result.cliente.codigo);
         }
 
-        return {
+                return {
             success: true,
             message: '✅ Inicio de sesión exitoso',
             email: result.cliente ? result.cliente.correo : email,
-            codigo: result.cliente ? result.cliente.codigo : null
+            codigo: result.cliente ? result.cliente.codigo : null,
+            token: result.token || null
         };
-
     } catch (error) {
         console.error('❌ Error en login:', error);
         return {
@@ -187,11 +187,15 @@ async function handleLogin(event) {
     try {
         const result = await autenticarUsuario(email, password);
         
-        if (result.success) {
+                if (result.success) {
             sessionStorage.setItem('userLoggedIn', 'true');
             sessionStorage.setItem('userEmail', result.email);
             if (result.codigo) {
                 sessionStorage.setItem('codigoCliente', result.codigo);
+            }
+            // ⭐ GUARDAR TOKEN DE SESIÓN
+            if (result.token) {
+                sessionStorage.setItem('sessionToken', result.token);
             }
             
             successDiv.querySelector('#successText').textContent = '¡Bienvenido! Redirigiendo...';
