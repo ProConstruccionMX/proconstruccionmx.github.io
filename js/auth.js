@@ -3,7 +3,7 @@ const SHEET_ID = '1yCQ-cJJ7PALDYSwIcpsj1ZfACtNLJwfOR7HY-mPzgx4';
 const SHEET_NAME = 'Hoja 1';
 const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${SHEET_NAME}`;
 
-// ⭐ Configuración de EmailJS ⭐
+// ⭐ Configuración de EmailJS (legado, ya no se usa para recuperación)
 const EMAILJS_CONFIG = {
     serviceID: 'service_o2zvkzo',
     templateID: 'template_usum2d8',
@@ -73,7 +73,6 @@ async function obtenerCodigoCliente(email) {
     }
 }
 
-// Función para autenticar usuario
 // Función para autenticar usuario (a través del Worker)
 async function autenticarUsuario(email, password) {
     try {
@@ -118,64 +117,46 @@ async function autenticarUsuario(email, password) {
         };
     }
 }
-// Función para recuperar contraseña
+
+// ⭐ FUNCIÓN ACTUALIZADA: Recuperar contraseña a través del Worker
 async function recuperarContrasena(email) {
-    const clientes = await obtenerClientes();
-    const emailLimpio = String(email).trim().toLowerCase();
-    
-    const cliente = clientes.find(c => 
-        String(c.correo).trim().toLowerCase() === emailLimpio
-    );
-    
-    if (!cliente) {
-        return { 
-            success: false, 
-            message: '❌ El correo que ingresaste no está registrado como cliente. Para registrarte, contáctate con un asesor.',
-            showWhatsApp: true
-        };
-    }
-    
     try {
-        const emailDestino = String(cliente.correo).trim();
-        const nombreDestino = emailDestino.split('@')[0] || 'Cliente';
-        const contrasenaCliente = String(cliente.contrasena).trim();
+        console.log('📧 Solicitando recuperación para:', email);
         
-        if (!emailDestino) {
-            throw new Error('El correo del cliente está vacío');
-        }
+        const response = await fetch('https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/reset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8',
+            },
+            body: JSON.stringify({
+                action: 'solicitarReset',
+                email: email.trim()
+            })
+        });
         
-        console.log('📧 Enviando correo a:', emailDestino);
+        const result = await response.json();
         
-        const templateParams = {
-            to_email: emailDestino,
-            to_name: nombreDestino,
-            password: contrasenaCliente
-        };
+        console.log('📥 Respuesta del Worker:', result);
         
-        const response = await emailjs.send(
-            EMAILJS_CONFIG.serviceID,
-            EMAILJS_CONFIG.templateID,
-            templateParams,
-            EMAILJS_CONFIG.userID
-        );
-        
-        console.log('✅ Respuesta de EmailJS:', response);
-        
-        if (response.status === 200) {
+        if (result.success) {
             return {
                 success: true,
-                message: `✅ Se ha enviado tu contraseña al correo: ${emailDestino}`
+                message: result.message || '✅ Se ha enviado tu contraseña al correo.'
             };
         } else {
-            throw new Error('Error al enviar el correo: ' + response.text);
+            return {
+                success: false,
+                message: result.message || '❌ No se pudo enviar el correo.',
+                showWhatsApp: result.showWhatsApp || false
+            };
         }
-    } catch (error) {
-        console.error('❌ Error al enviar email:', error);
         
+    } catch (error) {
+        console.error('❌ Error en recuperación:', error);
         return {
             success: false,
-            message: '❌ No se pudo enviar el correo electrónico. Por favor, contáctate con tu asesor por WhatsApp para recibir tu contraseña.',
-            showWhatsApp: true
+            message: '❌ Error al conectar con el servidor. Intenta de nuevo.',
+            showWhatsApp: false
         };
     }
 }
@@ -278,7 +259,7 @@ async function handleRecuperar(event) {
                     whatsappBtnContainer.innerHTML = `
                         <p style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-gray);">
                             <i class="fas fa-info-circle"></i> ¿Necesitas ayuda? 
-                            <a href="https://wa.me/525540148827" target="_blank" style="color: var(--accent-orange); font-weight: 600;">
+                            <a href="https://wa.me/525540148827?text=Hola%2C%20quisiera%20registrarme%20como%20cliente%20en%20ProConstrucci%C3%B3nMX" target="_blank" style="color: var(--accent-orange); font-weight: 600;">
                                 Contáctate con un asesor <i class="fab fa-whatsapp"></i>
                             </a>
                         </p>
