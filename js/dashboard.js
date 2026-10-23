@@ -29,6 +29,8 @@ const APPS_SCRIPT_DIRECCIONES_URL = 'https://script.google.com/macros/s/AKfycbzr
 const APPS_SCRIPT_FACTURACION_URL = 'https://script.google.com/macros/s/AKfycbwcEwB2K17lhR5d52eab8EL-2K7C2mXzEubtyP-TcF-VWcmfNS-lODtFWAYdllNmHz9Mg/exec';
 const APPS_SCRIPT_EMAIL_URL = 'https://script.google.com/macros/s/AKfycbzxjyFsLB6go3gcMz1qPNou1HhxsugQoiLvKPl0GAwLOQJZKdEcOyK-QxFU64WukWCY/exec';
 
+const WORKER_URL = 'https://proconstruccionmx-proxy.proconstruccionmx.workers.dev';
+
 const EMAIL_VENTAS = 'ventas@proconstruccionmx.com';
 const DIAS_CREDITO_FIJO = 20;
 const SUCURSAL_WEB = 'Web';
@@ -64,8 +66,40 @@ let creditoSeleccionadoParaPago = null;
 let comprobanteCreditoBase64 = null;
 let comprobanteCreditoNombre = null;
 
-// ⭐ NUEVO: Variable para fecha de entrega
 let fechaEntregaSeleccionada = null;
+
+// ============================================
+// ⭐ FUNCIÓN AUXILIAR: FETCH AUTENTICADO AL WORKER
+// ============================================
+async function fetchAutenticado(url, opciones = {}) {
+    const token = sessionStorage.getItem('sessionToken');
+    
+    if (!token) {
+        console.error('❌ No hay token de sesión. Redirigiendo a login...');
+        sessionStorage.clear();
+        window.location.href = 'login.html';
+        throw new Error('No hay token de sesión');
+    }
+    
+    const headers = {
+        ...(opciones.headers || {}),
+        'Authorization': `Bearer ${token}`
+    };
+    
+    const response = await fetch(url, {
+        ...opciones,
+        headers: headers
+    });
+    
+    if (response.status === 401) {
+        console.error('❌ Sesión inválida o expirada. Redirigiendo a login...');
+        sessionStorage.clear();
+        window.location.href = 'login.html';
+        throw new Error('Sesión inválida');
+    }
+    
+    return response;
+}
 
 // ============================================
 // FUNCIÓN PARA PARSEAR FECHAS CORRECTAMENTE
@@ -73,22 +107,6 @@ let fechaEntregaSeleccionada = null;
 
 function parseFechaGoogleSheets(fechaStr) {
     if (!fechaStr) return null;
-    
-    function esDateValido(obj) {
-        if (obj instanceof Date) {
-            return !isNaN(obj.getTime());
-        }
-        if (typeof obj === 'object' && obj !== null) {
-            if (typeof obj.getTime === 'function' && typeof obj.getFullYear === 'function') {
-                try {
-                    return !isNaN(obj.getTime());
-                } catch (e) {
-                    return false;
-                }
-            }
-        }
-        return false;
-    }
     
     if (typeof fechaStr === 'object' && fechaStr !== null) {
         if (typeof fechaStr.getTime === 'function') {
@@ -250,6 +268,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
 
+    if (!sessionStorage.getItem('sessionToken')) {
+        console.error('❌ No hay token de sesión. Redirigiendo a login...');
+        sessionStorage.clear();
+        window.location.href = 'login.html';
+        return;
+    }
+
     const email = sessionStorage.getItem('userEmail');
     console.log('📧 Email del cliente:', email);
     
@@ -268,7 +293,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     console.log('✅ Dashboard inicializado correctamente');
 });
-
 // ============================================
 // FUNCIONES PARA APPS SCRIPT (CON NO-CORS)
 // ============================================
@@ -284,7 +308,7 @@ async function guardarFilaGoogleSheets(sheetName, datos) {
             datos: datos
         };
         
-        const response = await fetch('https://proconstruccionmx-proxy.proconstruccionmx.workers.dev', {
+        const response = await fetchAutenticado(`${WORKER_URL}/ventas`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8',
@@ -306,7 +330,7 @@ async function agregarDireccionEnSheets(direccion) {
     try {
         console.log('📝 Enviando a Worker DIRECCIONES - AGREGAR:', direccion);
         
-        const response = await fetch('https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/direcciones', {
+        const response = await fetchAutenticado(`${WORKER_URL}/direcciones`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8',
@@ -358,7 +382,7 @@ async function actualizarDireccionEnSheets(fila, datos) {
             timestamp: Date.now()
         };
         
-        const response = await fetch('https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/direcciones', {
+        const response = await fetchAutenticado(`${WORKER_URL}/direcciones`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8',
@@ -387,7 +411,7 @@ async function eliminarDireccionEnSheets(fila) {
             timestamp: Date.now()
         };
         
-        const response = await fetch('https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/direcciones', {
+        const response = await fetchAutenticado(`${WORKER_URL}/direcciones`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8',
@@ -404,6 +428,7 @@ async function eliminarDireccionEnSheets(fila) {
         return { success: false, error: error.toString() };
     }
 }
+
 // ============================================
 // FUNCIONES DE FACTURACIÓN
 // ============================================
@@ -418,10 +443,10 @@ async function cargarFacturacionCliente() {
         
         console.log('📥 Cargando datos de facturación para cliente:', codigoCliente);
         
-        const url = 'https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/facturacion';
+        const url = `${WORKER_URL}/facturacion`;
         console.log('📥 URL del Worker:', url);
         
-        const response = await fetch(url);
+        const response = await fetchAutenticado(url);
         const text = await response.text();
         
         console.log('📥 Respuesta recibida, longitud:', text.length);
@@ -661,11 +686,11 @@ async function guardarEdicionFacturacion() {
     btn.innerHTML = '<span class="loading-spinner"></span> Guardando...';
     
     try {
-        console.log('📝 Enviando a Apps Script - ACTUALIZAR FACTURACIÓN');
+        console.log('📝 Enviando a Worker - ACTUALIZAR FACTURACIÓN');
         console.log('📝 Datos:', datosActualizados);
         console.log('📝 Fila:', fila);
         
-        const response = await fetch('https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/facturacion', {
+        const response = await fetchAutenticado(`${WORKER_URL}/facturacion`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8',
@@ -721,10 +746,10 @@ async function eliminarFacturacion(index) {
     if (!confirm(`¿Seguro que quieres eliminar los datos de facturación de "${fact.nombre}"?`)) return;
     
     try {
-        console.log('🗑️ Enviando a Apps Script - ELIMINAR FACTURACIÓN');
+        console.log('🗑️ Enviando a Worker - ELIMINAR FACTURACIÓN');
         console.log('🗑️ Fila:', fact.fila);
         
-        const response = await fetch('https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/facturacion', {
+        const response = await fetchAutenticado(`${WORKER_URL}/facturacion`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8',
@@ -799,10 +824,10 @@ async function guardarNuevaFacturacion() {
     btn.innerHTML = '<span class="loading-spinner"></span> Guardando...';
     
     try {
-        console.log('📝 Enviando a Apps Script - AGREGAR FACTURACIÓN');
+        console.log('📝 Enviando a Worker - AGREGAR FACTURACIÓN');
         console.log('📝 Datos:', datos);
         
-        const response = await fetch('https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/facturacion', {
+        const response = await fetchAutenticado(`${WORKER_URL}/facturacion`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8',
@@ -892,10 +917,10 @@ async function guardarNuevaFacturacionDesdePago() {
     btn.innerHTML = '<span class="loading-spinner"></span> Guardando...';
     
     try {
-        console.log('📝 Enviando a Apps Script - AGREGAR FACTURACIÓN (desde pago)');
+        console.log('📝 Enviando a Worker - AGREGAR FACTURACIÓN (desde pago)');
         console.log('📝 Datos:', datos);
         
-        const response = await fetch('https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/facturacion', {
+        const response = await fetchAutenticado(`${WORKER_URL}/facturacion`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8',
@@ -945,8 +970,8 @@ function mostrarMensajeModalAgregarPago(tipo, mensaje) {
 
 async function cargarDatosCliente(email) {
     try {
-        const url = `https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/leer?sheetId=${ID_BASE_CLIENTES}&sheetName=${HOJA_BASE_CLIENTES}`;
-        const response = await fetch(url);
+        const url = `${WORKER_URL}/leer?sheetId=${ID_BASE_CLIENTES}&sheetName=${HOJA_BASE_CLIENTES}`;
+        const response = await fetchAutenticado(url);
         const text = await response.text();
         const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
         const data = JSON.parse(jsonStr);
@@ -1019,8 +1044,8 @@ function actualizarInfoCliente() {
 async function cargarProductos() {
     try {
         console.log('📥 Cargando productos desde Google Sheets...');
-        const url = `https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/leer?sheetId=${ID_PRODUCTOS}&sheetName=${HOJA_PRODUCTOS}`;
-        const response = await fetch(url);
+        const url = `${WORKER_URL}/leer?sheetId=${ID_PRODUCTOS}&sheetName=${HOJA_PRODUCTOS}`;
+        const response = await fetchAutenticado(url);
         const text = await response.text();
         const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
         const data = JSON.parse(jsonStr);
@@ -1119,8 +1144,8 @@ async function cargarProductos() {
 async function cargarPreciosEspeciales() {
     try {
         console.log('💰 Cargando precios especiales desde Google Sheets...');
-        const url = `https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/leer?sheetId=${ID_ARCHIVO_PRECIOS_ESPECIALES}&sheetName=${HOJA_PRECIOS_ESPECIALES}`;
-        const response = await fetch(url);
+        const url = `${WORKER_URL}/leer?sheetId=${ID_ARCHIVO_PRECIOS_ESPECIALES}&sheetName=${HOJA_PRECIOS_ESPECIALES}`;
+        const response = await fetchAutenticado(url);
         const text = await response.text();
         const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
         const data = JSON.parse(jsonStr);
@@ -1162,10 +1187,10 @@ async function cargarDireccionesCliente() {
         
         console.log('📥 Cargando direcciones para cliente:', codigoCliente);
         
-        const url = `https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/leer?sheetId=${ID_BASE_CLIENTES}&sheetName=${HOJA_DIRECCIONES}`;
+        const url = `${WORKER_URL}/leer?sheetId=${ID_BASE_CLIENTES}&sheetName=${HOJA_DIRECCIONES}`;
         console.log('📥 URL:', url);
         
-        const response = await fetch(url);
+        const response = await fetchAutenticado(url);
         const text = await response.text();
         
         console.log('📥 Respuesta recibida, longitud:', text.length);
@@ -1429,7 +1454,6 @@ async function guardarNuevaDireccion(datos) {
         return false;
     }
 }
-
 // ============================================
 // FUNCIONES DE BÚSQUEDA DE PRODUCTOS
 // ============================================
@@ -1614,6 +1638,7 @@ function calcularDescuentoProducto(producto, cantidad) {
     
     return 0;
 }
+
 // ============================================
 // VERIFICACIÓN DE CRÉDITO DISPONIBLE
 // ============================================
@@ -2710,7 +2735,7 @@ async function continuarConPago() {
     };
     
     cerrarModalDireccion();
-    abrirModalFechaEntrega();  // ⭐ CAMBIO: ahora abre calendario
+    abrirModalFechaEntrega();
 }
 
 function mostrarMensajeModalDireccion(tipo, mensaje) {
@@ -2721,7 +2746,7 @@ function mostrarMensajeModalDireccion(tipo, mensaje) {
 }
 
 // ============================================
-// ⭐ NUEVO: MODAL DE FECHA DE ENTREGA
+// MODAL DE FECHA DE ENTREGA
 // ============================================
 
 function abrirModalFechaEntrega() {
@@ -2746,9 +2771,9 @@ function generarCalendario() {
     const esDespuesDe540 = (horaActual > 17) || (horaActual === 17 && minutosActuales >= 40);
     const diasBloqueados = esDespuesDe540 ? 2 : 1;
 
-const fechaMinima = new Date(ahora);
-fechaMinima.setDate(fechaMinima.getDate() + diasBloqueados + 1);
-fechaMinima.setHours(0, 0, 0, 0);
+    const fechaMinima = new Date(ahora);
+    fechaMinima.setDate(fechaMinima.getDate() + diasBloqueados + 1);
+    fechaMinima.setHours(0, 0, 0, 0);
     
     const diasAMostrar = 30;
     const container = document.getElementById('calendarioContainer');
@@ -3174,7 +3199,6 @@ function calcularTotal() {
     });
     return subtotal + (subtotal * 0.16);
 }
-
 // ============================================
 // FUNCIÓN PARA GENERAR PDF DEL COMPROBANTE
 // ============================================
@@ -3977,7 +4001,6 @@ async function guardarVentaEnEstadisticas(datos) {
             return;
         }
         
-        // ⭐ NUEVO: Formatear fecha de entrega para columna Q
         let fechaEntregaFormateada = '';
         if (window.fechaEntregaSeleccionada && window.fechaEntregaSeleccionada.iso) {
             const [y, m, d] = window.fechaEntregaSeleccionada.iso.split('-');
@@ -4001,7 +4024,7 @@ async function guardarVentaEnEstadisticas(datos) {
             nombreDireccion,
             razonSocialFactura,
             '',
-            fechaEntregaFormateada  // ⭐ Columna Q
+            fechaEntregaFormateada
         ];
         
         console.log(`📝 Guardando cliente: ${datos.cliente.nombre}, total: ${datos.total}, crédito: ${creditoPendienteTotal}, pagado: ${montoPagadoTotal}, entrega: ${fechaEntregaFormateada}`);
@@ -4029,8 +4052,8 @@ async function cargarHistorialCompras() {
         
         console.log('📥 Cargando historial de compras para cliente:', codigoCliente);
         
-        const urlClientes = `https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/leer?sheetId=${ID_ESTADISTICAS}&sheetName=${HOJA_EST_CLIENTES}`;
-        const responseClientes = await fetch(urlClientes);
+        const urlClientes = `${WORKER_URL}/leer?sheetId=${ID_ESTADISTICAS}&sheetName=${HOJA_EST_CLIENTES}`;
+        const responseClientes = await fetchAutenticado(urlClientes);
         const textClientes = await responseClientes.text();
         const jsonStrClientes = textClientes.substring(textClientes.indexOf('(') + 1, textClientes.lastIndexOf(')'));
         const dataClientes = JSON.parse(jsonStrClientes);
@@ -4052,10 +4075,9 @@ async function cargarHistorialCompras() {
             const formaPago = String(values[9] || '').trim();
             const creditoPendiente = parseFloat(values[5]) || 0;
             const montoPagado = parseFloat(values[6]) || 0;
-                        const estatusPago = String(values[15] || '').trim();
+            const estatusPago = String(values[15] || '').trim();
             const validado = String(values[15] || '').trim().toUpperCase() === 'VALIDADO';
             
-            // ⭐ Leer fecha de entrega PROGRAMADA desde la columna R (índice 17)
             let fechaEntrega = '';
             const cellFechaEntrega = rowsClientes[i].c[17];
             if (cellFechaEntrega) {
@@ -4085,7 +4107,7 @@ async function cargarHistorialCompras() {
                     anticipo: montoPagado,
                     estatusPago: estatusPago,
                     validado: validado,
-                    fechaEntrega: fechaEntrega  // ⭐ Nueva
+                    fechaEntrega: fechaEntrega
                 });
             }
         }
@@ -4097,8 +4119,8 @@ async function cargarHistorialCompras() {
             return;
         }
         
-        const urlProductos = `https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/leer?sheetId=${ID_ESTADISTICAS}&sheetName=${HOJA_EST_PRODUCTOS}`;
-        const responseProductos = await fetch(urlProductos);
+        const urlProductos = `${WORKER_URL}/leer?sheetId=${ID_ESTADISTICAS}&sheetName=${HOJA_EST_PRODUCTOS}`;
+        const responseProductos = await fetchAutenticado(urlProductos);
         const textProductos = await responseProductos.text();
         const jsonStrProductos = textProductos.substring(textProductos.indexOf('(') + 1, textProductos.lastIndexOf(')'));
         const dataProductos = JSON.parse(jsonStrProductos);
@@ -5058,9 +5080,8 @@ async function procesarPagoCreditoPendiente() {
         await enviarCorreoConAdjuntoAppsScript(datosVenta);
         
         try {
-            await fetch(APPS_SCRIPT_URL, {
+            await fetchAutenticado(`${WORKER_URL}/ventas`, {
                 method: 'POST',
-                mode: 'no-cors',
                 headers: {
                     'Content-Type': 'text/plain;charset=utf-8',
                 },
