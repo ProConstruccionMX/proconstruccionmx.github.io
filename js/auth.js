@@ -1,7 +1,7 @@
 // ============================================
 // CONFIGURACIÓN
 // ============================================
-const WORKER_URL = 'https://proconstruccionmx-proxy.proconstruccionmx.workers.dev';
+const AUTH_WORKER_URL = 'https://proconstruccionmx-proxy.proconstruccionmx.workers.dev';
 
 // Variable global para almacenar el código del cliente
 let codigoClienteGlobal = null;
@@ -11,7 +11,7 @@ let codigoClienteGlobal = null;
 // ============================================
 async function autenticarUsuario(email, password) {
     try {
-        const response = await fetch(`${WORKER_URL}/login`, {
+        const response = await fetch(`${AUTH_WORKER_URL}/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8',
@@ -31,7 +31,6 @@ async function autenticarUsuario(email, password) {
             };
         }
 
-        // Guardar código de cliente en sessionStorage
         if (result.cliente && result.cliente.codigo) {
             codigoClienteGlobal = result.cliente.codigo;
             sessionStorage.setItem('codigoCliente', result.cliente.codigo);
@@ -60,7 +59,7 @@ async function recuperarContrasena(email) {
     try {
         console.log('📧 Solicitando recuperación para:', email);
         
-        const response = await fetch(`${WORKER_URL}/reset`, {
+        const response = await fetch(`${AUTH_WORKER_URL}/reset`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8',
@@ -131,7 +130,6 @@ async function handleLogin(event) {
             if (result.codigo) {
                 sessionStorage.setItem('codigoCliente', result.codigo);
             }
-            // ⭐ GUARDAR TOKEN DE SESIÓN
             if (result.token) {
                 sessionStorage.setItem('sessionToken', result.token);
                 console.log('✅ Token de sesión guardado:', result.token.substring(0, 10) + '...');
