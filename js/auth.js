@@ -1,82 +1,17 @@
-// Configuración de Google Sheets
-const SHEET_ID = '1yCQ-cJJ7PALDYSwIcpsj1ZfACtNLJwfOR7HY-mPzgx4';
-const SHEET_NAME = 'Hoja 1';
-const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${SHEET_NAME}`;
+// ============================================
+// CONFIGURACIÓN
+// ============================================
+const WORKER_URL = 'https://proconstruccionmx-proxy.proconstruccionmx.workers.dev';
 
-// ⭐ Configuración de EmailJS (legado, ya no se usa para recuperación)
-const EMAILJS_CONFIG = {
-    serviceID: 'service_o2zvkzo',
-    templateID: 'template_usum2d8',
-    userID: '_gOxtGSQmrhTdoRuX'
-};
-
-// ⭐ Variable global para almacenar el código del cliente
+// Variable global para almacenar el código del cliente
 let codigoClienteGlobal = null;
 
-// Función para obtener datos de Google Sheets (ignorando encabezados)
-async function obtenerClientes() {
-    try {
-        const response = await fetch(SHEET_URL);
-        const text = await response.text();
-        const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
-        const data = JSON.parse(jsonStr);
-        const rows = data.table.rows;
-        
-        const clientes = [];
-        for (let i = 1; i < rows.length; i++) {
-            const row = rows[i];
-            const values = row.c.map(cell => cell ? cell.v : '');
-            
-            const contrasena = String(values[0] || '').trim();
-            const correo = String(values[3] || '').trim();
-            
-            if (correo) {
-                clientes.push({
-                    contrasena: contrasena,
-                    correo: correo
-                });
-            }
-        }
-        
-        console.log('📋 Clientes cargados:', clientes.length);
-        return clientes;
-    } catch (error) {
-        console.error('Error al obtener datos:', error);
-        return [];
-    }
-}
-
-// ⭐ NUEVA FUNCIÓN: Obtener código de cliente por email
-async function obtenerCodigoCliente(email) {
-    try {
-        const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${SHEET_NAME}`;
-        const response = await fetch(url);
-        const text = await response.text();
-        const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
-        const data = JSON.parse(jsonStr);
-        const rows = data.table.rows;
-        
-        for (let i = 1; i < rows.length; i++) {
-            const values = rows[i].c.map(cell => cell ? cell.v : '');
-            const correo = String(values[3] || '').trim();
-            
-            if (correo.toLowerCase() === email.toLowerCase()) {
-                const codigo = String(values[0] || '').trim();
-                console.log('🔑 Código de cliente encontrado:', codigo);
-                return codigo;
-            }
-        }
-        return null;
-    } catch (error) {
-        console.error('Error al obtener código de cliente:', error);
-        return null;
-    }
-}
-
-// Función para autenticar usuario (a través del Worker)
+// ============================================
+// AUTENTICACIÓN (a través del Worker)
+// ============================================
 async function autenticarUsuario(email, password) {
     try {
-        const response = await fetch('https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/login', {
+        const response = await fetch(`${WORKER_URL}/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8',
@@ -102,7 +37,7 @@ async function autenticarUsuario(email, password) {
             sessionStorage.setItem('codigoCliente', result.cliente.codigo);
         }
 
-                return {
+        return {
             success: true,
             message: '✅ Inicio de sesión exitoso',
             email: result.cliente ? result.cliente.correo : email,
@@ -118,12 +53,14 @@ async function autenticarUsuario(email, password) {
     }
 }
 
-// ⭐ FUNCIÓN ACTUALIZADA: Recuperar contraseña a través del Worker
+// ============================================
+// RECUPERAR CONTRASEÑA (a través del Worker)
+// ============================================
 async function recuperarContrasena(email) {
     try {
         console.log('📧 Solicitando recuperación para:', email);
         
-        const response = await fetch('https://proconstruccionmx-proxy.proconstruccionmx.workers.dev/reset', {
+        const response = await fetch(`${WORKER_URL}/reset`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8',
@@ -161,8 +98,9 @@ async function recuperarContrasena(email) {
     }
 }
 
-// --- Funciones para el Login ---
-
+// ============================================
+// HANDLER DE LOGIN
+// ============================================
 async function handleLogin(event) {
     event.preventDefault();
     
@@ -187,7 +125,7 @@ async function handleLogin(event) {
     try {
         const result = await autenticarUsuario(email, password);
         
-                if (result.success) {
+        if (result.success) {
             sessionStorage.setItem('userLoggedIn', 'true');
             sessionStorage.setItem('userEmail', result.email);
             if (result.codigo) {
@@ -196,6 +134,9 @@ async function handleLogin(event) {
             // ⭐ GUARDAR TOKEN DE SESIÓN
             if (result.token) {
                 sessionStorage.setItem('sessionToken', result.token);
+                console.log('✅ Token de sesión guardado:', result.token.substring(0, 10) + '...');
+            } else {
+                console.error('❌ El login no devolvió token. Revisa el Worker y el Apps Script.');
             }
             
             successDiv.querySelector('#successText').textContent = '¡Bienvenido! Redirigiendo...';
@@ -221,8 +162,9 @@ async function handleLogin(event) {
     return false;
 }
 
-// --- Funciones para Recuperar Contraseña ---
-
+// ============================================
+// HANDLER DE RECUPERAR CONTRASEÑA
+// ============================================
 async function handleRecuperar(event) {
     event.preventDefault();
     
@@ -283,15 +225,17 @@ async function handleRecuperar(event) {
     return false;
 }
 
-// --- Función para cerrar sesión ---
-
+// ============================================
+// CERRAR SESIÓN
+// ============================================
 function cerrarSesion() {
     sessionStorage.clear();
     window.location.href = 'login.html';
 }
 
-// --- Verificar sesión activa ---
-
+// ============================================
+// VERIFICAR SESIÓN ACTIVA
+// ============================================
 function verificarSesion() {
     const isLoggedIn = sessionStorage.getItem('userLoggedIn') === 'true';
     const currentPage = window.location.pathname.split('/').pop();
