@@ -5205,12 +5205,20 @@ function configurarTabs() {
                 cargarHistorialCompras();
             }
             
-            // ⭐ NUEVO: Cargar sesiones cuando se abre la pestaña
             if (target === 'tab-sesiones') {
                 cargarSesionesActivas();
             }
         });
     });
+    
+    // ⭐ NUEVO: Si la URL trae ?tab=sesiones, activar esa pestaña automáticamente
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('tab') === 'sesiones') {
+        const tabSesiones = document.querySelector('[data-tab="tab-sesiones"]');
+        if (tabSesiones) {
+            setTimeout(() => tabSesiones.click(), 500);
+        }
+    }
 }
 // ============================================
 // ⭐ FASE 2: PANEL DE SESIONES
