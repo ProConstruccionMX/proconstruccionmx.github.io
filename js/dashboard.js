@@ -5204,6 +5204,350 @@ function configurarTabs() {
             if (target === 'tab-compras' && historialVentas.length === 0) {
                 cargarHistorialCompras();
             }
+            
+            // ⭐ NUEVO: Cargar sesiones cuando se abre la pestaña
+            if (target === 'tab-sesiones') {
+                cargarSesionesActivas();
+            }
         });
     });
+}
+// ============================================
+// ⭐ FASE 2: PANEL DE SESIONES
+// ============================================
+
+let sesionesActivas = [];
+
+async function cargarSesionesActivas() {
+    const container = document.getElementById('sesionesContent');
+    if (!container) return;
+    
+    container.innerHTML = `
+        <div class="sesiones-loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Cargando sesiones...</p>
+        </div>
+    `;
+    
+    try {
+        console.log('📥 Cargando sesiones activas...');
+        
+        const response = await fetchAutenticado(`${WORKER_URL}/sesiones`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8',
+            },
+            body: JSON.stringify({ action: 'listar' })
+        });
+        
+        const result = await response.json();
+        console.log('📥 Respuesta /sesiones:', result);
+        
+        if (!result.success || !result.sesiones) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-exclamation-triangle" style="color:#dc2626;"></i>
+                    <h4>Error al cargar sesiones</h4>
+                    <p>${result.error || 'No se pudieron obtener las sesiones activas.'}</p>
+                    <button class="btn-primary" style="margin-top:1rem;padding:0.6rem 1.5rem;" onclick="cargarSesionesActivas()">
+                        <i class="fas fa-sync-alt"></i> Reintentar
+                    </button>
+                </div>
+            `;
+            return;
+        }
+        
+        sesionesActivas = result.sesiones;
+        console.log(`📦 Sesiones activas: ${sesionesActivas.length}`);
+        
+        renderizarSesiones(sesionesActivas);
+        
+    } catch (error) {
+        console.error('❌ Error al cargar sesiones:', error);
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-exclamation-triangle" style="color:#dc2626;"></i>
+                <h4>Error de conexión</h4>
+                <p>No se pudo conectar con el servidor. Intenta de nuevo.</p>
+                <button class="btn-primary" style="margin-top:1rem;padding:0.6rem 1.5rem;" onclick="cargarSesionesActivas()">
+                    <i class="fas fa-sync-alt"></i> Reintentar
+                </button>
+            </div>
+        `;
+    }
+}
+
+function renderizarSesiones(sesiones) {
+    const container = document.getElementById('sesionesContent');
+    if (!container) return;
+    
+    if (!sesiones || sesiones.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-shield-alt" style="color:#16a34a;"></i>
+                <h4>Sin sesiones activas</h4>
+                <p>No hay dispositivos con sesión activa en este momento.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const tokenActual = sessionStorage.getItem('sessionToken');
+    
+    let html = `<div class="sesiones-grid">`;
+    
+    sesiones.forEach((sesion, index) => {
+        const esActual = sesion.token === tokenActual;
+        const infoDispositivo = parseUserAgent(sesion.userAgent);
+        const icono = obtenerIconoDispositivo(infoDispositivo.tipo);
+        const tokenCorto = sesion.token ? sesion.token.substring(0, 8) + '...' : 'N/A';
+        const ubicacion = sesion.ubicacion || 'Desconocida';
+        const ip = sesion.ip || 'Desconocida';
+        const fechaCreacion = formatearFechaSesion(sesion.fechaCreacion);
+        const fechaExpiracion = formatearFechaSesion(sesion.fechaExpiracion);
+        
+        html += `
+            <div class="sesion-card ${esActual ? 'actual' : ''}" id="sesion-card-${index}">
+                <div class="sesion-header">
+                    <div class="sesion-header-left">
+                        <div class="sesion-icon">
+                            <i class="fas ${icono}"></i>
+                        </div>
+                        <div class="sesion-titulo">
+                            <h4>${infoDispositivo.navegador} en ${infoDispositivo.so}</h4>
+                            <small>${infoDispositivo.descripcion}</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="sesion-body">
+                    <div class="sesion-info-row">
+                        <i class="fas fa-globe"></i>
+                        <span><strong>Ubicación:</strong> ${ubicacion}</span>
+                    </div>
+                    <div class="sesion-info-row">
+                        <i class="fas fa-network-wired"></i>
+                        <span><strong>IP:</strong> ${ip}</span>
+                    </div>
+                    <div class="sesion-info-row">
+                        <i class="fas fa-key"></i>
+                        <span><strong>Token:</strong> ${tokenCorto}</span>
+                    </div>
+                </div>
+                <div class="sesion-footer">
+                    <div class="sesion-fechas">
+                        <div><i class="fas fa-sign-in-alt"></i> Inicio: ${fechaCreacion}</div>
+                        <div><i class="fas fa-hourglass-half"></i> Expira: ${fechaExpiracion}</div>
+                    </div>
+                    ${esActual ? `
+                        <span style="font-size:0.7rem;color:var(--accent-orange-dark);font-weight:700;">
+                            <i class="fas fa-check-circle"></i> Actual
+                        </span>
+                    ` : `
+                        <button class="btn-cerrar-sesion" onclick="cerrarSesionDispositivo('${sesion.token}', ${esActual}, ${index})">
+                            <i class="fas fa-sign-out-alt"></i> Cerrar
+                        </button>
+                    `}
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+function parseUserAgent(ua) {
+    if (!ua || ua === 'Desconocido' || ua === 'Desconocida') {
+        return {
+            navegador: 'Desconocido',
+            so: 'Desconocido',
+            tipo: 'desconocido',
+            descripcion: 'Dispositivo no identificado'
+        };
+    }
+    
+    let navegador = 'Desconocido';
+    let so = 'Desconocido';
+    let tipo = 'desktop';
+    let descripcion = '';
+    
+    // Detectar navegador
+    if (ua.includes('Edg/') || ua.includes('Edge/')) {
+        navegador = 'Edge';
+    } else if (ua.includes('OPR/') || ua.includes('Opera')) {
+        navegador = 'Opera';
+    } else if (ua.includes('Chrome/') && !ua.includes('Chromium')) {
+        navegador = 'Chrome';
+    } else if (ua.includes('Firefox/')) {
+        navegador = 'Firefox';
+    } else if (ua.includes('Safari/') && !ua.includes('Chrome')) {
+        navegador = 'Safari';
+    }
+    
+    // Detectar SO
+    if (ua.includes('iPhone')) {
+        so = 'iPhone';
+        tipo = 'movil';
+    } else if (ua.includes('iPad')) {
+        so = 'iPad';
+        tipo = 'tablet';
+    } else if (ua.includes('Android')) {
+        so = 'Android';
+        tipo = ua.includes('Mobile') ? 'movil' : 'tablet';
+    } else if (ua.includes('Windows NT 10.0')) {
+        so = 'Windows 10/11';
+    } else if (ua.includes('Windows NT 6.3')) {
+        so = 'Windows 8.1';
+    } else if (ua.includes('Windows NT 6.1')) {
+        so = 'Windows 7';
+    } else if (ua.includes('Windows')) {
+        so = 'Windows';
+    } else if (ua.includes('Macintosh') || ua.includes('Mac OS X')) {
+        so = 'macOS';
+    } else if (ua.includes('Linux')) {
+        so = 'Linux';
+    }
+    
+    // Versión del navegador
+    let version = '';
+    const matchChrome = ua.match(/Chrome\/(\d+)/);
+    const matchFirefox = ua.match(/Firefox\/(\d+)/);
+    const matchSafari = ua.match(/Version\/(\d+)/);
+    const matchEdge = ua.match(/Edg\/(\d+)/);
+    
+    if (navegador === 'Chrome' && matchChrome) version = matchChrome[1];
+    else if (navegador === 'Firefox' && matchFirefox) version = matchFirefox[1];
+    else if (navegador === 'Safari' && matchSafari) version = matchSafari[1];
+    else if (navegador === 'Edge' && matchEdge) version = matchEdge[1];
+    
+    descripcion = `${navegador} ${version ? 'v' + version : ''} · ${so}`.trim();
+    
+    return { navegador, so, tipo, descripcion };
+}
+
+function obtenerIconoDispositivo(tipo) {
+    switch (tipo) {
+        case 'movil': return 'fa-mobile-alt';
+        case 'tablet': return 'fa-tablet-alt';
+        case 'desktop': return 'fa-laptop';
+        default: return 'fa-question-circle';
+    }
+}
+
+function formatearFechaSesion(fechaStr) {
+    if (!fechaStr) return 'N/A';
+    
+    // El Apps Script devuelve String(data[i][2]) que suele ser "Wed Oct 22 2026 21:47:06 GMT-0600..."
+    // o también "22/10/2026 21:47:06" si se formateó distinto.
+    try {
+        const fecha = new Date(fechaStr);
+        if (!isNaN(fecha.getTime())) {
+            return fecha.toLocaleString('es-MX', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+    } catch (e) {}
+    
+    // Fallback: intentar parsear como "22/10/2026 21:47:06"
+    const match = String(fechaStr).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})/);
+    if (match) {
+        const fecha = new Date(
+            parseInt(match[3]),
+            parseInt(match[2]) - 1,
+            parseInt(match[1]),
+            parseInt(match[4]),
+            parseInt(match[5]),
+            parseInt(match[6])
+        );
+        if (!isNaN(fecha.getTime())) {
+            return fecha.toLocaleString('es-MX', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+    }
+    
+    return String(fechaStr);
+}
+
+async function cerrarSesionDispositivo(tokenSesion, esActual, index) {
+    if (esActual) {
+        if (!confirm('⚠️ Estás a punto de cerrar TU PROPIA sesión. Serás redirigido al login. ¿Continuar?')) {
+            return;
+        }
+    } else {
+        if (!confirm('¿Cerrar la sesión de este dispositivo? El usuario tendrá que volver a iniciar sesión en él.')) {
+            return;
+        }
+    }
+    
+    const card = document.getElementById(`sesion-card-${index}`);
+    const boton = card ? card.querySelector('.btn-cerrar-sesion') : null;
+    if (boton) {
+        boton.disabled = true;
+        boton.innerHTML = '<span class="loading-spinner" style="width:14px;height:14px;border-width:2px;"></span> Cerrando...';
+    }
+    
+    try {
+        console.log('🔒 Cerrando sesión:', tokenSesion.substring(0, 10) + '...');
+        
+        const response = await fetchAutenticado(`${WORKER_URL}/sesiones`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8',
+            },
+            body: JSON.stringify({
+                action: 'cerrar',
+                tokenCerrar: tokenSesion
+            })
+        });
+        
+        const result = await response.json();
+        console.log('📥 Respuesta cerrar sesión:', result);
+        
+        if (result.success) {
+            mostrarNotificacion('✅ Sesión cerrada correctamente');
+            
+            if (esActual) {
+                setTimeout(() => {
+                    sessionStorage.clear();
+                    window.location.href = 'login.html';
+                }, 1000);
+            } else {
+                if (card) {
+                    card.style.transition = 'all 0.4s ease';
+                    card.style.opacity = '0';
+                    card.style.transform = 'scale(0.9)';
+                    setTimeout(() => {
+                        card.remove();
+                        sesionesActivas = sesionesActivas.filter(s => s.token !== tokenSesion);
+                        if (sesionesActivas.length === 0) {
+                            renderizarSesiones([]);
+                        }
+                    }, 400);
+                }
+            }
+        } else {
+            mostrarNotificacion('❌ ' + (result.error || 'No se pudo cerrar la sesión'));
+            if (boton) {
+                boton.disabled = false;
+                boton.innerHTML = '<i class="fas fa-sign-out-alt"></i> Cerrar';
+            }
+        }
+        
+    } catch (error) {
+        console.error('❌ Error al cerrar sesión:', error);
+        mostrarNotificacion('❌ Error al cerrar la sesión. Intenta de nuevo.');
+        if (boton) {
+            boton.disabled = false;
+            boton.innerHTML = '<i class="fas fa-sign-out-alt"></i> Cerrar';
+        }
+    }
 }
