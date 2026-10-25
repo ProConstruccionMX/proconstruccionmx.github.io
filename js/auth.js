@@ -224,9 +224,33 @@ async function handleRecuperar(event) {
 }
 
 // ============================================
-// CERRAR SESIÓN
+// CERRAR SESIÓN (invalida el token en el Sheet)
 // ============================================
-function cerrarSesion() {
+async function cerrarSesion() {
+    const token = sessionStorage.getItem('sessionToken');
+    
+    // Intentar invalidar el token en el Sheet (no bloquea si falla)
+    if (token) {
+        try {
+            console.log('🔒 Invalidando token en el servidor...');
+            await fetch(`${AUTH_WORKER_URL}/sesiones`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    action: 'cerrar',
+                    tokenCerrar: token
+                })
+            });
+            console.log('✅ Token invalidado correctamente');
+        } catch (e) {
+            console.warn('⚠️ No se pudo invalidar el token en el servidor:', e);
+        }
+    }
+    
+    // Siempre limpia sessionStorage y redirige
     sessionStorage.clear();
     window.location.href = 'login.html';
 }
