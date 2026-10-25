@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmar Compra a Crédito - ProConstrucción MX</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="css/estilos.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0A2540 0%, #1a4d8c 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        .confirmar-container {
+            background: white;
+            border-radius: 24px;
+            padding: 3rem;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        .logo {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--primary-dark);
+            margin-bottom: 1.5rem;
+        }
+        .logo span { color: var(--accent-orange); }
+        .estado-icono {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        .estado-icono.cargando { color: #3b82f6; }
+        .estado-icono.exito { color: #16a34a; }
+        .estado-icono.error { color: #dc2626; }
+        .estado-icono.advertencia { color: #f59e0b; }
+        h1 {
+            font-size: 1.5rem;
+            color: var(--primary-dark);
+            margin-bottom: 0.5rem;
+        }
+        p {
+            color: var(--text-gray);
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+        .folio-box {
+            background: var(--gray-light);
+            padding: 1rem;
+            border-radius: 12px;
+            margin: 1.5rem 0;
+            font-family: 'Courier New', monospace;
+        }
+        .folio-box strong {
+            color: var(--primary-dark);
+            font-size: 1.2rem;
+        }
+        .boton {
+            display: inline-block;
+            background: var(--accent-orange);
+            color: white;
+            padding: 1rem 2.5rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            transition: all 0.3s;
+            margin-top: 1rem;
+            border: none;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+        }
+        .boton:hover {
+            background: var(--accent-orange-dark);
+            transform: translateY(-2px);
+        }
+        .boton-secundario {
+            background: #64748b;
+            margin-left: 0.5rem;
+        }
+        .boton-secundario:hover {
+            background: #475569;
+        }
+        .spinner {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(59, 130, 246, 0.2);
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .footer {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e2e8f0;
+            font-size: 0.8rem;
+            color: var(--text-gray);
+        }
+    </style>
+</head>
+<body>
+    <div class="confirmar-container">
+        <div class="logo">ProConstrucción <span>MX</span></div>
+        
+        <div id="contenido">
+            <div class="estado-icono cargando">
+                <div class="spinner"></div>
+            </div>
+            <h1>Validando tu compra...</h1>
+            <p>Estamos verificando el token de confirmación. Por favor espera.</p>
+        </div>
+        
+        <div class="footer">
+            <p>ProConstrucción MX</p>
+            <p>atencionaclientes@proconstruccionmx.com</p>
+        </div>
+    </div>
+
+    <script>
+        const WORKER_URL = 'https://proconstruccionmx-proxy.proconstruccionmx.workers.dev';
+        
+        async function confirmarCredito() {
+            const contenido = document.getElementById('contenido');
+            
+            // Leer el token de la URL
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get('token');
+            
+            if (!token) {
+                mostrarError('No se encontró el token de confirmación en el enlace. Por favor, verifica que hayas hecho clic en el botón del correo.');
+                return;
+            }
+            
+            console.log('🔐 Token recibido:', token.substring(0, 10) + '...');
+            
+            try {
+                const response = await fetch(`${WORKER_URL}/confirmarCredito`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain;charset=utf-8',
+                    },
+                    body: JSON.stringify({ token: token })
+                });
+                
+                const result = await response.json();
+                console.log('📥 Respuesta:', result);
+                
+                if (result.success) {
+                    mostrarExito(result.folio || '');
+                } else {
+                    mostrarError(result.error || 'No se pudo confirmar la compra. El token puede haber expirado o ya fue utilizado.');
+                }
+                
+            } catch (error) {
+                console.error('❌ Error:', error);
+                mostrarError('Error al conectar con el servidor. Por favor, intenta de nuevo o contacta a tu asesor.');
+            }
+        }
+        
+        function mostrarExito(folio) {
+            const contenido = document.getElementById('contenido');
+            contenido.innerHTML = `
+                <div class="estado-icono exito">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h1>¡Compra confirmada!</h1>
+                <p>Tu compra a crédito ha sido confirmada exitosamente. La preparación de tu pedido comenzará en breve.</p>
+                ${folio ? `
+                    <div class="folio-box">
+                        <div style="font-size: 0.8rem; color: var(--text-gray); margin-bottom: 0.3rem;">Folio de compra</div>
+                        <strong>${folio}</strong>
+                    </div>
+                ` : ''}
+                <p style="font-size: 0.9rem;">Recibirás un correo de confirmación con los detalles de tu pedido.</p>
+                <a href="https://proconstruccionmx.com/dashboard.html" class="boton">
+                    <i class="fas fa-arrow-right"></i> Ir a mi cuenta
+                </a>
+            `;
+        }
+        
+        function mostrarError(mensaje) {
+            const contenido = document.getElementById('contenido');
+            contenido.innerHTML = `
+                <div class="estado-icono error">
+                    <i class="fas fa-times-circle"></i>
+                </div>
+                <h1>No se pudo confirmar</h1>
+                <p>${mensaje}</p>
+                <p style="font-size: 0.9rem;">Si crees que esto es un error, contacta a tu asesor:</p>
+                <a href="https://wa.me/525540148827?text=Hola%2C%20tengo%20un%20problema%20confirmando%20mi%20compra%20a%20cr%C3%A9dito" 
+                   target="_blank" class="boton boton-secundario">
+                    <i class="fab fa-whatsapp"></i> Contactar asesor
+                </a>
+            `;
+        }
+        
+        // Ejecutar al cargar
+        document.addEventListener('DOMContentLoaded', confirmarCredito);
+    </script>
+</body>
+</html>
