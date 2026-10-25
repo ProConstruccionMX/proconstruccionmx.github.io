@@ -1,7 +1,6 @@
 // ============================================
 // CONFIGURACIÓN
 // ============================================
-const APPS_SCRIPT_EMAIL_URL = 'https://script.google.com/macros/s/AKfycbzxjyFsLB6go3gcMz1qPNou1HhxsugQoiLvKPl0GAwLOQJZKdEcOyK-QxFU64WukWCY/exec';
 
 const WORKER_URL = 'https://proconstruccionmx-proxy.proconstruccionmx.workers.dev';
 
