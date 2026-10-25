@@ -2741,16 +2741,33 @@ function generarCalendario() {
     const minutosActuales = ahora.getMinutes();
     const diaSemanaHoy = ahora.getDay(); // 0=Dom, 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie, 6=Sáb
     
-    // Regla base: pedidos antes de las 17:40 requieren 1 día de anticipación
-    // Pedidos después de las 17:40 requieren 2 días
     const esDespuesDe540 = (horaActual > 17) || (horaActual === 17 && minutosActuales >= 40);
     
     // ⭐ R5: Regla especial para viernes >17:40, sábado y domingo
-    // Deshabilita lunes y martes
+    // Deshabilita SOLO el siguiente lunes y el siguiente martes (no todos los del mes)
     const esViernesDespuesDe540 = (diaSemanaHoy === 5 && esDespuesDe540);
     const esSabado = (diaSemanaHoy === 6);
     const esDomingo = (diaSemanaHoy === 0);
-    const deshabilitarLunesMartes = esViernesDespuesDe540 || esSabado || esDomingo;
+    const deshabilitarSiguienteLunesMartes = esViernesDespuesDe540 || esSabado || esDomingo;
+    
+    // Calcular las fechas exactas del siguiente lunes y siguiente martes
+    let siguienteLunes = null;
+    let siguienteMartes = null;
+    
+    if (deshabilitarSiguienteLunesMartes) {
+        const cursor = new Date(ahora);
+        cursor.setHours(0, 0, 0, 0);
+        
+        // Avanzar hasta encontrar el primer lunes (día 1)
+        while (cursor.getDay() !== 1) {
+            cursor.setDate(cursor.getDate() + 1);
+        }
+        siguienteLunes = new Date(cursor);
+        
+        // El siguiente martes es el día después del siguiente lunes
+        siguienteMartes = new Date(cursor);
+        siguienteMartes.setDate(siguienteMartes.getDate() + 1);
+    }
     
     const fechaMinima = new Date(ahora);
     fechaMinima.setDate(fechaMinima.getDate() + (esDespuesDe540 ? 2 : 1) + 1);
@@ -2779,9 +2796,10 @@ function generarCalendario() {
         const esAntesDeFechaMinima = fecha < fechaMinima;
         const esHoy = (i === 0);
         
-        // ⭐ R5: ¿Es lunes o martes y estamos en el caso especial?
-        const esLunesOMartes = (diaSemanaFecha === 1 || diaSemanaFecha === 2);
-        const bloqueadoPorReglaViernesSabadoDomingo = deshabilitarLunesMartes && esLunesOMartes;
+        // ⭐ R5: Solo bloquear si esta fecha coincide EXACTAMENTE con el siguiente lunes o martes
+        const esSiguienteLunes = siguienteLunes && fecha.getTime() === siguienteLunes.getTime();
+        const esSiguienteMartes = siguienteMartes && fecha.getTime() === siguienteMartes.getTime();
+        const bloqueadoPorReglaViernesSabadoDomingo = esSiguienteLunes || esSiguienteMartes;
         
         const fechaStr = fecha.getFullYear() + '-' + String(fecha.getMonth() + 1).padStart(2, '0') + '-' + String(fecha.getDate()).padStart(2, '0');
         const diaNumero = fecha.getDate();
@@ -2797,7 +2815,7 @@ function generarCalendario() {
             deshabilitado = true;
         } else if (bloqueadoPorReglaViernesSabadoDomingo) {
             deshabilitado = true;
-            // ⭐ NO se muestra tooltip ni mensaje. Solo se deshabilita.
+            // ⭐ Sin mensaje ni tooltip, solo se deshabilita
         }
         
         const estilo = deshabilitado 
