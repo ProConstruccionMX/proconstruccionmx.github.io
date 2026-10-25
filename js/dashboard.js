@@ -2739,12 +2739,21 @@ function generarCalendario() {
     const ahora = new Date();
     const horaActual = ahora.getHours();
     const minutosActuales = ahora.getMinutes();
+    const diaSemanaHoy = ahora.getDay(); // 0=Dom, 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie, 6=Sáb
     
+    // Regla base: pedidos antes de las 17:40 requieren 1 día de anticipación
+    // Pedidos después de las 17:40 requieren 2 días
     const esDespuesDe540 = (horaActual > 17) || (horaActual === 17 && minutosActuales >= 40);
-    const diasBloqueados = esDespuesDe540 ? 2 : 1;
-
+    
+    // ⭐ R5: Regla especial para viernes >17:40, sábado y domingo
+    // Deshabilita lunes y martes
+    const esViernesDespuesDe540 = (diaSemanaHoy === 5 && esDespuesDe540);
+    const esSabado = (diaSemanaHoy === 6);
+    const esDomingo = (diaSemanaHoy === 0);
+    const deshabilitarLunesMartes = esViernesDespuesDe540 || esSabado || esDomingo;
+    
     const fechaMinima = new Date(ahora);
-    fechaMinima.setDate(fechaMinima.getDate() + diasBloqueados + 1);
+    fechaMinima.setDate(fechaMinima.getDate() + (esDespuesDe540 ? 2 : 1) + 1);
     fechaMinima.setHours(0, 0, 0, 0);
     
     const diasAMostrar = 30;
@@ -2770,22 +2779,25 @@ function generarCalendario() {
         const esAntesDeFechaMinima = fecha < fechaMinima;
         const esHoy = (i === 0);
         
+        // ⭐ R5: ¿Es lunes o martes y estamos en el caso especial?
+        const esLunesOMartes = (diaSemanaFecha === 1 || diaSemanaFecha === 2);
+        const bloqueadoPorReglaViernesSabadoDomingo = deshabilitarLunesMartes && esLunesOMartes;
+        
         const fechaStr = fecha.getFullYear() + '-' + String(fecha.getMonth() + 1).padStart(2, '0') + '-' + String(fecha.getDate()).padStart(2, '0');
         const diaNumero = fecha.getDate();
         const mesNombre = fecha.toLocaleDateString('es-MX', { month: 'short' });
         
         let deshabilitado = false;
-        let motivoBloqueo = '';
         
         if (esHoy) {
             deshabilitado = true;
-            motivoBloqueo = 'Hoy no disponible';
         } else if (esFinDeSemana) {
             deshabilitado = true;
-            motivoBloqueo = 'Fin de semana';
         } else if (esAntesDeFechaMinima) {
             deshabilitado = true;
-            motivoBloqueo = esDespuesDe540 ? 'Requiere 2 días de anticipación (después de 5:40 pm)' : 'Requiere 1 día de anticipación';
+        } else if (bloqueadoPorReglaViernesSabadoDomingo) {
+            deshabilitado = true;
+            // ⭐ NO se muestra tooltip ni mensaje. Solo se deshabilita.
         }
         
         const estilo = deshabilitado 
@@ -2793,10 +2805,9 @@ function generarCalendario() {
             : 'background:white; color:var(--primary-dark); cursor:pointer; padding:0.8rem 0.3rem; border-radius:8px; border:2px solid #e2e8f0; font-size:0.85rem; transition:all 0.2s;';
         
         const onclick = deshabilitado ? '' : `onclick="seleccionarFechaEntrega('${fechaStr}', '${fecha.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}')"`;
-        const title = deshabilitado ? `title="${motivoBloqueo}"` : '';
         
         html += `
-            <div class="${deshabilitado ? 'dia-deshabilitado' : 'dia-disponible'}" style="${estilo}" ${onclick} ${title}>
+            <div class="${deshabilitado ? 'dia-deshabilitado' : 'dia-disponible'}" style="${estilo}" ${onclick}>
                 <div style="font-weight:700; font-size:1rem;">${diaNumero}</div>
                 <div style="font-size:0.7rem;">${mesNombre}</div>
             </div>
