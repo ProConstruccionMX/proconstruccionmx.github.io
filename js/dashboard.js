@@ -3432,12 +3432,12 @@ function generarPDFComprobante(datos) {
 }
 
 // ============================================
-// FUNCIÓN PARA ENVIAR CORREO CON ADJUNTO VÍA APPS SCRIPT
+// ENVIAR CORREO CON ADJUNTO (Fase 0.5)
+// Ahora pasa por el Worker (/enviarCorreoVentas), no directo a Apps Script.
 // ============================================
-
 async function enviarCorreoConAdjuntoAppsScript(datos) {
     try {
-        console.log('📧 Enviando correo con adjunto vía Apps Script...');
+        console.log('📧 Enviando correo con adjunto vía Worker...');
         console.log('📧 esLiquidacionCredito:', datos.esLiquidacionCredito);
         
         let productosTexto = '';
@@ -3457,21 +3457,13 @@ async function enviarCorreoConAdjuntoAppsScript(datos) {
         }
         
         let asunto = '';
-        let tipoCorreo = 'NUEVA VENTA WEB';
-        
         if (datos.esLiquidacionCredito) {
-            tipoCorreo = 'PAGO DE CREDITO';
             asunto = `PAGO DE CREDITO - ${datos.folio} - ${datos.cliente.nombre}`;
         } else {
             asunto = `NUEVA VENTA WEB - ${datos.folio} - ${datos.cliente.nombre}`;
         }
         
-        console.log('📧 ASUNTO FINAL:', asunto);
-        console.log('📧 TIPO:', tipoCorreo);
-        
         const payload = {
-            action: 'enviarCorreoAdjunto',
-            email: 'ventas@proconstruccionmx.com',
             asunto: asunto,
             folio: datos.folio || 'Sin folio',
             fecha: datos.fecha ? datos.fecha.toLocaleString('es-MX') : new Date().toLocaleString('es-MX'),
@@ -3502,21 +3494,25 @@ async function enviarCorreoConAdjuntoAppsScript(datos) {
             idVentaOriginal: datos.idVentaOriginal || null
         };
         
-        console.log('📤 Enviando a Apps Script con asunto:', payload.asunto);
-        console.log('📤 Comprobante Base64 presente:', !!payload.comprobanteBase64);
-        console.log('📤 Comprobante Base64 longitud:', payload.comprobanteBase64 ? payload.comprobanteBase64.length : 0);
+        console.log('📤 Enviando a Worker /enviarCorreoVentas');
         
-        await fetch(APPS_SCRIPT_EMAIL_URL, {
+        const response = await fetchAutenticado(`${WORKER_URL}/enviarCorreoVentas`, {
             method: 'POST',
-            mode: 'no-cors',
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8',
             },
             body: JSON.stringify(payload)
         });
         
-        console.log(`✅ Correo enviado (${tipoCorreo}) a ventas@proconstruccionmx.com`);
-        return { success: true };
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log('✅ Correo enviado correctamente vía Worker');
+            return { success: true };
+        } else {
+            console.error('❌ El Worker rechazó el envío del correo:', result.error);
+            return { success: false, error: result.error };
+        }
         
     } catch (error) {
         console.error('❌ Error al enviar correo con adjunto:', error);
