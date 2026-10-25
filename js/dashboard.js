@@ -3523,6 +3523,11 @@ async function enviarCorreoConAdjuntoAppsScript(datos) {
 // PROCESAMIENTO DE PAGOS
 // ============================================
 
+// ============================================
+// PROCESAR PAGO POR TRANSFERENCIA (Fase 1A)
+// Ahora llama a /crearPedido con solo [{clave, cantidad}].
+// El servidor recalcula precios, descuentos, peso y total.
+// ============================================
 async function procesarPagoTransferencia() {
     const referencia = document.getElementById('referenciaTransferencia').value.trim();
     
@@ -3553,24 +3558,65 @@ async function procesarPagoTransferencia() {
     }
     
     try {
-        const total = calcularTotal();
-        const folio = generarFolio();
-        const fecha = new Date();
+        // 1. Construir items: SOLO clave y cantidad
+        const items = carrito.map(item => ({
+            clave: item.clave,
+            cantidad: item.cantidad
+        }));
         
-        let productosParaVenta = carrito.map(item => ({
-            ...item,
-            _tipo: 'pago'
+        // 2. Construir body para /crearPedido
+        const body = {
+            items: items,
+            metodoPago: 'Transferencia',
+            nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre',
+            requiereFactura: requiereFactura,
+            razonSocialFactura: datosFacturaSeleccionados ? datosFacturaSeleccionados.razonSocial : '',
+            fechaEntrega: window.fechaEntregaSeleccionada ? window.fechaEntregaSeleccionada.iso : ''
+        };
+        
+        console.log('📤 Enviando a /crearPedido:', body);
+        
+        // 3. Llamar al Worker
+        const response = await fetchAutenticado(`${WORKER_URL}/crearPedido`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8',
+            },
+            body: JSON.stringify(body)
+        });
+        
+        const result = await response.json();
+        console.log('📥 Respuesta de /crearPedido:', result);
+        
+        // 4. Verificar resultado
+        if (!result.success) {
+            mostrarMensajeModal('error', '❌ ' + (result.error || 'Error al crear el pedido.'));
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Compra';
+            }
+            return;
+        }
+        
+        // 5. Construir datosVenta con los datos del SERVIDOR
+        //    (para el PDF, el correo y el mensaje de éxito)
+        const productosParaPDF = result.productos.map(p => ({
+            nombre: p.nombre,
+            cantidad: p.cantidad,
+            precio: p.precio,
+            descuento: p.descuento,
+            importe: p.importe
         }));
         
         const datosVenta = {
-            folio: folio,
-            fecha: fecha,
-            cliente: clienteData,
+            folio: result.folio,
+            fecha: new Date(),
+            cliente: result.cliente,
             direccion: window.datosEnvio || null,
-            productos: productosParaVenta,
-            total: total,
-            subtotal: total / 1.16,
-            iva: total - (total / 1.16),
+            productos: productosParaPDF,
+            total: result.total,
+            subtotal: result.subtotal,
+            iva: result.iva,
             tipoPago: 'Transferencia',
             referencia: referencia,
             comprobante: comprobanteBase64,
@@ -3580,27 +3626,27 @@ async function procesarPagoTransferencia() {
             nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre',
             requiereFactura: requiereFactura,
             datosFactura: datosFacturaSeleccionados,
-            montoPago: total,
+            montoPago: result.total,
             montoCredito: 0,
-            estadoPago: 'Validando pago',
+            estadoPago: result.estadoPago || 'Validando pago',
             esCreditoParcial: false,
             diasCredito: 0,
             fechaPago: null,
             saldoPendiente: 0,
-            anticipo: total
+            anticipo: result.total
         };
         
-        console.log('📊 Datos de venta a guardar (Transferencia):', datosVenta);
-        
-        await guardarVentaEnEstadisticas(datosVenta);
+        // 6. Enviar correo con adjunto (vía Worker)
         await enviarCorreoConAdjuntoAppsScript(datosVenta);
         
+        // 7. Generar PDF del comprobante
         generarPDFComprobante(datosVenta);
         
+        // 8. Mostrar mensaje de éxito
         let mensajeExito = `
             ✅ ¡Compra realizada con éxito!<br>
-            <strong>Folio:</strong> ${folio}<br>
-            <strong>Total:</strong> ${formatoMexicano(total)}<br>
+            <strong>Folio:</strong> ${result.folio}<br>
+            <strong>Total:</strong> ${formatoMexicano(result.total)}<br>
             <strong>Método:</strong> Transferencia<br>
             <strong>Referencia:</strong> ${referencia}<br>
         `;
@@ -3619,6 +3665,7 @@ async function procesarPagoTransferencia() {
         
         mostrarMensajeModal('exito', mensajeExito);
         
+        // 9. Limpiar carrito y estado
         carrito = [];
         renderizarCarrito();
         window.datosEnvio = null;
@@ -3636,6 +3683,7 @@ async function procesarPagoTransferencia() {
             btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Compra';
         }
         
+        // 10. Recargar historial después de 8 segundos
         setTimeout(() => {
             cerrarModalPago();
             cargarHistorialCompras();
