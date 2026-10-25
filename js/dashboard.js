@@ -1,29 +1,6 @@
 // ============================================
-// CONFIGURACIÓN - IDS DE GOOGLE SHEETS
+// CONFIGURACIÓN
 // ============================================
-const ID_PRODUCTOS = '1tRhmgmbhL47vBIldtSFnrvFlFLHYADKq23BKGnRAWQk';
-const HOJA_PRODUCTOS = 'Hoja 1';
-
-const ID_BASE_CLIENTES = '1yCQ-cJJ7PALDYSwIcpsj1ZfACtNLJwfOR7HY-mPzgx4';
-const HOJA_BASE_CLIENTES = 'Hoja 1';
-const HOJA_DIRECCIONES = 'Direcciones';
-
-const ID_FACTURACION = '1kGtq_MQye-GnvcbxNSA1o_gx6MCKkjwFcEKWEQdrX_g';
-const HOJA_FACTURACION = 'Facturacion';
-
-const ID_ESTADISTICAS = '1jCvEvZ2aBF2nRhE_Jsw_S_8yDFYZgaWwIUNu9pNNKGc';
-const HOJA_EST_PRODUCTOS = 'Productos';
-const HOJA_EST_CLIENTES = 'Clientes';
-
-const ID_USUARIOS = '1Q5V6Wie_kQwqvnofuVzIcyerRaKZxJ2lvMHK6LY9gaU';
-const HOJA_USUARIOS = 'Hoja 1';
-
-const ID_ARCHIVO_PRECIOS_ESPECIALES = '10t2A9M5f1Bj7lyTTa_PhVGRv0wAK_4ePpk_1eURZQ5I';
-const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
-
-const ID_COTIZACIONES = '1S4qoHh3lTDoSUwDNeilmN6QKk8uhmvxjwvRQpEHQbS0';
-const HOJA_COTIZACIONES = 'Hoja 1';
-
 const APPS_SCRIPT_EMAIL_URL = 'https://script.google.com/macros/s/AKfycbzxjyFsLB6go3gcMz1qPNou1HhxsugQoiLvKPl0GAwLOQJZKdEcOyK-QxFU64WukWCY/exec';
 
 const WORKER_URL = 'https://proconstruccionmx-proxy.proconstruccionmx.workers.dev';
@@ -956,7 +933,7 @@ function mostrarMensajeModalAgregarPago(tipo, mensaje) {
 
 async function cargarDatosCliente(email) {
     try {
-        const url = `${WORKER_URL}/leer?sheetId=${ID_BASE_CLIENTES}&sheetName=${HOJA_BASE_CLIENTES}`;
+        const url = `${WORKER_URL}/leer?tipo=clientes`;
         const response = await fetchAutenticado(url);
         const text = await response.text();
         const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
@@ -1030,7 +1007,7 @@ function actualizarInfoCliente() {
 async function cargarProductos() {
     try {
         console.log('📥 Cargando productos desde Google Sheets...');
-        const url = `${WORKER_URL}/leer?sheetId=${ID_PRODUCTOS}&sheetName=${HOJA_PRODUCTOS}`;
+        const url = `${WORKER_URL}/leer?tipo=productos`;
         const response = await fetchAutenticado(url);
         const text = await response.text();
         const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
@@ -1130,7 +1107,7 @@ async function cargarProductos() {
 async function cargarPreciosEspeciales() {
     try {
         console.log('💰 Cargando precios especiales desde Google Sheets...');
-        const url = `${WORKER_URL}/leer?sheetId=${ID_ARCHIVO_PRECIOS_ESPECIALES}&sheetName=${HOJA_PRECIOS_ESPECIALES}`;
+        const url = `${WORKER_URL}/leer?tipo=precios-especiales`;
         const response = await fetchAutenticado(url);
         const text = await response.text();
         const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
@@ -1173,7 +1150,7 @@ async function cargarDireccionesCliente() {
         
         console.log('📥 Cargando direcciones para cliente:', codigoCliente);
         
-        const url = `${WORKER_URL}/leer?sheetId=${ID_BASE_CLIENTES}&sheetName=${HOJA_DIRECCIONES}`;
+        const url = `${WORKER_URL}/leer?tipo=direcciones`;
         console.log('📥 URL:', url);
         
         const response = await fetchAutenticado(url);
@@ -4092,7 +4069,7 @@ async function cargarHistorialCompras() {
         
         console.log('📥 Cargando historial de compras para cliente:', codigoCliente);
         
-        const urlClientes = `${WORKER_URL}/leer?sheetId=${ID_ESTADISTICAS}&sheetName=${HOJA_EST_CLIENTES}`;
+        const urlClientes = `${WORKER_URL}/leer?tipo=estadisticas-clientes`;
         const responseClientes = await fetchAutenticado(urlClientes);
         const textClientes = await responseClientes.text();
         const jsonStrClientes = textClientes.substring(textClientes.indexOf('(') + 1, textClientes.lastIndexOf(')'));
@@ -4159,7 +4136,7 @@ async function cargarHistorialCompras() {
             return;
         }
         
-        const urlProductos = `${WORKER_URL}/leer?sheetId=${ID_ESTADISTICAS}&sheetName=${HOJA_EST_PRODUCTOS}`;
+        const urlProductos = `${WORKER_URL}/leer?tipo=estadisticas-productos`;
         const responseProductos = await fetchAutenticado(urlProductos);
         const textProductos = await responseProductos.text();
         const jsonStrProductos = textProductos.substring(textProductos.indexOf('(') + 1, textProductos.lastIndexOf(')'));
