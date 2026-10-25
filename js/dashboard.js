@@ -3699,15 +3699,15 @@ async function procesarPagoTransferencia() {
     }
 }
 
+// ============================================
+// PROCESAR PAGO A CRÉDITO (Fase 1B)
+// Ahora llama a /crearPedido con metodoPago: 'Credito'.
+// El servidor recalcula todo (crédito total o parcial).
+// ============================================
 async function procesarPagoCredito() {
-    const dias = DIAS_CREDITO_FIJO;
     const total = calcularTotal();
     
-    if (!window._puedeUsarCredito) {
-        mostrarMensajeModal('error', '⚠️ No puedes usar crédito. Por favor, selecciona la opción de transferencia para pagar de contado.');
-        return;
-    }
-    
+    // Validaciones previas
     if (!window.datosEnvio || !window.datosEnvio.mapsUrl || window.datosEnvio.mapsUrl === 'No proporcionado') {
         mostrarMensajeModal('error', '⚠️ La URL de Google Maps es obligatoria. Por favor, proporciona la ubicación exacta.');
         return;
@@ -3718,8 +3718,8 @@ async function procesarPagoCredito() {
         return;
     }
     
+    // Para crédito parcial, validar referencia y comprobante del excedente
     const esCreditoParcial = window._esCreditoParcial || false;
-    const infoCredito = window._infoCredito || infoCreditoCalculado;
     const montoExcedente = window._montoExcedente || 0;
     
     if (esCreditoParcial && montoExcedente > 0) {
@@ -3741,115 +3741,94 @@ async function procesarPagoCredito() {
     }
     
     try {
-        const folio = generarFolio();
-        const fecha = new Date();
-        const fechaPago = new Date(fecha);
-        fechaPago.setDate(fechaPago.getDate() + dias);
+        // 1. Construir items: SOLO clave y cantidad
+        const items = carrito.map(item => ({
+            clave: item.clave,
+            cantidad: item.cantidad
+        }));
         
-        let productosParaVenta = [];
-        let montoPago = 0;
-        let montoCredito = total;
-        let tipoPago = 'Crédito';
-        let estadoPago = 'En preparación';
-        let anticipo = 0;
-        let saldoPendiente = total;
-        let referenciaExcedente = null;
-        let comprobanteExcedente = null;
+        // 2. Construir body para /crearPedido
+        const body = {
+            items: items,
+            metodoPago: 'Credito',
+            nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre',
+            requiereFactura: requiereFactura,
+            razonSocialFactura: datosFacturaSeleccionados ? datosFacturaSeleccionados.razonSocial : '',
+            fechaEntrega: window.fechaEntregaSeleccionada ? window.fechaEntregaSeleccionada.iso : ''
+        };
         
-        if (esCreditoParcial && infoCredito && infoCredito.excedeLimite) {
-            tipoPago = 'Crédito Parcial';
-            montoPago = infoCredito.montoExcedente || infoCredito.montoPago;
-            montoCredito = infoCredito.montoCredito;
-            estadoPago = 'Validando pago';
-            anticipo = montoPago;
-            saldoPendiente = montoCredito;
-            referenciaExcedente = document.getElementById('referenciaTransferencia').value.trim();
-            comprobanteExcedente = comprobanteBase64;
-            
-            const productosPago = infoCredito.productosPago || [];
-            productosPago.forEach(item => {
-                productosParaVenta.push({
-                    clave: item.clave,
-                    nombre: item.nombre,
-                    cantidad: item.cantidad,
-                    precio: item.precio,
-                    descuento: item.descuento,
-                    importe: item.precio * item.cantidad * (1 - item.descuento / 100),
-                    precioCompra: item.precioCompra || 0,
-                    personalizado: item.personalizado || false,
-                    _tipo: 'pago'
-                });
-            });
-            
-            const productosCredito = infoCredito.productosCredito || [];
-            productosCredito.forEach(item => {
-                productosParaVenta.push({
-                    clave: item.clave,
-                    nombre: item.nombre,
-                    cantidad: item.cantidad,
-                    precio: item.precio,
-                    descuento: item.descuento,
-                    importe: item.precio * item.cantidad * (1 - item.descuento / 100),
-                    precioCompra: item.precioCompra || 0,
-                    personalizado: item.personalizado || false,
-                    _tipo: 'credito'
-                });
-            });
-            
-        } else {
-            productosParaVenta = carrito.map(item => ({
-                ...item,
-                _tipo: 'credito'
-            }));
+        console.log('📤 Enviando a /crearPedido (Crédito):', body);
+        
+        // 3. Llamar al Worker
+        const response = await fetchAutenticado(`${WORKER_URL}/crearPedido`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8',
+            },
+            body: JSON.stringify(body)
+        });
+        
+        const result = await response.json();
+        console.log('📥 Respuesta de /crearPedido (Crédito):', result);
+        
+        // 4. Verificar resultado
+        if (!result.success) {
+            mostrarMensajeModal('error', '❌ ' + (result.error || 'Error al crear el pedido a crédito.'));
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
+            }
+            return;
         }
         
+        // 5. Construir datosVenta con los datos del SERVIDOR
+        const productosParaPDF = result.productos.map(p => ({
+            nombre: p.nombre,
+            cantidad: p.cantidad,
+            precio: p.precio,
+            descuento: p.descuento,
+            importe: p.importe
+        }));
+        
         const datosVenta = {
-            folio: folio,
-            fecha: fecha,
-            cliente: clienteData,
+            folio: result.folio,
+            fecha: new Date(),
+            cliente: result.cliente,
             direccion: window.datosEnvio || null,
-            productos: productosParaVenta,
-            total: total,
-            subtotal: total / 1.16,
-            iva: total - (total / 1.16),
-            tipoPago: tipoPago,
-            diasCredito: dias,
-            anticipo: anticipo,
-            saldoPendiente: saldoPendiente,
-            fechaPago: fechaPago,
+            productos: productosParaPDF,
+            total: result.total,
+            subtotal: result.subtotal,
+            iva: result.iva,
+            tipoPago: result.esCreditoParcial ? 'Crédito Parcial' : 'Crédito',
+            diasCredito: result.diasCredito || DIAS_CREDITO_FIJO,
+            anticipo: result.esCreditoParcial ? result.montoPagoExcedente : 0,
+            saldoPendiente: result.creditoPendiente,
+            fechaPago: result.fechaPago ? new Date(result.fechaPago) : null,
             sucursal: SUCURSAL_WEB,
             nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre',
             requiereFactura: requiereFactura,
             datosFactura: datosFacturaSeleccionados,
-            montoPago: montoPago,
-            montoCredito: montoCredito,
-            estadoPago: estadoPago,
-            esCreditoParcial: esCreditoParcial,
-            referencia: esCreditoParcial ? referenciaExcedente : 'CRÉDITO',
-            comprobante: esCreditoParcial ? comprobanteExcedente : null,
+            montoPago: result.esCreditoParcial ? result.montoPagoExcedente : 0,
+            montoCredito: result.creditoPendiente,
+            estadoPago: result.estadoPago,
+            esCreditoParcial: result.esCreditoParcial,
+            referencia: esCreditoParcial ? document.getElementById('referenciaTransferencia').value.trim() : 'CRÉDITO',
+            comprobante: esCreditoParcial ? comprobanteBase64 : null,
             comprobanteNombre: esCreditoParcial ? comprobanteNombre : null,
             comprobanteTipo: esCreditoParcial ? comprobanteTipo : null
         };
         
-                console.log('📊 Datos de venta a guardar (Crédito):', datosVenta);
-        
-        await guardarVentaEnEstadisticas(datosVenta);
-        
-        // ⭐ NUEVO: Generar token de confirmación de crédito y enviar correo
+        // 6. Generar token de confirmación de crédito (se enviará al servidor)
         try {
             const tokenConfirmacion = generarTokenConfirmacion();
-            const fechaCompraStr = fecha.toLocaleDateString('es-MX', {
+            const fechaCompraStr = new Date().toLocaleDateString('es-MX', {
                 day: '2-digit',
                 month: 'long',
                 year: 'numeric'
             });
-            const fechaPagoStr = fechaPago.toLocaleDateString('es-MX', {
-                day: '2-digit',
-                month: 'long',
-                year: 'numeric'
-            });
+            const fechaPagoStr = result.fechaPago || '';
             
-            const productosParaEmail = productosParaVenta.map(p => ({
+            const productosParaEmail = productosParaPDF.map(p => ({
                 nombre: p.nombre,
                 cantidad: p.cantidad,
                 importe: p.importe
@@ -3861,18 +3840,18 @@ async function procesarPagoCredito() {
                     'Content-Type': 'text/plain;charset=utf-8',
                 },
                 body: JSON.stringify({
-                    folio: folio,
+                    folio: result.folio,
                     codigoCliente: clienteData.codigo,
                     token: tokenConfirmacion,
                     email: clienteData.correo,
                     nombre: clienteData.nombre,
                     fechaCompra: fechaCompraStr,
-                    total: total,
+                    total: result.total,
                     productos: productosParaEmail,
                     fechaPago: fechaPagoStr,
-                    diasCredito: dias,
-                    anticipo: anticipo,
-                    saldoPendiente: saldoPendiente
+                    diasCredito: result.diasCredito || DIAS_CREDITO_FIJO,
+                    anticipo: result.esCreditoParcial ? result.montoPagoExcedente : 0,
+                    saldoPendiente: result.creditoPendiente
                 })
             });
             
@@ -3888,28 +3867,31 @@ async function procesarPagoCredito() {
             console.error('⚠️ Error al generar token de confirmación (no bloquea la venta):', tokenError);
         }
         
+        // 7. Enviar correo con adjunto (vía Worker)
         await enviarCorreoConAdjuntoAppsScript(datosVenta);
         
+        // 8. Generar PDF del comprobante
         generarPDFComprobante(datosVenta);
         
+        // 9. Mostrar mensaje de éxito
         let mensajeExito = `
-            ✅ ¡Crédito ${esCreditoParcial ? 'parcial' : ''} aprobado!<br>
-            <strong>Folio:</strong> ${folio}<br>
-            <strong>Total:</strong> ${formatoMexicano(total)}<br>
-            <strong>Días de crédito:</strong> ${dias} días fijos<br>
-            <strong>Fecha de pago:</strong> ${fechaPago.toLocaleDateString('es-MX')}<br>
+            ✅ ¡Crédito ${result.esCreditoParcial ? 'parcial' : ''} aprobado!<br>
+            <strong>Folio:</strong> ${result.folio}<br>
+            <strong>Total:</strong> ${formatoMexicano(result.total)}<br>
+            <strong>Días de crédito:</strong> ${result.diasCredito || DIAS_CREDITO_FIJO} días fijos<br>
+            <strong>Fecha de pago:</strong> ${result.fechaPago || 'No definida'}<br>
         `;
         
         if (window.fechaEntregaSeleccionada) {
             mensajeExito += `<strong>📅 Entrega programada:</strong> ${window.fechaEntregaSeleccionada.texto}<br>`;
         }
         
-        if (esCreditoParcial) {
+        if (result.esCreditoParcial) {
             mensajeExito += `
-                <strong>Monto pagado (excedente):</strong> ${formatoMexicano(montoPago)}<br>
-                <strong>Monto a crédito:</strong> ${formatoMexicano(montoCredito)}<br>
-                <strong>Referencia excedente:</strong> ${referenciaExcedente || 'N/A'}<br>
-                <span style="color:#92400e;font-size:0.9rem;">⚠️ El saldo a crédito deberá ser liquidado en ${dias} días.</span><br>
+                <strong>Monto pagado (excedente):</strong> ${formatoMexicano(result.montoPagoExcedente)}<br>
+                <strong>Monto a crédito:</strong> ${formatoMexicano(result.creditoPendiente)}<br>
+                <strong>Referencia excedente:</strong> ${document.getElementById('referenciaTransferencia').value.trim() || 'N/A'}<br>
+                <span style="color:#92400e;font-size:0.9rem;">⚠️ El saldo a crédito deberá ser liquidado en ${result.diasCredito || DIAS_CREDITO_FIJO} días.</span><br>
             `;
         }
         
@@ -3921,12 +3903,13 @@ async function procesarPagoCredito() {
         
         mensajeExito += `<br>Se ha descargado el comprobante en formato PDF.<br>Se ha enviado un correo a ventas@proconstruccionmx.com con los detalles.`;
         
-        if (esCreditoParcial) {
+        if (result.esCreditoParcial) {
             mensajeExito += `<br><span style="color:#92400e;font-size:0.9rem;">✅ El excedente ha sido pagado. El resto queda a crédito.</span>`;
         }
         
         mostrarMensajeModal('exito', mensajeExito);
         
+        // 10. Limpiar carrito y estado
         carrito = [];
         renderizarCarrito();
         window.datosEnvio = null;
@@ -3944,6 +3927,7 @@ async function procesarPagoCredito() {
             btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
         }
         
+        // 11. Recargar historial después de 8 segundos
         setTimeout(() => {
             cerrarModalPago();
             cargarHistorialCompras();
