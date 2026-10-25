@@ -1108,38 +1108,39 @@ async function cargarProductos() {
 }
 
 // ============================================
-// CARGA DE PRECIOS ESPECIALES
+// CARGA DE PRECIOS ESPECIALES (Fase 0.4)
 // ============================================
-
 async function cargarPreciosEspeciales() {
     try {
-        console.log('💰 Cargando precios especiales desde Google Sheets...');
+        console.log('💰 Cargando precios especiales del cliente autenticado...');
+        
         const url = `${WORKER_URL}/leer?tipo=precios-especiales`;
         const response = await fetchAutenticado(url);
-        const text = await response.text();
-        const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
-        const data = JSON.parse(jsonStr);
-        const rows = data.table.rows;
         
-        preciosEspecialesGlobales = [];
-        for (let i = 1; i < rows.length; i++) {
-            const values = rows[i].c.map(cell => cell ? cell.v : '');
-            const activo = String(values[7] || '').trim().toUpperCase();
-            if (activo === 'TRUE' || activo === 'VERDADERO') {
-                preciosEspecialesGlobales.push({
-                    id: String(values[0] || '').trim(),
-                    codigoCliente: String(values[1] || '').trim(),
-                    nombreCliente: String(values[2] || '').trim(),
-                    claveProducto: String(values[3] || '').trim(),
-                    nombreProducto: String(values[4] || '').trim(),
-                    precioPersonalizado: parseFloat(values[5]) || 0,
-                    fechaRegistro: String(values[6] || '').trim()
-                });
-            }
+        // La respuesta ahora es un JSON simple: { success: true, precios: [...] }
+        const data = await response.json();
+        
+        if (!data.success) {
+            console.error('❌ No se pudieron cargar los precios especiales:', data.error);
+            preciosEspecialesGlobales = [];
+            return;
         }
+        
+        preciosEspecialesGlobales = (data.precios || []).map(p => ({
+            id: String(p.id || '').trim(),
+            codigoCliente: String(p.codigoCliente || '').trim(),
+            nombreCliente: String(p.nombreCliente || '').trim(),
+            claveProducto: String(p.claveProducto || '').trim(),
+            nombreProducto: String(p.nombreProducto || '').trim(),
+            precioPersonalizado: parseFloat(p.precioPersonalizado) || 0,
+            fechaRegistro: String(p.fechaRegistro || '').trim()
+        }));
+        
         console.log(`💰 Precios especiales cargados: ${preciosEspecialesGlobales.length}`);
+        
     } catch (error) {
         console.error('❌ Error al cargar precios especiales:', error);
+        preciosEspecialesGlobales = [];
     }
 }
 
