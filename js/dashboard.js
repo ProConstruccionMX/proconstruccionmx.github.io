@@ -1797,19 +1797,25 @@ function verificarCreditoDisponible() {
                 }
             }
             
+                        // ⭐ Fase 1B: Calcular excedente y crédito sobre el TOTAL (con IVA)
+            const subtotalParcialPeso = montoPago + montoCredito;
+            const factorIvaPeso = subtotalParcialPeso > 0 ? (totalGeneral / subtotalParcialPeso) : 1.16;
+            const montoPagoConIvaPeso = montoPago * factorIvaPeso;
+            const montoCreditoConIvaPeso = montoCredito * factorIvaPeso;
+
             return {
                 puedeCredito: true,
                 tipo: 'credito_parcial',
-                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPago)} deben pagarse. El resto va a crédito.`,
+                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPagoConIvaPeso)} deben pagarse. El resto va a crédito.`,
                 pesoTotal: pesoTotal,
                 pesoExcedente: pesoExcedente,
-                montoCredito: montoCredito,
-                montoPago: montoPago,
+                montoCredito: montoCreditoConIvaPeso,
+                montoPago: montoPagoConIvaPeso,
                 productosCredito: productosCredito,
                 productosPago: productosPago,
                 excedeLimite: true,
                 puedeUsarCredito: true,
-                montoExcedente: montoPago
+                montoExcedente: montoPagoConIvaPeso
             };
         }
     }
