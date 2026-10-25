@@ -5,6 +5,15 @@ const APPS_SCRIPT_EMAIL_URL = 'https://script.google.com/macros/s/AKfycbzxjyFsLB
 
 const WORKER_URL = 'https://proconstruccionmx-proxy.proconstruccionmx.workers.dev';
 
+// ⭐ Nombres de hoja (necesarios para guardarFilaGoogleSheets)
+const HOJA_PRODUCTOS = 'Hoja 1';
+const HOJA_BASE_CLIENTES = 'Hoja 1';
+const HOJA_DIRECCIONES = 'Direcciones';
+const HOJA_FACTURACION = 'Facturacion';
+const HOJA_EST_PRODUCTOS = 'Productos';
+const HOJA_EST_CLIENTES = 'Clientes';
+const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
+
 const EMAIL_VENTAS = 'ventas@proconstruccionmx.com';
 const DIAS_CREDITO_FIJO = 20;
 const SUCURSAL_WEB = 'Web';
