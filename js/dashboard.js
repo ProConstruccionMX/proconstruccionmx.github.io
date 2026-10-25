@@ -937,63 +937,61 @@ function mostrarMensajeModalAgregarPago(tipo, mensaje) {
 }
 
 // ============================================
-// CARGA DE DATOS (CLIENTES, PRODUCTOS, ETC)
+// CARGA DE DATOS DEL CLIENTE (Fase 0.1)
 // ============================================
-
 async function cargarDatosCliente(email) {
     try {
         const url = `${WORKER_URL}/leer?tipo=clientes`;
         const response = await fetchAutenticado(url);
-        const text = await response.text();
-        const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
-        const data = JSON.parse(jsonStr);
-        const rows = data.table.rows;
         
-        for (let i = 1; i < rows.length; i++) {
-            const values = rows[i].c.map(cell => cell ? cell.v : '');
-            const correo = String(values[3] || '').trim();
-            
-            if (correo.toLowerCase() === email.toLowerCase()) {
-                const creditoHabilitadoRaw = String(values[13] || '').trim().toUpperCase();
-                const creditoHabilitado = creditoHabilitadoRaw === 'SI' || creditoHabilitadoRaw === 'TRUE' || creditoHabilitadoRaw === 'VERDADERO';
-                
-                clienteData = {
-                    codigo: String(values[0] || '').trim(),
-                    nombre: String(values[1] || '').trim(),
-                    giro: String(values[2] || '').trim(),
-                    correo: correo,
-                    telefono: String(values[4] || '').trim(),
-                    descuento: parseFloat(values[5]) || 0,
-                    noCompras: parseInt(values[6]) || 0,
-                    montoCompras: parseFloat(values[7]) || 0,
-                    creditoPendiente: parseFloat(values[8]) || 0,
-                    creditoLiquidado: parseFloat(values[9]) || 0,
-                    sucursal: String(values[10] || '').trim(),
-                    fechaRegistro: String(values[11] || '').trim(),
-                    creditoHabilitado: creditoHabilitado,
-                    limiteCreditoPeso: parseFloat(values[14]) || 0,
-                    limiteCreditoMonto: parseFloat(values[15]) || 0
-                };
-                
-                clienteCreditoHabilitado = clienteData.creditoHabilitado;
-                clienteLimiteCreditoPeso = clienteData.limiteCreditoPeso;
-                clienteLimiteCreditoMonto = clienteData.limiteCreditoMonto;
-                
-                console.log('💳 CRÉDITO HABILITADO:', clienteCreditoHabilitado);
-                console.log('⚖️ LÍMITE CRÉDITO PESO:', clienteLimiteCreditoPeso, 'kg');
-                console.log('💰 LÍMITE CRÉDITO MONTO:', clienteLimiteCreditoMonto);
-                console.log('📊 DESCUENTO BASE DEL CLIENTE:', clienteData.descuento + '%');
-                console.log('📊 GIRO DEL CLIENTE:', clienteData.giro);
-                
-                break;
-            }
+        // La respuesta ahora es un JSON simple: { success: true, cliente: {...} }
+        const data = await response.json();
+        
+        if (!data.success || !data.cliente) {
+            console.error('❌ No se pudieron cargar los datos del cliente:', data.error);
+            return;
         }
+        
+        const cliente = data.cliente;
+        
+        // Parsear los valores numéricos y booleanos
+        const creditoHabilitadoRaw = String(cliente.creditoHabilitado || '').trim().toUpperCase();
+        const creditoHabilitado = creditoHabilitadoRaw === 'SI' || creditoHabilitadoRaw === 'TRUE' || creditoHabilitadoRaw === 'VERDADERO';
+        
+        clienteData = {
+            codigo: String(cliente.codigo || '').trim(),
+            nombre: String(cliente.nombre || '').trim(),
+            giro: String(cliente.giro || '').trim(),
+            correo: String(cliente.correo || '').trim(),
+            telefono: String(cliente.telefono || '').trim(),
+            descuento: parseFloat(cliente.descuento) || 0,
+            noCompras: parseInt(cliente.noCompras) || 0,
+            montoCompras: parseFloat(cliente.montoCompras) || 0,
+            creditoPendiente: parseFloat(cliente.creditoPendiente) || 0,
+            creditoLiquidado: parseFloat(cliente.creditoLiquidado) || 0,
+            sucursal: String(cliente.sucursal || '').trim(),
+            fechaRegistro: String(cliente.fechaRegistro || '').trim(),
+            creditoHabilitado: creditoHabilitado,
+            limiteCreditoPeso: parseFloat(cliente.limiteCreditoPeso) || 0,
+            limiteCreditoMonto: parseFloat(cliente.limiteCreditoMonto) || 0
+        };
+        
+        clienteCreditoHabilitado = clienteData.creditoHabilitado;
+        clienteLimiteCreditoPeso = clienteData.limiteCreditoPeso;
+        clienteLimiteCreditoMonto = clienteData.limiteCreditoMonto;
+        
+        console.log('💳 CRÉDITO HABILITADO:', clienteCreditoHabilitado);
+        console.log('⚖️ LÍMITE CRÉDITO PESO:', clienteLimiteCreditoPeso, 'kg');
+        console.log('💰 LÍMITE CRÉDITO MONTO:', clienteLimiteCreditoMonto);
+        console.log('📊 DESCUENTO BASE DEL CLIENTE:', clienteData.descuento + '%');
+        console.log('📊 GIRO DEL CLIENTE:', clienteData.giro);
         
         if (clienteData) {
             actualizarInfoCliente();
         } else {
             console.error('❌ Cliente no encontrado');
         }
+        
     } catch (error) {
         console.error('❌ Error al cargar datos del cliente:', error);
     }
