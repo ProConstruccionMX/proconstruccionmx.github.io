@@ -3809,9 +3809,63 @@ async function procesarPagoCredito() {
             comprobanteTipo: esCreditoParcial ? comprobanteTipo : null
         };
         
-        console.log('📊 Datos de venta a guardar (Crédito):', datosVenta);
+                console.log('📊 Datos de venta a guardar (Crédito):', datosVenta);
         
         await guardarVentaEnEstadisticas(datosVenta);
+        
+        // ⭐ NUEVO: Generar token de confirmación de crédito y enviar correo
+        try {
+            const tokenConfirmacion = generarTokenConfirmacion();
+            const fechaCompraStr = fecha.toLocaleDateString('es-MX', {
+                day: '2-digit',
+                month: 'long',
+                year: 'numeric'
+            });
+            const fechaPagoStr = fechaPago.toLocaleDateString('es-MX', {
+                day: '2-digit',
+                month: 'long',
+                year: 'numeric'
+            });
+            
+            const productosParaEmail = productosParaVenta.map(p => ({
+                nombre: p.nombre,
+                cantidad: p.cantidad,
+                importe: p.importe
+            }));
+            
+            const responseToken = await fetchAutenticado(`${WORKER_URL}/guardarTokenCompraCredito`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8',
+                },
+                body: JSON.stringify({
+                    folio: folio,
+                    codigoCliente: clienteData.codigo,
+                    token: tokenConfirmacion,
+                    email: clienteData.correo,
+                    nombre: clienteData.nombre,
+                    fechaCompra: fechaCompraStr,
+                    total: total,
+                    productos: productosParaEmail,
+                    fechaPago: fechaPagoStr,
+                    diasCredito: dias,
+                    anticipo: anticipo,
+                    saldoPendiente: saldoPendiente
+                })
+            });
+            
+            const resultToken = await responseToken.json();
+            console.log('📧 Resultado guardarTokenCompraCredito:', resultToken);
+            
+            if (resultToken.correoEnviado) {
+                console.log('✅ Correo de confirmación de crédito enviado al cliente');
+            } else {
+                console.warn('⚠️ El correo de confirmación no se pudo enviar, pero la venta fue registrada');
+            }
+        } catch (tokenError) {
+            console.error('⚠️ Error al generar token de confirmación (no bloquea la venta):', tokenError);
+        }
+        
         await enviarCorreoConAdjuntoAppsScript(datosVenta);
         
         generarPDFComprobante(datosVenta);
@@ -5558,4 +5612,12 @@ async function cerrarSesionDispositivo(tokenSesion, esActual, index) {
             boton.innerHTML = '<i class="fas fa-sign-out-alt"></i> Cerrar';
         }
     }
+}
+function generarTokenConfirmacion() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let token = '';
+    for (let i = 0; i < 64; i++) {
+        token += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return token;
 }
