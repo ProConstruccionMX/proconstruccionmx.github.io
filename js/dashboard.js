@@ -3476,6 +3476,12 @@ async function enviarCorreoConAdjuntoAppsScript(datos) {
             subtotal: Number(datos.subtotal || 0).toFixed(2),
             iva: Number(datos.iva || 0).toFixed(2),
             total: Number(datos.total || 0).toFixed(2),
+                        // ⭐ Fase 1B: Datos de crédito para el correo
+            credito_pendiente: Number(datos.montoCredito || datos.creditoPendiente || 0).toFixed(2),
+            monto_pago_excedente: Number(datos.anticipo || datos.montoPago || 0).toFixed(2),
+            es_credito_parcial: datos.esCreditoParcial || false,
+            dias_credito: datos.diasCredito || 0,
+            fecha_pago: datos.fechaPago ? (typeof datos.fechaPago === 'string' ? datos.fechaPago : datos.fechaPago.toLocaleDateString('es-MX')) : '',
             anio: new Date().getFullYear(),
             direccion_nombre: datos.nombreDireccion || 'Sin nombre',
             direccion_calle: datos.direccion ? datos.direccion.calle : '',
