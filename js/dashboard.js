@@ -1144,61 +1144,40 @@ async function cargarPreciosEspeciales() {
 }
 
 // ============================================
-// FUNCIONES DE DIRECCIONES
+// CARGA DE DIRECCIONES DEL CLIENTE (Fase 0.2)
 // ============================================
-
 async function cargarDireccionesCliente() {
     try {
-        const codigoCliente = sessionStorage.getItem('codigoCliente');
-        if (!codigoCliente) {
-            console.warn('⚠️ No hay código de cliente disponible');
+        console.log('📥 Cargando direcciones del cliente autenticado...');
+        
+        const url = `${WORKER_URL}/leer?tipo=direcciones`;
+        const response = await fetchAutenticado(url);
+        
+        // La respuesta ahora es un JSON simple: { success: true, direcciones: [...] }
+        const data = await response.json();
+        
+        if (!data.success) {
+            console.error('❌ No se pudieron cargar las direcciones:', data.error);
+            direccionesCliente = [];
+            renderizarDirecciones();
+            actualizarSelectorDirecciones();
             return;
         }
         
-        console.log('📥 Cargando direcciones para cliente:', codigoCliente);
-        
-        const url = `${WORKER_URL}/leer?tipo=direcciones`;
-        console.log('📥 URL:', url);
-        
-        const response = await fetchAutenticado(url);
-        const text = await response.text();
-        
-        console.log('📥 Respuesta recibida, longitud:', text.length);
-        
-        const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
-        const data = JSON.parse(jsonStr);
-        const rows = data.table.rows;
-        
-        console.log(`📊 Filas en la hoja Direcciones: ${rows.length}`);
-        
-        direccionesCliente = [];
-        
-        for (let i = 0; i < rows.length; i++) {
-            const values = rows[i].c.map(cell => cell ? cell.v : '');
-            const codigo = String(values[0] || '').trim();
-            const filaReal = i + 2;
-            
-            console.log(`🔍 Fila ${i} - Código: "${codigo}" - Buscando: "${codigoCliente}"`);
-            
-            if (codigo === codigoCliente) {
-                const nombre = String(values[1] || '').trim();
-                console.log(`✅ Dirección encontrada: "${nombre}" en fila REAL ${filaReal}`);
-                
-                direccionesCliente.push({
-                    fila: filaReal,
-                    codigo: codigo,
-                    nombre: nombre || 'Sin nombre',
-                    calle: String(values[2] || '').trim(),
-                    colonia: String(values[3] || '').trim(),
-                    alcaldia: String(values[4] || '').trim(),
-                    estado: String(values[5] || '').trim(),
-                    cp: String(values[6] || '').trim(),
-                    mapsUrl: String(values[7] || '').trim(),
-                    telefono: String(values[8] || '').trim(),
-                    nombreRecibe: String(values[9] || '').trim()
-                });
-            }
-        }
+        // Mapear las direcciones al formato que usa el frontend
+        direccionesCliente = (data.direcciones || []).map(d => ({
+            fila: d.fila,
+            codigo: String(d.codigo || '').trim(),
+            nombre: String(d.nombre || '').trim() || 'Sin nombre',
+            calle: String(d.calle || '').trim(),
+            colonia: String(d.colonia || '').trim(),
+            alcaldia: String(d.alcaldia || '').trim(),
+            estado: String(d.estado || '').trim(),
+            cp: String(d.cp || '').trim(),
+            mapsUrl: String(d.mapsUrl || '').trim(),
+            telefono: String(d.telefono || '').trim(),
+            nombreRecibe: String(d.nombreRecibe || '').trim()
+        }));
         
         console.log(`📦 Direcciones cargadas: ${direccionesCliente.length}`);
         renderizarDirecciones();
