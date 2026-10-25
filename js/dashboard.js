@@ -1909,18 +1909,25 @@ function verificarCreditoDisponible() {
                 }
             }
             
+                        // ⭐ Fase 1B: Calcular excedente y crédito sobre el TOTAL (con IVA), no sobre el subtotal
+            const subtotalParcial = montoPago + montoCredito;
+            const factorIva = subtotalParcial > 0 ? (totalGeneral / subtotalParcial) : 1.16;
+            const montoPagoConIva = montoPago * factorIva;
+            const montoCreditoConIva = montoCredito * factorIva;
+
             return {
                 puedeCredito: true,
                 tipo: 'credito_parcial',
-                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPago)} deben pagarse. El resto va a crédito.`,
-                pesoTotal: 0,
-                montoCredito: montoCredito,
-                montoPago: montoPago,
+                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPagoConIva)} deben pagarse. El resto va a crédito.`,
+                pesoTotal: pesoTotal,
+                pesoExcedente: pesoExcedente,
+                montoCredito: montoCreditoConIva,   // <-- Con IVA
+                montoPago: montoPagoConIva,         // <-- Con IVA
                 productosCredito: productosCredito,
                 productosPago: productosPago,
                 excedeLimite: true,
                 puedeUsarCredito: true,
-                montoExcedente: montoPago
+                montoExcedente: montoPagoConIva     // <-- Con IVA
             };
         }
     }
@@ -2080,20 +2087,24 @@ function verificarCreditoDisponible() {
                 }
             }
             
-            const montoExcedenteTotal = montoPago;
-            
+                        // ⭐ Fase 1B: Calcular excedente y crédito sobre el TOTAL (con IVA), no sobre el subtotal
+            const subtotalParcial = montoPago + montoCredito;
+            const factorIva = subtotalParcial > 0 ? (totalGeneral / subtotalParcial) : 1.16;
+            const montoPagoConIva = montoPago * factorIva;
+            const montoCreditoConIva = montoCredito * factorIva;
+
             return {
                 puedeCredito: true,
                 tipo: 'credito_parcial',
-                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPago)} deben pagarse. El resto va a crédito.`,
+                mensaje: `⚠️ Excedes el límite de crédito. ${formatoMexicano(montoPagoConIva)} deben pagarse. El resto va a crédito.`,
                 pesoTotal: pesoTotal,
-                montoCredito: montoCredito,
-                montoPago: montoPago,
+                montoCredito: montoCreditoConIva,   // <-- Con IVA
+                montoPago: montoPagoConIva,         // <-- Con IVA
                 productosCredito: productosCredito,
                 productosPago: productosPago,
                 excedeLimite: true,
                 puedeUsarCredito: true,
-                montoExcedente: montoExcedenteTotal
+                montoExcedente: montoPagoConIva     // <-- Con IVA
             };
         }
     }
