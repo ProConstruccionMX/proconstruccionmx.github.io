@@ -4074,156 +4074,147 @@ async function guardarVentaEnEstadisticas(datos) {
 // FUNCIONES PARA "MIS COMPRAS"
 // ============================================
 
+// ============================================
+// CARGA DE HISTORIAL DE COMPRAS (Fase 0.3)
+// ============================================
 async function cargarHistorialCompras() {
     try {
-        const codigoCliente = sessionStorage.getItem('codigoCliente');
-        if (!codigoCliente) {
-            console.warn('⚠️ No hay código de cliente disponible');
-            return;
-        }
+        console.log('📥 Cargando historial de compras...');
         
-        console.log('📥 Cargando historial de compras para cliente:', codigoCliente);
-        
+        // 1. Cargar ventas (cabecera) del cliente
         const urlClientes = `${WORKER_URL}/leer?tipo=estadisticas-clientes`;
         const responseClientes = await fetchAutenticado(urlClientes);
-        const textClientes = await responseClientes.text();
-        const jsonStrClientes = textClientes.substring(textClientes.indexOf('(') + 1, textClientes.lastIndexOf(')'));
-        const dataClientes = JSON.parse(jsonStrClientes);
-        const rowsClientes = dataClientes.table.rows;
+        const dataClientes = await responseClientes.json();
         
-        const idsVenta = [];
-        const ventasMap = new Map();
-        
-        for (let i = 1; i < rowsClientes.length; i++) {
-            const values = rowsClientes[i].c.map(cell => cell ? cell.v : '');
-            const codigo = String(values[2] || '').trim();
-            const idVenta = String(values[1] || '').trim();
-            let fecha = values[0];
-            if (fecha && typeof fecha === 'object' && fecha.v !== undefined) {
-                fecha = fecha.v;
-            }
-            const total = parseFloat(values[4]) || 0;
-            const estado = String(values[12] || '').trim();
-            const formaPago = String(values[9] || '').trim();
-            const creditoPendiente = parseFloat(values[5]) || 0;
-            const montoPagado = parseFloat(values[6]) || 0;
-            const estatusPago = String(values[15] || '').trim();
-            const validado = String(values[15] || '').trim().toUpperCase() === 'VALIDADO';
-            
-            let fechaEntrega = '';
-            const cellFechaEntrega = rowsClientes[i].c[17];
-            if (cellFechaEntrega) {
-                if (cellFechaEntrega.f && String(cellFechaEntrega.f).trim() !== '') {
-                    fechaEntrega = String(cellFechaEntrega.f).trim();
-                } else if (cellFechaEntrega.v && String(cellFechaEntrega.v).indexOf('Date(') === 0) {
-                    const nums = String(cellFechaEntrega.v).replace('Date(', '').replace(')', '').split(',').map(function(n) { return parseInt(n); });
-                    if (nums.length >= 3 && !isNaN(nums[0]) && !isNaN(nums[1]) && !isNaN(nums[2])) {
-                        fechaEntrega = String(nums[2]).padStart(2,'0') + '/' + String(nums[1]+1).padStart(2,'0') + '/' + nums[0];
-                    }
-                }
-            }
-            
-            if (codigo === codigoCliente && idVenta) {
-                idsVenta.push(idVenta);
-                const fechaObj = parseFechaGoogleSheets(fecha);
-                ventasMap.set(idVenta, {
-                    idVenta: idVenta,
-                    fecha: fecha,
-                    fechaObj: fechaObj,
-                    total: total,
-                    estado: estado || 'Validando pago',
-                    codigoCliente: codigo,
-                    tipoPago: formaPago,
-                    saldoPendiente: creditoPendiente,
-                    montoPagado: montoPagado,
-                    anticipo: montoPagado,
-                    estatusPago: estatusPago,
-                    validado: validado,
-                    fechaEntrega: fechaEntrega
-                });
-            }
-        }
-        
-        console.log(`📦 IDs de venta encontrados: ${idsVenta.length}`);
-        
-        if (idsVenta.length === 0) {
+        if (!dataClientes.success) {
+            console.error('❌ No se pudieron cargar las ventas:', dataClientes.error);
             renderizarHistorialVacio();
             return;
         }
         
+        const ventasDelCliente = dataClientes.ventas || [];
+        console.log(`📦 Ventas encontradas: ${ventasDelCliente.length}`);
+        
+        if (ventasDelCliente.length === 0) {
+            renderizarHistorialVacio();
+            return;
+        }
+        
+        // 2. Cargar líneas de producto del cliente
         const urlProductos = `${WORKER_URL}/leer?tipo=estadisticas-productos`;
         const responseProductos = await fetchAutenticado(urlProductos);
-        const textProductos = await responseProductos.text();
-        const jsonStrProductos = textProductos.substring(textProductos.indexOf('(') + 1, textProductos.lastIndexOf(')'));
-        const dataProductos = JSON.parse(jsonStrProductos);
-        const rowsProductos = dataProductos.table.rows;
+        const dataProductos = await responseProductos.json();
         
+        if (!dataProductos.success) {
+            console.error('❌ No se pudieron cargar los productos:', dataProductos.error);
+            renderizarHistorialVacio();
+            return;
+        }
+        
+        const productosDelCliente = dataProductos.productos || [];
+        console.log(`📦 Líneas de producto encontradas: ${productosDelCliente.length}`);
+        
+        // 3. Agrupar productos por folio
         const productosPorVenta = new Map();
         const contadorProductos = new Map();
         
-        for (let i = 1; i < rowsProductos.length; i++) {
-            const values = rowsProductos[i].c.map(cell => cell ? cell.v : '');
-            const idVenta = String(values[1] || '').trim();
-            const nombreProducto = String(values[2] || '').trim();
-            const cantidad = parseFloat(values[3]) || 0;
-            const importe = parseFloat(values[4]) || 0;
-            const creditoPendiente = parseFloat(values[7]) || 0;
-            const montoPagado = parseFloat(values[8]) || 0;
-            const diasCredito = parseFloat(values[9]) || 0;
-            const fechaPagoStr = String(values[10] || '').trim();
+        productosDelCliente.forEach(p => {
+            const folio = p.folio;
             
-            if (idsVenta.includes(idVenta) && nombreProducto) {
-                if (!productosPorVenta.has(idVenta)) {
-                    productosPorVenta.set(idVenta, []);
-                }
-                productosPorVenta.get(idVenta).push({
-                    nombre: nombreProducto,
-                    cantidad: cantidad,
-                    importe: importe
-                });
-                
-                if (!ventasMap.has(idVenta)) {
-                    ventasMap.set(idVenta, {});
-                }
-                const ventaInfo = ventasMap.get(idVenta);
-                ventaInfo.diasCredito = diasCredito || ventaInfo.diasCredito || 0;
-                if (fechaPagoStr && !ventaInfo.fechaPago) {
-                    ventaInfo.fechaPago = fechaPagoStr;
-                }
-                
-                if (contadorProductos.has(nombreProducto)) {
-                    const data = contadorProductos.get(nombreProducto);
-                    data.cantidad += cantidad;
-                    data.veces++;
-                    data.totalImporte += importe;
-                } else {
-                    contadorProductos.set(nombreProducto, {
-                        nombre: nombreProducto,
-                        cantidad: cantidad,
-                        veces: 1,
-                        totalImporte: importe
-                    });
-                }
+            if (!productosPorVenta.has(folio)) {
+                productosPorVenta.set(folio, []);
             }
-        }
+            productosPorVenta.get(folio).push({
+                nombre: p.producto,
+                cantidad: p.cantidad,
+                importe: p.importe
+            });
+            
+            // Contador para "productos más comprados"
+            if (contadorProductos.has(p.producto)) {
+                const data = contadorProductos.get(p.producto);
+                data.cantidad += p.cantidad;
+                data.veces++;
+                data.totalImporte += p.importe;
+            } else {
+                contadorProductos.set(p.producto, {
+                    nombre: p.producto,
+                    cantidad: p.cantidad,
+                    veces: 1,
+                    totalImporte: p.importe
+                });
+            }
+        });
         
+        // 4. Construir el array de historialVentas
         historialVentas = [];
         
-        for (const [idVenta, info] of ventasMap) {
-            const productos = productosPorVenta.get(idVenta) || [];
+        ventasDelCliente.forEach(v => {
+            const folio = v.folio;
+            const productos = productosPorVenta.get(folio) || [];
             const subtotal = productos.reduce((sum, p) => sum + p.importe, 0);
+            
+            // Parsear la fecha
+            const fechaObj = parseFechaGoogleSheets(v.fecha);
+            
+            // Procesar fecha de entrega (columna R)
+            let fechaEntregaStr = '';
+            if (v.fechaEntrega) {
+                if (typeof v.fechaEntrega === 'object' && v.fechaEntrega.getTime) {
+                    try {
+                        fechaEntregaStr = v.fechaEntrega.toLocaleDateString('es-MX', {
+                            day: '2-digit', month: '2-digit', year: 'numeric'
+                        });
+                    } catch (e) {}
+                } else if (typeof v.fechaEntrega === 'string' && v.fechaEntrega.includes('Date(')) {
+                    const nums = v.fechaEntrega.replace('Date(', '').replace(')', '').split(',').map(n => parseInt(n));
+                    if (nums.length >= 3 && !isNaN(nums[0])) {
+                        fechaEntregaStr = String(nums[2]).padStart(2,'0') + '/' + 
+                                           String(nums[1]+1).padStart(2,'0') + '/' + 
+                                           nums[0];
+                    }
+                } else if (typeof v.fechaEntrega === 'string' && v.fechaEntrega.trim() !== '') {
+                    fechaEntregaStr = v.fechaEntrega.trim();
+                }
+            }
+            
+            const estatusPago = String(v.estatusPago || '').trim();
+            const validado = estatusPago.toUpperCase() === 'VALIDADO';
+            
+            // Buscar días de crédito y fecha de pago en los productos
+            let diasCreditoVenta = 0;
+            let fechaPagoVenta = null;
+            productosDelCliente.forEach(p => {
+                if (p.folio === folio) {
+                    if (p.diasCredito && p.diasCredito > 0) diasCreditoVenta = p.diasCredito;
+                    if (p.fechaPago && !fechaPagoVenta) fechaPagoVenta = p.fechaPago;
+                }
+            });
+            
             historialVentas.push({
-                ...info,
+                idVenta: folio,
+                fecha: v.fecha,
+                fechaObj: fechaObj,
+                total: v.total,
+                estado: v.estatus || 'Validando pago',
+                codigoCliente: v.codigoCliente,
+                tipoPago: v.formaPago || v.tipoPago || '',
+                saldoPendiente: v.creditoPendiente,
+                montoPagado: v.montoPagado,
+                anticipo: v.montoPagado,
+                estatusPago: estatusPago,
+                validado: validado,
+                fechaEntrega: fechaEntregaStr,
                 productos: productos,
                 subtotal: subtotal,
                 iva: subtotal * 0.16,
                 totalConIva: subtotal * 1.16,
-                fechaPago: info.fechaPago || null,
-                diasCredito: info.diasCredito || 0,
-                estatusPago: info.estatusPago || ''
+                fechaPago: fechaPagoVenta,
+                diasCredito: diasCreditoVenta
             });
-        }
+        });
         
+        // 5. Ordenar por fecha descendente
         historialVentas.sort((a, b) => {
             const fechaA = a.fechaObj || parseFechaGoogleSheets(a.fecha);
             const fechaB = b.fechaObj || parseFechaGoogleSheets(b.fecha);
@@ -4233,11 +4224,13 @@ async function cargarHistorialCompras() {
             return fechaB - fechaA;
         });
         
+        // 6. Productos más comprados
         productosMasComprados = Array.from(contadorProductos.values());
         productosMasComprados.sort((a, b) => b.totalImporte - a.totalImporte);
         
         console.log(`📦 Historial cargado: ${historialVentas.length} ventas`);
         
+        // 7. Poblar el select de años
         const anos = [...new Set(historialVentas.map(v => {
             const fecha = v.fechaObj || parseFechaGoogleSheets(v.fecha);
             return fecha ? fecha.getFullYear() : null;
@@ -4255,6 +4248,7 @@ async function cargarHistorialCompras() {
             });
         }
         
+        // 8. Renderizar
         renderizarOrdenes();
         renderizarHistorialCompras();
         renderizarEstadisticasProductos();
