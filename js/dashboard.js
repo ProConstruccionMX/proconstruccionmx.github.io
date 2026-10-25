@@ -24,9 +24,6 @@ const HOJA_PRECIOS_ESPECIALES = 'Hoja 1';
 const ID_COTIZACIONES = '1S4qoHh3lTDoSUwDNeilmN6QKk8uhmvxjwvRQpEHQbS0';
 const HOJA_COTIZACIONES = 'Hoja 1';
 
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz4MPJ6QmLIOsN85H9bc-E5uxozb0kVicms6c51VLwappox_ZpISSyawzfVrzof6WA3mA/exec';
-const APPS_SCRIPT_DIRECCIONES_URL = 'https://script.google.com/macros/s/AKfycbzrEptElYSBx-jw1AMNV6SelSzVLiopTY1VY7l7AFj7SeRDvTOREYVPyCg005OSmAWe/exec';
-const APPS_SCRIPT_FACTURACION_URL = 'https://script.google.com/macros/s/AKfycbwcEwB2K17lhR5d52eab8EL-2K7C2mXzEubtyP-TcF-VWcmfNS-lODtFWAYdllNmHz9Mg/exec';
 const APPS_SCRIPT_EMAIL_URL = 'https://script.google.com/macros/s/AKfycbzxjyFsLB6go3gcMz1qPNou1HhxsugQoiLvKPl0GAwLOQJZKdEcOyK-QxFU64WukWCY/exec';
 
 const WORKER_URL = 'https://proconstruccionmx-proxy.proconstruccionmx.workers.dev';
@@ -251,17 +248,6 @@ function formatearFechaHora(fechaStr) {
 // ============================================
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('🚀 Iniciando dashboard...');
-    
-    if (typeof emailjs !== 'undefined') {
-        try {
-            emailjs.init('_gOxtGSQmrhTdoRuX');
-            console.log('✅ EmailJS inicializado desde dashboard.js');
-        } catch (e) {
-            console.warn('⚠️ EmailJS ya estaba inicializado o error:', e);
-        }
-    } else {
-        console.warn('⚠️ EmailJS no está disponible al inicio');
-    }
     
     if (sessionStorage.getItem('userLoggedIn') !== 'true') {
         window.location.href = 'login.html';
