@@ -3870,9 +3870,8 @@ async function procesarPagoCredito() {
             comprobanteTipo: esCreditoParcial ? comprobanteTipo : null
         };
         
-        // 6. Generar token de confirmación de crédito (se enviará al servidor)
+                // 6. ⭐ FASE 1C: Solicitar al servidor que genere el token y envíe el correo
         try {
-            const tokenConfirmacion = generarTokenConfirmacion();
             const fechaCompraStr = new Date().toLocaleDateString('es-MX', {
                 day: '2-digit',
                 month: 'long',
@@ -3894,7 +3893,7 @@ async function procesarPagoCredito() {
                 body: JSON.stringify({
                     folio: result.folio,
                     codigoCliente: clienteData.codigo,
-                    token: tokenConfirmacion,
+                    // ⭐ NO enviamos token: el servidor lo genera
                     email: clienteData.correo,
                     nombre: clienteData.nombre,
                     fechaCompra: fechaCompraStr,
@@ -3910,13 +3909,19 @@ async function procesarPagoCredito() {
             const resultToken = await responseToken.json();
             console.log('📧 Resultado guardarTokenCompraCredito:', resultToken);
             
+            if (resultToken.token) {
+                console.log('✅ Token generado por el servidor:', resultToken.token.substring(0, 10) + '...');
+            } else {
+                console.warn('⚠️ El servidor no devolvió token');
+            }
+            
             if (resultToken.correoEnviado) {
                 console.log('✅ Correo de confirmación de crédito enviado al cliente');
             } else {
                 console.warn('⚠️ El correo de confirmación no se pudo enviar, pero la venta fue registrada');
             }
         } catch (tokenError) {
-            console.error('⚠️ Error al generar token de confirmación (no bloquea la venta):', tokenError);
+            console.error('⚠️ Error al solicitar token de confirmación (no bloquea la venta):', tokenError);
         }
         
         // 7. Enviar correo con adjunto (vía Worker)
@@ -5664,12 +5669,4 @@ async function cerrarSesionDispositivo(tokenSesion, esActual, index) {
             boton.innerHTML = '<i class="fas fa-sign-out-alt"></i> Cerrar';
         }
     }
-}
-function generarTokenConfirmacion() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let token = '';
-    for (let i = 0; i < 64; i++) {
-        token += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return token;
 }
