@@ -50,6 +50,8 @@ let comprobanteCreditoNombre = null;
 
 let fechaEntregaSeleccionada = null;
 
+let direccionSeleccionadaNombre = null;
+
 // ============================================
 // ⭐ FUNCIÓN AUXILIAR: FETCH AUTENTICADO AL WORKER
 // ============================================
@@ -2594,13 +2596,19 @@ function abrirModalDireccion() {
     document.getElementById('modalDireccionMensaje').innerHTML = '';
     document.getElementById('modalDireccionMensaje').style.display = 'none';
     
+    // ⭐ Limpiar el nombre de la dirección seleccionada al abrir el modal
+    direccionSeleccionadaNombre = null;
+    
     document.getElementById('modalDireccion').classList.add('active');
 }
 
 function cargarDireccionSeleccionada() {
     const select = document.getElementById('direccionSelector');
     const index = parseInt(select.value);
+    
     if (isNaN(index) || index < 0 || index >= direccionesCliente.length) {
+        // No hay dirección seleccionada: limpiar campos y variable
+        direccionSeleccionadaNombre = null;
         document.getElementById('dirCalle').value = '';
         document.getElementById('dirColonia').value = '';
         document.getElementById('dirAlcaldia').value = '';
@@ -2616,6 +2624,10 @@ function cargarDireccionSeleccionada() {
     }
     
     const dir = direccionesCliente[index];
+    
+    // ⭐ Guardar el nombre de la dirección seleccionada
+    direccionSeleccionadaNombre = dir.nombre || 'Sin nombre';
+    
     document.getElementById('dirCalle').value = dir.calle || '';
     document.getElementById('dirColonia').value = dir.colonia || '';
     document.getElementById('dirAlcaldia').value = dir.alcaldia || '';
@@ -2653,20 +2665,24 @@ async function continuarConPago() {
         return;
     }
     
-    const guardarDireccion = document.getElementById('dirGuardarCheck').checked;
-    let nombreDireccion = document.getElementById('dirGuardarNombre').value.trim();
+        const guardarDireccion = document.getElementById('dirGuardarCheck').checked;
+    let nombreDireccion = '';
     
-    const select = document.getElementById('direccionSelector');
-    const index = parseInt(select.value);
-    if (!isNaN(index) && index >= 0 && index < direccionesCliente.length) {
-        nombreDireccion = direccionesCliente[index].nombre;
+    // ⭐ Prioridad 1: Si el usuario seleccionó una dirección del <select>, usar su nombre
+    if (direccionSeleccionadaNombre) {
+        nombreDireccion = direccionSeleccionadaNombre;
+    } else {
+        // Prioridad 2: Si el usuario escribió un nombre en el campo de guardar
+        nombreDireccion = document.getElementById('dirGuardarNombre').value.trim();
     }
     
+    // Si va a guardar la dirección y no tiene nombre, pedir nombre
     if (guardarDireccion && !nombreDireccion) {
         mostrarMensajeModalDireccion('error', '⚠️ Por favor, asigna un nombre a la dirección para guardarla.');
         return;
     }
     
+    // Si no hay nombre, usar "Sin nombre" como fallback
     if (!nombreDireccion) {
         nombreDireccion = 'Sin nombre';
     }
