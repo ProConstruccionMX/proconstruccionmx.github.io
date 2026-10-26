@@ -3089,7 +3089,6 @@ function seleccionarPago(tipo) {
                 btnConfirmarCredito.className = 'btn-enviar';
             }
         }
-    }
 }
             
             validarCamposCreditoParcial();
