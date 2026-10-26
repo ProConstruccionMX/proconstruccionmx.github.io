@@ -131,12 +131,16 @@
     <script>
         const WORKER_URL = 'https://proconstruccionmx-proxy.proconstruccionmx.workers.dev';
         
-        async function confirmarCredito() {
+                async function confirmarCredito() {
             const contenido = document.getElementById('contenido');
             
             // Leer el token de la URL
             const params = new URLSearchParams(window.location.search);
             const token = params.get('token');
+            
+            console.log('🔍 URL completa:', window.location.href);
+            console.log('🔍 Token leído de la URL:', token);
+            console.log('🔍 Longitud del token:', token ? token.length : 0);
             
             if (!token) {
                 mostrarError('No se encontró el token de confirmación en el enlace. Por favor, verifica que hayas hecho clic en el botón del correo.');
@@ -144,6 +148,7 @@
             }
             
             console.log('🔐 Token recibido:', token.substring(0, 10) + '...');
+            console.log('🔐 Token completo (para comparar):', token);
             
             try {
                 const response = await fetch(`${WORKER_URL}/confirmarCredito`, {
@@ -154,8 +159,22 @@
                     body: JSON.stringify({ token: token })
                 });
                 
-                const result = await response.json();
-                console.log('📥 Respuesta:', result);
+                console.log('📥 Status de respuesta:', response.status);
+                console.log('📥 Content-Type:', response.headers.get('content-type'));
+                
+                const text = await response.text();
+                console.log('📥 Respuesta raw:', text);
+                
+                let result;
+                try {
+                    result = JSON.parse(text);
+                } catch (e) {
+                    console.error('❌ Error al parsear JSON:', e);
+                    mostrarError('Error al procesar la respuesta del servidor.');
+                    return;
+                }
+                
+                console.log('📥 Respuesta parseada:', result);
                 
                 if (result.success) {
                     mostrarExito(result.folio || '');
