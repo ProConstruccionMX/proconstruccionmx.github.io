@@ -3009,7 +3009,7 @@ function seleccionarPago(tipo) {
         validarCamposTransferencia();
         document.getElementById('facturaContainer').style.display = 'block';
         
-        } else if (tipo === 'credito') {
+    } else if (tipo === 'credito') {
         document.getElementById('btnCredito').classList.add('selected');
         if (formCredito) formCredito.style.display = 'block';
         if (formTransferencia) formTransferencia.style.display = 'none';
@@ -3090,6 +3090,7 @@ function seleccionarPago(tipo) {
             }
         }
     }
+}
             
             validarCamposCreditoParcial();
             
