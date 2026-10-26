@@ -3009,27 +3009,38 @@ function seleccionarPago(tipo) {
         validarCamposTransferencia();
         document.getElementById('facturaContainer').style.display = 'block';
         
-    } else if (tipo === 'credito') {
+        } else if (tipo === 'credito') {
         document.getElementById('btnCredito').classList.add('selected');
         if (formCredito) formCredito.style.display = 'block';
         if (formTransferencia) formTransferencia.style.display = 'none';
         
         document.getElementById('facturaContainer').style.display = 'block';
         
-        const infoCredito = window._infoCredito || infoCreditoCalculado;
-        const esCreditoParcial = window._esCreditoParcial || false;
-        const montoExcedente = window._montoExcedente || 0;
+        // ⭐ RECALCULAR CRÉDITO EN EL MOMENTO
+        const infoCreditoActual = verificarCreditoDisponible();
+        infoCreditoCalculado = infoCreditoActual;
         
-        if (esCreditoParcial && infoCredito && infoCredito.excedeLimite) {
+        const esCreditoParcialActual = infoCreditoActual.tipo === 'credito_parcial' && infoCreditoActual.excedeLimite;
+        const montoExcedenteActual = infoCreditoActual.montoExcedente || 0;
+        const montoCreditoActual = infoCreditoActual.montoCredito || 0;
+        
+        // Actualizar variables globales
+        window._infoCredito = infoCreditoActual;
+        window._esCreditoParcial = esCreditoParcialActual;
+        window._montoExcedente = montoExcedenteActual;
+        window._montoPago = infoCreditoActual.montoPago || 0;
+        window._montoCredito = montoCreditoActual;
+        
+        if (esCreditoParcialActual && infoCreditoActual.excedeLimite) {
             const mensajeHTML = `
                 <div style="background: #fef3c7; padding: 1rem; border-radius: 12px; margin-bottom: 1rem; border: 1px solid #fde68a;">
                     <p style="margin: 0; font-weight: 600; color: #92400e;">
                         ⚠️ Excedes el límite de crédito
                     </p>
                     <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; color: #92400e;">
-                        <strong>Monto a pagar (excedente):</strong> ${formatoMexicano(montoExcedente)}
+                        <strong>Monto a pagar (excedente):</strong> ${formatoMexicano(montoExcedenteActual)}
                         <br>
-                        <strong>Monto a crédito:</strong> ${formatoMexicano(infoCredito.montoCredito)}
+                        <strong>Monto a crédito:</strong> ${formatoMexicano(montoCreditoActual)}
                     </p>
                     <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #92400e;">
                         Para usar crédito, deberás pagar el excedente de contado.
@@ -3043,7 +3054,7 @@ function seleccionarPago(tipo) {
             
             if (formTransferencia) {
                 formTransferencia.style.display = 'block';
-                document.getElementById('montoTransferencia').textContent = formatoMexicano(montoExcedente);
+                document.getElementById('montoTransferencia').textContent = formatoMexicano(montoExcedenteActual);
             }
             
             if (btnConfirmarTransferencia) btnConfirmarTransferencia.style.display = 'none';
@@ -3056,6 +3067,29 @@ function seleccionarPago(tipo) {
                 btnConfirmarCredito.style.cursor = 'not-allowed';
                 btnConfirmarCredito.className = 'btn-enviar';
             }
+            
+            validarCamposCreditoParcial();
+            
+        } else {
+            document.getElementById('modalMensaje').innerHTML = '';
+            document.getElementById('modalMensaje').style.display = 'none';
+            
+            if (formTransferencia) {
+                formTransferencia.style.display = 'none';
+            }
+            
+            if (btnConfirmarTransferencia) btnConfirmarTransferencia.style.display = 'none';
+            if (btnConfirmarCredito) {
+                btnConfirmarCredito.style.display = 'block';
+                btnConfirmarCredito.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
+                btnConfirmarCredito.disabled = false;
+                btnConfirmarCredito.title = '';
+                btnConfirmarCredito.style.opacity = '1';
+                btnConfirmarCredito.style.cursor = 'pointer';
+                btnConfirmarCredito.className = 'btn-enviar';
+            }
+        }
+    }
             
             validarCamposCreditoParcial();
             
