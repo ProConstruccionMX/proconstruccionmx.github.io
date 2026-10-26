@@ -5252,17 +5252,6 @@ function formatoMexicano(numero) {
     return `$${enteros}.${partes[1]}`;
 }
 
-function generarFolio() {
-    const hoy = new Date();
-    const dd = String(hoy.getDate()).padStart(2, '0');
-    const mm = String(hoy.getMonth() + 1).padStart(2, '0');
-    const yyyy = hoy.getFullYear();
-    const prefijo = `CT-${dd}${mm}${yyyy}-`;
-    
-    const numero = String(Math.floor(Math.random() * 9999) + 1).padStart(4, '0');
-    return prefijo + numero;
-}
-
 function mostrarNotificacion(mensaje) {
     const div = document.createElement('div');
     div.style.cssText = `
