@@ -3089,29 +3089,6 @@ function seleccionarPago(tipo) {
                 btnConfirmarCredito.className = 'btn-enviar';
             }
         }
-}
-            
-            validarCamposCreditoParcial();
-            
-        } else {
-            document.getElementById('modalMensaje').innerHTML = '';
-            document.getElementById('modalMensaje').style.display = 'none';
-            
-            if (formTransferencia) {
-                formTransferencia.style.display = 'none';
-            }
-            
-            if (btnConfirmarTransferencia) btnConfirmarTransferencia.style.display = 'none';
-            if (btnConfirmarCredito) {
-                btnConfirmarCredito.style.display = 'block';
-                btnConfirmarCredito.innerHTML = '<i class="fas fa-check"></i> Confirmar Crédito';
-                btnConfirmarCredito.disabled = false;
-                btnConfirmarCredito.title = '';
-                btnConfirmarCredito.style.opacity = '1';
-                btnConfirmarCredito.style.cursor = 'pointer';
-                btnConfirmarCredito.className = 'btn-enviar';
-            }
-        }
     }
 }
 
