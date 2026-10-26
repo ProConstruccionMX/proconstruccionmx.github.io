@@ -1661,7 +1661,9 @@ function verificarCreditoDisponible() {
         }
     });
     
-    const totalGeneral = montoConPeso + montoSinPeso;
+       // ⭐ FIX: totalGeneral debe ser el TOTAL con IVA, no el subtotal
+    const subtotalGeneral = montoConPeso + montoSinPeso;
+    const totalGeneral = subtotalGeneral * 1.16;
     
     console.log(`⚖️ Peso total (con peso): ${pesoTotal.toFixed(2)} kg`);
     console.log(`💰 Monto productos con peso: ${formatoMexicano(montoConPeso)}`);
