@@ -6,19 +6,56 @@ const AUTH_WORKER_URL = 'https://proconstruccionmx-proxy.proconstruccionmx.worke
 // Variable global para almacenar el código del cliente
 let codigoClienteGlobal = null;
 
+// ⭐ Turnstile: token generado por el widget
+let turnstileTokenLogin = null;
+let turnstileTokenRecuperar = null;
+
+// Callbacks que Turnstile invoca cuando el usuario completa el desafío
+function onTurnstileSuccess(token) {
+    turnstileTokenLogin = token;
+    console.log('✅ Turnstile login OK');
+}
+
+function onTurnstileSuccessRecuperar(token) {
+    turnstileTokenRecuperar = token;
+    console.log('✅ Turnstile recuperar OK');
+}
+
+// Callbacks de error (por si falla)
+function onTurnstileError() {
+    turnstileTokenLogin = null;
+    console.warn('⚠️ Turnstile login falló');
+}
+
+function onTurnstileExpired() {
+    turnstileTokenLogin = null;
+    console.warn('⚠️ Turnstile login expiró');
+}
+
+function onTurnstileErrorRecuperar() {
+    turnstileTokenRecuperar = null;
+    console.warn('⚠️ Turnstile recuperar falló');
+}
+
+function onTurnstileExpiredRecuperar() {
+    turnstileTokenRecuperar = null;
+    console.warn('⚠️ Turnstile recuperar expiró');
+}
+
 // ============================================
 // AUTENTICACIÓN (a través del Worker)
 // ============================================
 async function autenticarUsuario(email, password) {
     try {
-        const response = await fetch(`${AUTH_WORKER_URL}/login`, {
+                const response = await fetch(`${AUTH_WORKER_URL}/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8',
             },
             body: JSON.stringify({
                 email: email.trim(),
-                password: password
+                password: password,
+                turnstileToken: turnstileTokenLogin || ''
             })
         });
 
@@ -64,9 +101,10 @@ async function recuperarContrasena(email) {
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8',
             },
-            body: JSON.stringify({
+                        body: JSON.stringify({
                 action: 'solicitarReset',
-                email: email.trim()
+                email: email.trim(),
+                turnstileToken: turnstileTokenRecuperar || ''
             })
         });
         
@@ -102,6 +140,16 @@ async function recuperarContrasena(email) {
 // ============================================
 async function handleLogin(event) {
     event.preventDefault();
+        
+    // ⭐ Validar Turnstile
+    if (!turnstileTokenLogin) {
+        const errorDiv = document.getElementById('errorMessage');
+        if (errorDiv) {
+            errorDiv.querySelector('#errorText').textContent = 'Por favor, completa la verificación de seguridad.';
+            errorDiv.classList.add('show');
+        }
+        return false;
+    }
     
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
@@ -165,6 +213,16 @@ async function handleLogin(event) {
 // ============================================
 async function handleRecuperar(event) {
     event.preventDefault();
+        
+    // ⭐ Validar Turnstile
+    if (!turnstileTokenRecuperar) {
+        const messageBox = document.getElementById('messageBox');
+        if (messageBox) {
+            messageBox.className = 'message-box error';
+            messageBox.textContent = 'Por favor, completa la verificación de seguridad.';
+        }
+        return false;
+    }
     
     const email = document.getElementById('email').value.trim();
     const messageBox = document.getElementById('messageBox');
