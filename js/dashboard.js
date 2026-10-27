@@ -3158,6 +3158,27 @@ function cargarComprobante(event) {
     const file = event.target.files[0];
     if (!file) return;
     
+    if (file.size > 5 * 1024 * 1024) {
+        mostrarNotificacion('⚠️ El archivo supera los 5 MB. Sube un archivo más pequeño.');
+        event.target.value = '';
+        document.getElementById('fileName').textContent = 'Ningún archivo seleccionado';
+        comprobanteBase64 = null;
+        comprobanteNombre = null;
+        comprobanteTipo = null;
+        return;
+    }
+    
+    const tiposPermitidos = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+    if (!tiposPermitidos.includes(file.type)) {
+        mostrarNotificacion('⚠️ Solo se permiten imágenes (JPG, PNG, WEBP, GIF) o PDF.');
+        event.target.value = '';
+        document.getElementById('fileName').textContent = 'Ningún archivo seleccionado';
+        comprobanteBase64 = null;
+        comprobanteNombre = null;
+        comprobanteTipo = null;
+        return;
+    }
+    
     const reader = new FileReader();
     reader.onload = function(e) {
         const base64String = e.target.result;
@@ -3184,6 +3205,25 @@ function cargarComprobante(event) {
 function cargarComprobanteCredito(event) {
     const file = event.target.files[0];
     if (!file) return;
+    
+    if (file.size > 5 * 1024 * 1024) {
+        mostrarNotificacion('⚠️ El archivo supera los 5 MB. Sube un archivo más pequeño.');
+        event.target.value = '';
+        document.getElementById('fileNameCredito').textContent = 'Ningún archivo seleccionado';
+        comprobanteCreditoBase64 = null;
+        comprobanteCreditoNombre = null;
+        return;
+    }
+    
+    const tiposPermitidos = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+    if (!tiposPermitidos.includes(file.type)) {
+        mostrarNotificacion('⚠️ Solo se permiten imágenes (JPG, PNG, WEBP, GIF) o PDF.');
+        event.target.value = '';
+        document.getElementById('fileNameCredito').textContent = 'Ningún archivo seleccionado';
+        comprobanteCreditoBase64 = null;
+        comprobanteCreditoNombre = null;
+        return;
+    }
     
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -5057,7 +5097,7 @@ function abrirModalPagoCreditoPendiente(idVenta) {
                         <i class="fas fa-cloud-upload-alt" style="font-size:2rem; color: var(--accent-orange);"></i>
                         <p>Haz clic para seleccionar tu comprobante</p>
                         <p class="file-name" id="fileNameCredito">Ningún archivo seleccionado</p>
-                        <input type="file" id="comprobanteFileCredito" accept="*/*" onchange="cargarComprobanteCredito(event)">
+                        <input type="file" id="comprobanteFileCredito" accept="image/*,application/pdf" onchange="cargarComprobanteCredito(event)">
                     </div>
                 </div>
                 
