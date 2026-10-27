@@ -1359,6 +1359,58 @@
         </div>
     </div>
 
+        <!-- ===== MODAL DE FACTURACIÓN (Bloque 2) ===== -->
+    <div class="modal-overlay" id="modalFacturacion">
+        <div class="modal">
+            <h2>📄 ¿Requieres factura?</h2>
+            <p class="subtitle">Selecciona una opción para continuar</p>
+
+            <div id="modalFacturacionMensaje" style="display:none;"></div>
+
+            <div class="opciones-pago" style="margin-bottom:1.5rem;">
+                <button onclick="seleccionarFacturaModal('si')" id="btnFacturaSi" style="flex:1; padding:1.5rem 1rem; border:2px solid #e2e8f0; border-radius:12px; background:white; font-weight:600; cursor:pointer; transition:all 0.3s; font-family:'Inter',sans-serif;">
+                    <i class="fas fa-file-invoice" style="font-size:1.8rem; display:block; margin-bottom:0.5rem; color:var(--accent-orange);"></i>
+                    <div style="font-size:1.1rem; color:var(--primary-dark);">Sí, requiero factura</div>
+                    <div style="font-size:0.8rem; color:var(--text-gray); font-weight:400; margin-top:0.3rem;">Necesito factura fiscal</div>
+                </button>
+                <button onclick="seleccionarFacturaModal('no')" id="btnFacturaNo" style="flex:1; padding:1.5rem 1rem; border:2px solid #e2e8f0; border-radius:12px; background:white; font-weight:600; cursor:pointer; transition:all 0.3s; font-family:'Inter',sans-serif;">
+                    <i class="fas fa-receipt" style="font-size:1.8rem; display:block; margin-bottom:0.5rem; color:var(--text-gray);"></i>
+                    <div style="font-size:1.1rem; color:var(--primary-dark);">No, gracias</div>
+                    <div style="font-size:0.8rem; color:var(--text-gray); font-weight:400; margin-top:0.3rem;">Solo requiero el comprobante</div>
+                </button>
+            </div>
+
+            <div id="facturaRazonSocialContainerModal" style="display:none;">
+                <div class="form-group">
+                    <label>Selecciona la razón social para facturar <span style="color:red;">*</span></label>
+                    <select id="facturaRazonSocialSelectModal" onchange="cargarDatosFacturaSeleccionadosModal()">
+                        <option value="">-- Selecciona una razón social --</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 1rem; text-align: center;">
+                    <button type="button" class="btn-secondary" onclick="abrirModalAgregarFacturacionDesdePago()" style="padding:0.5rem 1.5rem; font-size:0.85rem;">
+                        <i class="fas fa-plus"></i> Registrar nueva razón social
+                    </button>
+                </div>
+                <div id="facturaDatosPreviewModal" style="display:none; background:var(--gray-light); padding:1rem; border-radius:12px; margin-bottom:1rem;">
+                    <p><strong>RFC:</strong> <span id="facturaPreviewRFCModal">---</span></p>
+                    <p><strong>Uso de CFDI:</strong> <span id="facturaPreviewUsoModal">---</span></p>
+                    <p><strong>C.P.:</strong> <span id="facturaPreviewCPModal">---</span></p>
+                    <p><strong>Régimen Fiscal:</strong> <span id="facturaPreviewRegimenModal">---</span></p>
+                    <p><strong>Correo:</strong> <span id="facturaPreviewCorreoModal">---</span></p>
+                </div>
+            </div>
+
+            <button class="btn-enviar" id="btnContinuarFacturacion" onclick="confirmarFacturacion()" disabled>
+                <i class="fas fa-arrow-right"></i> Continuar al Pago
+            </button>
+            <button class="btn-cerrar-modal" onclick="cerrarModalFacturacion()">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+        </div>
+    </div>
+    <!-- ===== FIN MODAL DE FACTURACIÓN ===== -->
+
     <!-- ===== MODAL DE SELECCIÓN DE FECHA DE ENTREGA ===== -->
     <div class="modal-overlay" id="modalFechaEntrega">
         <div class="modal">
