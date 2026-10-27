@@ -968,9 +968,109 @@
             vertical-align: middle;
             margin-right: 8px;
         }
+           /* ============================================
+           SPLASH SCREEN (Bloque 1)
+           ============================================ */
+        .splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0A2540 0%, #1a4d8c 100%);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.6s ease, visibility 0.6s ease;
+        }
+        .splash-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .splash-content {
+            text-align: center;
+            padding: 2rem;
+            max-width: 400px;
+        }
+        .splash-logo {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: white;
+            margin-bottom: 2rem;
+            font-family: 'Inter', sans-serif;
+        }
+        .splash-logo span {
+            color: #F5A623;
+        }
+        .splash-spinner {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 1.5rem auto;
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top-color: #F5A623;
+            border-radius: 50%;
+            animation: splash-spin 1s linear infinite;
+        }
+        @keyframes splash-spin {
+            to { transform: rotate(360deg); }
+        }
+        .splash-text {
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            transition: opacity 0.3s ease;
+        }
+        .splash-subtext {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.85rem;
+        }
+        .splash-error {
+            background: rgba(220, 38, 38, 0.9);
+            color: white;
+            padding: 1rem;
+            border-radius: 12px;
+            margin-top: 1.5rem;
+            text-align: center;
+        }
+        .splash-error p {
+            margin: 0 0 1rem 0;
+            font-size: 0.9rem;
+        }
+        .splash-retry {
+            background: white;
+            color: #dc2626;
+            border: none;
+            padding: 0.6rem 1.5rem;
+            border-radius: 50px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s;
+        }
+        .splash-retry:hover {
+            background: #f0f0f0;
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
+        <!-- ===== SPLASH SCREEN (Bloque 1) ===== -->
+    <div id="splashScreen" class="splash-screen">
+        <div class="splash-content">
+            <div class="splash-logo">ProConstrucción <span>MX</span></div>
+            <div class="splash-spinner"></div>
+            <p class="splash-text" id="splashText">Cargando tus datos...</p>
+            <p class="splash-subtext" id="splashSubtext">Esto tomará solo unos segundos</p>
+            <div class="splash-error" id="splashError" style="display:none;">
+                <p id="splashErrorText"></p>
+                <button onclick="location.reload()" class="splash-retry">Reintentar</button>
+            </div>
+        </div>
+    </div>
+    <!-- ===== FIN SPLASH SCREEN ===== -->
 
     <header class="dashboard-header">
         <a href="index.html" class="logo">ProConstrucción <span>MX</span></a>
