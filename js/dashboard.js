@@ -2349,25 +2349,25 @@ function renderizarCarrito() {
             pxvInfo = `<br><small style="color:var(--text-gray);">📦 ${info}</small>`;
         }
         
-        html += `
+                html += `
             <tr>
                 <td>
-                    <strong>${item.nombre}</strong>
+                    <strong>${escapeHtml(item.nombre)}</strong>
                     ${pesoInfo}
                     ${minPiezasInfo}
                     ${pxvInfo}
-                    <br><small style="color:var(--text-gray);">${item.clave}</small>
+                    <br><small style="color:var(--text-gray);">${escapeHtml(item.clave)}</small>
                 </td>
                 <td>${formatoMexicano(item.precio)}</td>
                 <td>
                     <input type="number" class="cantidad-input" 
                            value="${item.cantidad}" min="1" 
-                           onchange="cambiarCantidad('${item.clave}', parseInt(this.value))">
+                           onchange="cambiarCantidad('${escapeHtml(item.clave)}', parseInt(this.value))">
                 </td>
                 <td>${item.descuento}%</td>
                 <td>${formatoMexicano(importeFinal)}</td>
                 <td>
-                    <button class="btn-eliminar" onclick="eliminarDelCarrito('${item.clave}')">
+                    <button class="btn-eliminar" onclick="eliminarDelCarrito('${escapeHtml(item.clave)}')">
                         <i class="fas fa-trash"></i>
                     </button>
                 </td>
@@ -4447,7 +4447,7 @@ function renderizarOrdenes() {
         }
         
         html += `
-            <div style="position:relative; margin-bottom: 2rem; padding-left: 1.5rem; cursor:pointer;" onclick="verDetalleVenta('${venta.idVenta}')">
+                        <div style="position:relative; margin-bottom: 2rem; padding-left: 1.5rem; cursor:pointer;" onclick="verDetalleVenta('${escapeHtml(venta.idVenta)}')">
                 <div style="position:absolute; left:-2px; top:5px; width:20px; height:20px; border-radius:50%; background:${color}; display:flex; align-items:center; justify-content:center; z-index:1; box-shadow: 0 0 0 4px rgba(255,255,255,0.8);">
                     <i class="fas ${icon}" style="color:white; font-size:10px;"></i>
                 </div>
@@ -4455,8 +4455,8 @@ function renderizarOrdenes() {
                      onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.08)';" 
                      onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.04)';">
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
-                        <div>
-                            <span style="font-weight:700; color:var(--primary-dark); font-size:1.1rem;">${venta.idVenta}</span>
+                                                <div>
+                            <span style="font-weight:700; color:var(--primary-dark); font-size:1.1rem;">${escapeHtml(venta.idVenta)}</span>
                             <span style="font-size:0.85rem; color:var(--text-gray); margin-left:0.5rem;">${fechaFormateada}</span>
                         </div>
                         <div>
@@ -4565,7 +4565,7 @@ function renderizarHistorialCompras(filtroAno, filtroMes) {
         
         html += `
             <tr style="border-bottom:1px solid #f3f4f6;">
-                <td style="padding:0.8rem; font-weight:600; color:var(--primary-dark);">${venta.idVenta}</td>
+                <td style="padding:0.8rem; font-weight:600; color:var(--primary-dark);">${escapeHtml(venta.idVenta)}</td>
                 <td style="padding:0.8rem; color:var(--text-gray);">${fechaFormateada}</td>
                 <td style="padding:0.8rem; text-align:center; color:var(--text-gray);">${venta.productos.length}</td>
                 <td style="padding:0.8rem; text-align:right; font-weight:600; color:var(--primary-dark);">${formatoMexicano(venta.totalConIva || venta.total)}</td>
@@ -4575,7 +4575,7 @@ function renderizarHistorialCompras(filtroAno, filtroMes) {
                     </span>
                 </td>
                 <td style="padding:0.8rem; text-align:center;">
-                    <button onclick="verDetalleVenta('${venta.idVenta}')" style="padding:0.4rem 1rem; background:var(--primary-blue); color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.8rem; transition:all 0.3s; font-family: 'Inter', sans-serif;">
+                          <button onclick="verDetalleVenta('${escapeHtml(venta.idVenta)}')" style="padding:0.4rem 1rem; background:var(--primary-blue); color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.8rem; transition:all 0.3s; font-family: 'Inter', sans-serif;">
                         <i class="fas fa-eye"></i> Ver
                     </button>
                 </td>
@@ -4697,10 +4697,10 @@ function verDetalleVenta(idVenta) {
     const color = estadoColors[venta.estado] || '#6b7280';
     
     let htmlProductos = '';
-    venta.productos.forEach(p => {
+        venta.productos.forEach(p => {
         htmlProductos += `
             <tr style="border-bottom:1px solid #f3f4f6;">
-                <td style="padding:0.6rem; color:var(--text-gray);">${p.nombre}</td>
+                <td style="padding:0.6rem; color:var(--text-gray);">${escapeHtml(p.nombre)}</td>
                 <td style="padding:0.6rem; text-align:center; color:var(--text-gray);">${p.cantidad}</td>
                 <td style="padding:0.6rem; text-align:right; color:var(--text-gray);">${formatoMexicano(p.importe)}</td>
             </tr>
@@ -4715,7 +4715,7 @@ function verDetalleVenta(idVenta) {
         <div id="modalDetalleVenta" class="modal-overlay active" onclick="if(event.target===this) cerrarModalDetalleVenta()">
             <div class="modal" style="max-width:700px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
-                    <h2 style="color:var(--primary-dark); margin:0;">🧾 ${venta.idVenta}</h2>
+                     <h2 style="color:var(--primary-dark); margin:0;">🧾 ${escapeHtml(venta.idVenta)}</h2>
                     <button onclick="cerrarModalDetalleVenta()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-gray); transition:all 0.3s;">
                         <i class="fas fa-times"></i>
                     </button>
@@ -5446,24 +5446,24 @@ function renderizarSesiones(sesiones) {
                         <div class="sesion-icon">
                             <i class="fas ${icono}"></i>
                         </div>
-                        <div class="sesion-titulo">
-                            <h4>${infoDispositivo.navegador} en ${infoDispositivo.so}</h4>
-                            <small>${infoDispositivo.descripcion}</small>
+                          <div class="sesion-titulo">
+                            <h4>${escapeHtml(infoDispositivo.navegador)} en ${escapeHtml(infoDispositivo.so)}</h4>
+                            <small>${escapeHtml(infoDispositivo.descripcion)}</small>
                         </div>
                     </div>
                 </div>
                 <div class="sesion-body">
-                    <div class="sesion-info-row">
+                                        <div class="sesion-info-row">
                         <i class="fas fa-globe"></i>
-                        <span><strong>Ubicación:</strong> ${ubicacion}</span>
+                        <span><strong>Ubicación:</strong> ${escapeHtml(ubicacion)}</span>
                     </div>
                     <div class="sesion-info-row">
                         <i class="fas fa-network-wired"></i>
-                        <span><strong>IP:</strong> ${ip}</span>
+                        <span><strong>IP:</strong> ${escapeHtml(ip)}</span>
                     </div>
                     <div class="sesion-info-row">
                         <i class="fas fa-key"></i>
-                        <span><strong>Token:</strong> ${tokenCorto}</span>
+                        <span><strong>Token:</strong> ${escapeHtml(tokenCorto)}</span>
                     </div>
                 </div>
                 <div class="sesion-footer">
