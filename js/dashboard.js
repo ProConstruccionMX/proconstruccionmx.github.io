@@ -4,6 +4,20 @@
 
 const WORKER_URL = 'https://proconstruccionmx-proxy.proconstruccionmx.workers.dev';
 
+
+// ============================================
+// FUNCIÓN PARA ESCAPAR HTML (Fase 3.1)
+// ============================================
+function escapeHtml(texto) {
+    if (texto === null || texto === undefined) return '';
+    return String(texto)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // ⭐ Nombres de hoja (necesarios para guardarFilaGoogleSheets)
 const HOJA_PRODUCTOS = 'Hoja 1';
 const HOJA_BASE_CLIENTES = 'Hoja 1';
