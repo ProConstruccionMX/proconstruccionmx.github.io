@@ -515,11 +515,11 @@ function renderizarFacturacion() {
         <div class="facturacion-grid">
     `;
     
-    facturacionCliente.forEach((fact, index) => {
+        facturacionCliente.forEach((fact, index) => {
         html += `
             <div class="facturacion-card" id="fact-card-${index}">
                 <div class="facturacion-header">
-                    <h4><i class="fas fa-file-invoice"></i> ${fact.nombre || 'Sin nombre'}</h4>
+                    <h4><i class="fas fa-file-invoice"></i> ${escapeHtml(fact.nombre) || 'Sin nombre'}</h4>
                     <div class="facturacion-actions">
                         <button class="btn-editar" onclick="editarFacturacion(${index})">
                             <i class="fas fa-edit"></i> Editar
@@ -530,12 +530,12 @@ function renderizarFacturacion() {
                     </div>
                 </div>
                 <div class="facturacion-body">
-                    <p><strong>Razón Social:</strong> ${fact.razonSocial || '---'}</p>
-                    <p><strong>RFC:</strong> ${fact.rfc || '---'}</p>
-                    <p><strong>Uso de CFDI:</strong> ${fact.usoCFDI || '---'}</p>
-                    <p><strong>Código Postal:</strong> ${fact.cp || '---'}</p>
-                    <p><strong>Régimen Fiscal:</strong> ${fact.regimen || '---'}</p>
-                    <p><strong>Correo:</strong> ${fact.correo || '---'}</p>
+                    <p><strong>Razón Social:</strong> ${escapeHtml(fact.razonSocial) || '---'}</p>
+                    <p><strong>RFC:</strong> ${escapeHtml(fact.rfc) || '---'}</p>
+                    <p><strong>Uso de CFDI:</strong> ${escapeHtml(fact.usoCFDI) || '---'}</p>
+                    <p><strong>Código Postal:</strong> ${escapeHtml(fact.cp) || '---'}</p>
+                    <p><strong>Régimen Fiscal:</strong> ${escapeHtml(fact.regimen) || '---'}</p>
+                    <p><strong>Correo:</strong> ${escapeHtml(fact.correo) || '---'}</p>
                 </div>
             </div>
         `;
