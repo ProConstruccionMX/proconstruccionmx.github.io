@@ -262,22 +262,40 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
 
+    // ⭐ Bloque 1: Control del splash screen
+    iniciarSplashScreen();
+    
     const email = sessionStorage.getItem('userEmail');
     
-    await cargarDatosCliente(email);
-    await cargarProductos();
-    await cargarPreciosEspeciales();
-    await cargarDireccionesCliente();
-    await cargarFacturacionCliente();
-    await cargarHistorialCompras();
-    
-    configurarTabs();
-    
-    if (clienteData) {
-        document.getElementById('welcomeName').textContent = clienteData.nombre;
+    try {
+        await cargarDatosCliente(email);
+        actualizarTexto()
+        await cargarProductos();
+        actualizarTexto()
+        await cargarPreciosEspeciales();
+        actualizarTexto()
+        await cargarDireccionesCliente();
+        actualizarTexto()
+        await cargarFacturacionCliente();
+        actualizarTexto()
+        await cargarHistorialCompras();
+        actualizarTexto()
+        
+        configurarTabs();
+        
+        if (clienteData) {
+            document.getElementById('welcomeName').textContent = clienteData.nombre;
+        }
+        
+        console.log('✅ Dashboard inicializado correctamente');
+        
+        // ⭐ Ocultar splash con fade-out
+        finalizarSplashScreen();
+        
+    } catch (error) {
+        console.error('❌ Error al inicializar dashboard:', error);
+        mostrarErrorSplash('No se pudieron cargar tus datos. Revisa tu conexión e intenta de nuevo.');
     }
-    
-    console.log('✅ Dashboard inicializado correctamente');
 });
 // ============================================
 // FUNCIONES PARA APPS SCRIPT (CON NO-CORS)
@@ -5683,4 +5701,93 @@ async function cerrarSesionDispositivo(tokenSesion, esActual, index) {
             boton.innerHTML = '<i class="fas fa-sign-out-alt"></i> Cerrar';
         }
     }
+}
+// ============================================
+// SPLASH SCREEN (Bloque 1)
+// ============================================
+const SPLASH_TEXTS = [
+    'Cargando tus datos...',
+    'Preparando tu catálogo...',
+    'Verificando tus precios especiales...',
+    'Revisando tus direcciones...',
+    'Casi listo...'
+];
+
+let splashTextIndex = 0;
+let splashInterval = null;
+let splashStartTime = 0;
+const SPLASH_MIN_DURATION = 1500; // mínimo 1.5s para que no parpadee
+
+function iniciarSplashScreen() {
+    splashStartTime = Date.now();
+    splashTextIndex = 0;
+    
+    const splashText = document.getElementById('splashText');
+    if (splashText) splashText.textContent = SPLASH_TEXTS[0];
+    
+    splashInterval = setInterval(() => {
+        splashTextIndex = (splashTextIndex + 1) % SPLASH_TEXTS.length;
+        const el = document.getElementById('splashText');
+        if (el) {
+            el.style.opacity = '0';
+            setTimeout(() => {
+                el.textContent = SPLASH_TEXTS[splashTextIndex];
+                el.style.opacity = '1';
+            }, 200);
+        }
+    }, 2000);
+}
+
+function actualizarTexto() {
+    // Avanza el texto manualmente cuando termina una carga
+    splashTextIndex = (splashTextIndex + 1) % SPLASH_TEXTS.length;
+    const el = document.getElementById('splashText');
+    if (el) {
+        el.style.opacity = '0';
+        setTimeout(() => {
+            el.textContent = SPLASH_TEXTS[splashTextIndex];
+            el.style.opacity = '1';
+        }, 200);
+    }
+}
+
+function finalizarSplashScreen() {
+    const elapsed = Date.now() - splashStartTime;
+    const remaining = Math.max(0, SPLASH_MIN_DURATION - elapsed);
+    
+    setTimeout(() => {
+        if (splashInterval) {
+            clearInterval(splashInterval);
+            splashInterval = null;
+        }
+        
+        const splash = document.getElementById('splashScreen');
+        if (splash) {
+            const el = document.getElementById('splashText');
+            if (el) el.textContent = '¡Todo listo!';
+            
+            setTimeout(() => {
+                splash.classList.add('hidden');
+            }, 400);
+        }
+    }, remaining);
+}
+
+function mostrarErrorSplash(mensaje) {
+    if (splashInterval) {
+        clearInterval(splashInterval);
+        splashInterval = null;
+    }
+    
+    const errorDiv = document.getElementById('splashError');
+    const errorText = document.getElementById('splashErrorText');
+    const spinner = document.querySelector('.splash-spinner');
+    const text = document.getElementById('splashText');
+    const subtext = document.getElementById('splashSubtext');
+    
+    if (spinner) spinner.style.display = 'none';
+    if (text) text.textContent = 'Algo salió mal';
+    if (subtext) subtext.style.display = 'none';
+    if (errorText) errorText.textContent = mensaje;
+    if (errorDiv) errorDiv.style.display = 'block';
 }
