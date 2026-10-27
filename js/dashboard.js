@@ -442,8 +442,6 @@ async function cargarFacturacionCliente() {
             return;
         }
         
-        console.log(`📊 Datos recibidos: ${data.data.length} registros`);
-        
         facturacionCliente = [];
         
         for (const row of data.data) {
@@ -3652,8 +3650,6 @@ async function procesarPagoTransferencia() {
             fechaEntrega: window.fechaEntregaSeleccionada ? window.fechaEntregaSeleccionada.iso : ''
         };
         
-        console.log('📤 Enviando a /crearPedido:', body);
-        
         // 3. Llamar al Worker
         const response = await fetchAutenticado(`${WORKER_URL}/crearPedido`, {
             method: 'POST',
@@ -3834,8 +3830,6 @@ async function procesarPagoCredito() {
             razonSocialFactura: datosFacturaSeleccionados ? datosFacturaSeleccionados.razonSocial : '',
             fechaEntrega: window.fechaEntregaSeleccionada ? window.fechaEntregaSeleccionada.iso : ''
         };
-        
-        console.log('📤 Enviando a /crearPedido (Crédito):', body);
         
         // 3. Llamar al Worker
         const response = await fetchAutenticado(`${WORKER_URL}/crearPedido`, {
