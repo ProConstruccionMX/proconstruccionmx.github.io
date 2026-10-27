@@ -249,7 +249,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     const email = sessionStorage.getItem('userEmail');
-    console.log('📧 Email del cliente:', email);
     
     await cargarDatosCliente(email);
     await cargarProductos();
@@ -980,12 +979,6 @@ async function cargarDatosCliente(email) {
         clienteCreditoHabilitado = clienteData.creditoHabilitado;
         clienteLimiteCreditoPeso = clienteData.limiteCreditoPeso;
         clienteLimiteCreditoMonto = clienteData.limiteCreditoMonto;
-        
-        console.log('💳 CRÉDITO HABILITADO:', clienteCreditoHabilitado);
-        console.log('⚖️ LÍMITE CRÉDITO PESO:', clienteLimiteCreditoPeso, 'kg');
-        console.log('💰 LÍMITE CRÉDITO MONTO:', clienteLimiteCreditoMonto);
-        console.log('📊 DESCUENTO BASE DEL CLIENTE:', clienteData.descuento + '%');
-        console.log('📊 GIRO DEL CLIENTE:', clienteData.giro);
         
         if (clienteData) {
             actualizarInfoCliente();
