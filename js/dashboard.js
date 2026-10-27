@@ -1206,12 +1206,12 @@ function renderizarDirecciones() {
         return;
     }
     
-    let html = `<div class="direcciones-grid">`;
+       let html = `<div class="direcciones-grid">`;
     direccionesCliente.forEach((dir, index) => {
         html += `
             <div class="direccion-card" id="dir-card-${index}">
                 <div class="direccion-header">
-                    <h4><i class="fas fa-home"></i> ${dir.nombre || 'Sin nombre'} <span style="font-size:0.7rem;color:var(--text-gray);">(Fila ${dir.fila})</span></h4>
+                    <h4><i class="fas fa-home"></i> ${escapeHtml(dir.nombre) || 'Sin nombre'} <span style="font-size:0.7rem;color:var(--text-gray);">(Fila ${dir.fila})</span></h4>
                     <div class="direccion-actions">
                         <button class="btn-editar" onclick="editarDireccion(${index})">
                             <i class="fas fa-edit"></i>
@@ -1222,14 +1222,14 @@ function renderizarDirecciones() {
                     </div>
                 </div>
                 <div class="direccion-body">
-                    <p><strong>Calle:</strong> ${dir.calle || '---'}</p>
-                    <p><strong>Colonia:</strong> ${dir.colonia || '---'}</p>
-                    <p><strong>Alcaldía/Municipio:</strong> ${dir.alcaldia || '---'}</p>
-                    <p><strong>Estado:</strong> ${dir.estado || '---'}</p>
-                    <p><strong>Código Postal:</strong> ${dir.cp || '---'}</p>
-                    ${dir.mapsUrl ? `<p><strong>Google Maps:</strong> <a href="${dir.mapsUrl}" target="_blank">Ver mapa</a></p>` : ''}
-                    <p><strong>Teléfono:</strong> ${dir.telefono || '---'}</p>
-                    <p><strong>Recibe:</strong> ${dir.nombreRecibe || '---'}</p>
+                    <p><strong>Calle:</strong> ${escapeHtml(dir.calle) || '---'}</p>
+                    <p><strong>Colonia:</strong> ${escapeHtml(dir.colonia) || '---'}</p>
+                    <p><strong>Alcaldía/Municipio:</strong> ${escapeHtml(dir.alcaldia) || '---'}</p>
+                    <p><strong>Estado:</strong> ${escapeHtml(dir.estado) || '---'}</p>
+                    <p><strong>Código Postal:</strong> ${escapeHtml(dir.cp) || '---'}</p>
+                    ${dir.mapsUrl ? `<p><strong>Google Maps:</strong> <a href="${escapeHtml(dir.mapsUrl)}" target="_blank">Ver mapa</a></p>` : ''}
+                    <p><strong>Teléfono:</strong> ${escapeHtml(dir.telefono) || '---'}</p>
+                    <p><strong>Recibe:</strong> ${escapeHtml(dir.nombreRecibe) || '---'}</p>
                 </div>
             </div>
         `;
