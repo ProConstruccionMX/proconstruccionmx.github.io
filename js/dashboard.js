@@ -413,15 +413,10 @@ async function cargarFacturacionCliente() {
             return;
         }
         
-        console.log('📥 Cargando datos de facturación para cliente:', codigoCliente);
-        
         const url = `${WORKER_URL}/facturacion`;
-        console.log('📥 URL del Worker:', url);
         
         const response = await fetchAutenticado(url);
         const text = await response.text();
-        
-        console.log('📥 Respuesta recibida, longitud:', text.length);
         
         if (text.includes('<!DOCTYPE html>') || text.includes('Sign in')) {
             console.error('❌ El Apps Script no está accesible.');
@@ -455,7 +450,6 @@ async function cargarFacturacionCliente() {
             const codigo = String(row.ID || row.id || '').trim();
             if (codigo === codigoCliente) {
                 const nombre = String(row.Nombre || row.nombre || 'Sin nombre').trim();
-                console.log(`✅ Facturación encontrada: "${nombre}"`);
                 
                 facturacionCliente.push({
                     fila: data.data.indexOf(row) + 2,
@@ -471,7 +465,6 @@ async function cargarFacturacionCliente() {
             }
         }
         
-        console.log(`📦 Datos de facturación cargados: ${facturacionCliente.length}`);
         renderizarFacturacion();
         actualizarSelectorFacturacion();
         
@@ -4211,7 +4204,6 @@ async function cargarHistorialCompras() {
         }
         
         const ventasDelCliente = dataClientes.ventas || [];
-        console.log(`📦 Ventas encontradas: ${ventasDelCliente.length}`);
         
         if (ventasDelCliente.length === 0) {
             renderizarHistorialVacio();
@@ -4230,7 +4222,6 @@ async function cargarHistorialCompras() {
         }
         
         const productosDelCliente = dataProductos.productos || [];
-        console.log(`📦 Líneas de producto encontradas: ${productosDelCliente.length}`);
         
         // 3. Agrupar productos por folio
         const productosPorVenta = new Map();
@@ -4345,8 +4336,6 @@ async function cargarHistorialCompras() {
         // 6. Productos más comprados
         productosMasComprados = Array.from(contadorProductos.values());
         productosMasComprados.sort((a, b) => b.totalImporte - a.totalImporte);
-        
-        console.log(`📦 Historial cargado: ${historialVentas.length} ventas`);
         
         // 7. Poblar el select de años
         const anos = [...new Set(historialVentas.map(v => {
@@ -4854,13 +4843,8 @@ function cargarCreditosPendientesConValidacion() {
     
     creditosPendientes = creditosFiltrados;
     
-    console.log(`📊 Créditos encontrados (después de filtro VALIDADO columna P): ${creditosPendientes.length}`);
-    
     const creditosEnProceso = creditosPendientes.filter(v => (v.estatusPago || '') === 'SI');
     const creditosPendientesReales = creditosPendientes.filter(v => (v.estatusPago || '') !== 'SI');
-    
-    console.log(`📊 Créditos en proceso (SI): ${creditosEnProceso.length}`);
-    console.log(`📊 Créditos realmente pendientes: ${creditosPendientesReales.length}`);
     
     if (creditosPendientes.length === 0) {
         container.innerHTML = `
