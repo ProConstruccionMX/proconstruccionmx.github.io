@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="css/estilos.css">
+        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -178,6 +179,12 @@
             <div class="form-group">
                 <label for="password"><i class="fas fa-lock"></i> Contraseña</label>
                 <input type="password" id="password" placeholder="••••••••" required>
+            </div>
+                        <div class="cf-turnstile" 
+                 data-sitekey="0x4AAAAAAFoyS3pF1tPXyI4f" 
+                 data-callback="onTurnstileSuccess"
+                 data-theme="light"
+                 style="margin-bottom: 1rem; display: flex; justify-content: center;">
             </div>
             <button type="submit" class="btn-login" id="loginBtn">
                 <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
