@@ -1550,7 +1550,7 @@
                         <i class="fas fa-cloud-upload-alt" style="font-size:2rem; color: var(--accent-orange);"></i>
                         <p>Haz clic para seleccionar tu comprobante</p>
                         <p class="file-name" id="fileName">Ningún archivo seleccionado</p>
-                        <input type="file" id="comprobanteFile" accept="*/*" onchange="cargarComprobante(event)">
+                        <input type="file" id="comprobanteFile" accept="image/*,application/pdf" onchange="cargarComprobante(event)">
                     </div>
                 </div>
                 <button class="btn-enviar" id="btnConfirmarTransferencia" onclick="procesarPagoTransferencia()" disabled>
