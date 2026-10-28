@@ -576,45 +576,6 @@ function actualizarSelectorFacturacion() {
     select.value = '';
 }
 
-function cargarDatosFacturaSeleccionados() {
-    const select = document.getElementById('facturaRazonSocialSelect');
-    const index = parseInt(select.value);
-    
-    if (isNaN(index) || index < 0 || index >= facturacionCliente.length) {
-        document.getElementById('facturaDatosPreview').style.display = 'none';
-        datosFacturaSeleccionados = null;
-        return;
-    }
-    
-    const fact = facturacionCliente[index];
-    datosFacturaSeleccionados = fact;
-    
-    document.getElementById('facturaPreviewRFC').textContent = fact.rfc || '---';
-    document.getElementById('facturaPreviewUso').textContent = fact.usoCFDI || '---';
-    document.getElementById('facturaPreviewCP').textContent = fact.cp || '---';
-    document.getElementById('facturaPreviewRegimen').textContent = fact.regimen || '---';
-    document.getElementById('facturaPreviewCorreo').textContent = fact.correo || '---';
-    
-    document.getElementById('facturaDatosPreview').style.display = 'block';
-}
-
-function seleccionarFactura(opcion) {
-    requiereFactura = (opcion === 'si');
-    
-    document.getElementById('facturaNo').classList.remove('selected');
-    document.getElementById('facturaSi').classList.remove('selected');
-    
-    if (opcion === 'no') {
-        document.getElementById('facturaNo').classList.add('selected');
-        document.getElementById('facturaRazonSocialContainer').style.display = 'none';
-        document.getElementById('facturaDatosPreview').style.display = 'none';
-        datosFacturaSeleccionados = null;
-    } else {
-        document.getElementById('facturaSi').classList.add('selected');
-        document.getElementById('facturaRazonSocialContainer').style.display = 'block';
-        actualizarSelectorFacturacion();
-    }
-}
 
 // ============================================
 // EDITAR FACTURACIÓN
@@ -2903,9 +2864,125 @@ function confirmarFechaEntrega() {
     if (!fechaEntregaSeleccionada) return;
     window.fechaEntregaSeleccionada = fechaEntregaSeleccionada;
     cerrarModalFechaEntrega();
-    abrirModalPago();
+    abrirModalFacturacion();
+}
+// ============================================
+// MODAL DE FACTURACIÓN (Bloque 2)
+// ============================================
+let facturaSeleccionModal = null;
+
+function abrirModalFacturacion() {
+    facturaSeleccionModal = null;
+    requiereFactura = false;
+    datosFacturaSeleccionados = null;
+    
+    const btnSi = document.getElementById('btnFacturaSi');
+    const btnNo = document.getElementById('btnFacturaNo');
+    if (btnSi) btnSi.style.borderColor = '#e2e8f0';
+    if (btnNo) btnNo.style.borderColor = '#e2e8f0';
+    
+    const container = document.getElementById('facturaRazonSocialContainerModal');
+    if (container) container.style.display = 'none';
+    
+    const preview = document.getElementById('facturaDatosPreviewModal');
+    if (preview) preview.style.display = 'none';
+    
+    const btnContinuar = document.getElementById('btnContinuarFacturacion');
+    if (btnContinuar) btnContinuar.disabled = true;
+    
+    const mensaje = document.getElementById('modalFacturacionMensaje');
+    if (mensaje) mensaje.style.display = 'none';
+    
+    const select = document.getElementById('facturaRazonSocialSelectModal');
+    if (select) {
+        select.innerHTML = '<option value="">-- Selecciona una razón social --</option>';
+        facturacionCliente.forEach((fact, index) => {
+            const option = document.createElement('option');
+            option.value = index;
+            option.textContent = fact.razonSocial || fact.nombre || `Facturación ${index + 1}`;
+            select.appendChild(option);
+        });
+        select.value = '';
+    }
+    
+    document.getElementById('modalFacturacion').classList.add('active');
 }
 
+function cerrarModalFacturacion() {
+    document.getElementById('modalFacturacion').classList.remove('active');
+    facturaSeleccionModal = null;
+}
+
+function seleccionarFacturaModal(opcion) {
+    facturaSeleccionModal = opcion;
+    
+    const btnSi = document.getElementById('btnFacturaSi');
+    const btnNo = document.getElementById('btnFacturaNo');
+    const container = document.getElementById('facturaRazonSocialContainerModal');
+    const btnContinuar = document.getElementById('btnContinuarFacturacion');
+    
+    if (opcion === 'si') {
+        if (btnSi) btnSi.style.borderColor = 'var(--accent-orange)';
+        if (btnNo) btnNo.style.borderColor = '#e2e8f0';
+        if (container) container.style.display = 'block';
+        if (btnContinuar) btnContinuar.disabled = true;
+    } else {
+        if (btnNo) btnNo.style.borderColor = 'var(--accent-orange)';
+        if (btnSi) btnSi.style.borderColor = '#e2e8f0';
+        if (container) container.style.display = 'none';
+        if (btnContinuar) btnContinuar.disabled = false;
+        requiereFactura = false;
+        datosFacturaSeleccionados = null;
+    }
+}
+
+function cargarDatosFacturaSeleccionadosModal() {
+    const select = document.getElementById('facturaRazonSocialSelectModal');
+    const index = parseInt(select.value);
+    const btnContinuar = document.getElementById('btnContinuarFacturacion');
+    
+    if (isNaN(index) || index < 0 || index >= facturacionCliente.length) {
+        const preview = document.getElementById('facturaDatosPreviewModal');
+        if (preview) preview.style.display = 'none';
+        datosFacturaSeleccionados = null;
+        if (btnContinuar) btnContinuar.disabled = true;
+        return;
+    }
+    
+    const fact = facturacionCliente[index];
+    datosFacturaSeleccionados = fact;
+    
+    document.getElementById('facturaPreviewRFCModal').textContent = fact.rfc || '---';
+    document.getElementById('facturaPreviewUsoModal').textContent = fact.usoCFDI || '---';
+    document.getElementById('facturaPreviewCPModal').textContent = fact.cp || '---';
+    document.getElementById('facturaPreviewRegimenModal').textContent = fact.regimen || '---';
+    document.getElementById('facturaPreviewCorreoModal').textContent = fact.correo || '---';
+    
+    document.getElementById('facturaDatosPreviewModal').style.display = 'block';
+    
+    if (btnContinuar) btnContinuar.disabled = false;
+}
+
+function confirmarFacturacion() {
+    if (facturaSeleccionModal === 'si') {
+        if (!datosFacturaSeleccionados) {
+            const mensaje = document.getElementById('modalFacturacionMensaje');
+            if (mensaje) {
+                mensaje.className = 'mensaje-error';
+                mensaje.innerHTML = '⚠️ Por favor, selecciona una razón social para facturar.';
+                mensaje.style.display = 'block';
+            }
+            return;
+        }
+        requiereFactura = true;
+    } else {
+        requiereFactura = false;
+        datosFacturaSeleccionados = null;
+    }
+    
+    cerrarModalFacturacion();
+    abrirModalPago();
+}
 // ============================================
 // FUNCIONES DE PAGO
 // ============================================
@@ -2979,12 +3056,8 @@ function abrirModalPago() {
         }
     }
     
-    requiereFactura = false;
-    document.getElementById('facturaNo').classList.add('selected');
-    document.getElementById('facturaSi').classList.remove('selected');
-    document.getElementById('facturaRazonSocialContainer').style.display = 'none';
-    document.getElementById('facturaDatosPreview').style.display = 'none';
-    datosFacturaSeleccionados = null;
+        // Bloque 2: la factura ya se eligió en el modal anterior.
+    // No se resetea aquí para no perder la selección del cliente.
     
     pagoSeleccionado = null;
     document.querySelectorAll('.opciones-pago button').forEach(b => b.classList.remove('selected'));
