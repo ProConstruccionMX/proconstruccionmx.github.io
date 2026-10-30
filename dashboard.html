@@ -1127,12 +1127,15 @@
                     <option value="">-- Selecciona una dirección --</option>
                 </select>
             </div>
-            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-                <button onclick="abrirModalDireccionInicial()" class="btn-vaciar" style="flex: 1;">
-                    <i class="fas fa-plus"></i> Registrar nueva dirección
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem;">
+                <button onclick="abrirModalDireccionInicial()" 
+                        style="padding: 0.5rem 1rem; font-size: 0.85rem; background: white; color: var(--primary-dark); border: 2px solid #e2e8f0; border-radius: 8px; cursor: pointer; font-family: 'Inter', sans-serif; font-weight: 600; display: inline-flex; align-items: center; gap: 0.35rem;">
+                    <i class="fas fa-plus" style="font-size: 0.8rem;"></i> Nueva dirección
                 </button>
-                <button id="btnContinuarDireccion" onclick="continuarConBusqueda()" class="btn-comprar" style="flex: 1; opacity: 0.5; cursor: not-allowed;" disabled>
-                    <i class="fas fa-arrow-right"></i> Continuar
+                <button id="btnContinuarDireccion" onclick="continuarConBusqueda()" 
+                        disabled
+                        style="padding: 0.5rem 1rem; font-size: 0.85rem; background: var(--accent-orange); color: white; border: none; border-radius: 8px; cursor: not-allowed; opacity: 0.5; font-family: 'Inter', sans-serif; font-weight: 600; display: inline-flex; align-items: center; gap: 0.35rem;">
+                    <i class="fas fa-arrow-right" style="font-size: 0.8rem;"></i> Continuar
                 </button>
             </div>
         </div>
