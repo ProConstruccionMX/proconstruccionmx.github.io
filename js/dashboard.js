@@ -1407,34 +1407,47 @@ async function guardarNuevaDireccion(datos) {
 // FUNCIONES DE BÚSQUEDA DE PRODUCTOS
 // ============================================
 
+// ============================================
+// BÚSQUEDA DE PRODUCTOS (con categoría + imágenes)
+// ============================================
+
 function buscarProductos() {
     const query = document.getElementById('searchInput').value.toLowerCase().trim();
     const resultsDiv = document.getElementById('resultsContent');
     
-    if (!query) {
+    // Si no hay dirección seleccionada, no buscar
+    if (!window.direccionInicialSeleccionada) {
         resultsDiv.innerHTML = `
             <div class="empty-state">
-                <i class="fas fa-search"></i>
-                <h4>Busca productos</h4>
-                <p>Escribe el nombre de un producto para comenzar.</p>
+                <i class="fas fa-map-marker-alt"></i>
+                <h4>Primero selecciona tu dirección</h4>
+                <p>Debes elegir una dirección de entrega antes de buscar productos.</p>
             </div>
         `;
         return;
     }
     
-    const resultados = productosGlobales.filter(p => 
-        (p.nombre.toLowerCase().includes(query) || 
-        p.clave.toLowerCase().includes(query) ||
-        p.descripcion.toLowerCase().includes(query)) &&
-        p.permitido
-    );
+    // Filtrar por categoría activa + query
+    let resultados = productosGlobales;
+    
+    if (categoriaActiva) {
+        resultados = resultados.filter(p => p.categoria === categoriaActiva);
+    }
+    
+    if (query) {
+        resultados = resultados.filter(p => 
+            p.nombre.toLowerCase().includes(query) || 
+            p.clave.toLowerCase().includes(query) ||
+            p.descripcion.toLowerCase().includes(query)
+        );
+    }
     
     if (resultados.length === 0) {
         resultsDiv.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-search"></i>
                 <h4>No se encontraron resultados</h4>
-                <p>Intenta con otra palabra o contacta a tu asesor.</p>
+                <p>Intenta con otra palabra${categoriaActiva ? ' o cambia de categoría' : ''} o contacta a tu asesor.</p>
             </div>
         `;
         return;
@@ -1467,16 +1480,35 @@ function buscarProductos() {
             etiquetaPXV = `<span class="tag-pxv">📦 Descuento por Volumen${infoVolumen}</span>`;
         }
         
+        // ⭐ Imagen del producto
+        let imagenHtml = '';
+        if (producto.imagen) {
+            imagenHtml = `
+                <div style="width:100%; height:120px; margin-bottom:0.5rem; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:8px; background:#f8f9fa;">
+                    <img src="${escapeHtml(producto.imagen)}" alt="${escapeHtml(producto.nombre)}" 
+                         style="max-width:100%; max-height:100%; object-fit:contain;"
+                         onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=\\'fas fa-image\\' style=\\'font-size:2rem; color:#cbd5e1;\\'></i>';">
+                </div>
+            `;
+        } else {
+            imagenHtml = `
+                <div style="width:100%; height:120px; margin-bottom:0.5rem; display:flex; align-items:center; justify-content:center; background:#f8f9fa; border-radius:8px;">
+                    <i class="fas fa-image" style="font-size:2rem; color:#cbd5e1;"></i>
+                </div>
+            `;
+        }
+        
         html += `
             <div class="product-card">
-                <span class="clave">${producto.clave}</span>
+                ${imagenHtml}
+                <span class="clave">${escapeHtml(producto.clave)}</span>
                 ${producto.pxv === 'PXV' && producto.pesoCondicion === 'SI' ? etiquetaPXV : ''}
                 ${etiquetaPeso}
                 ${etiquetaMinPiezas}
-                <h4>${producto.nombre}</h4>
-                <p class="descripcion">${producto.descripcion || 'Sin descripción'}</p>
+                <h4>${escapeHtml(producto.nombre)}</h4>
+                <p class="descripcion">${escapeHtml(producto.descripcion) || 'Sin descripción'}</p>
                 <p class="precio">${formatoMexicano(precioMostrar)}</p>
-                <button class="btn-agregar" onclick="agregarAlCarrito('${producto.clave}')">
+                <button class="btn-agregar" onclick="agregarAlCarrito('${escapeHtml(producto.clave)}')">
                     <i class="fas fa-plus"></i> Agregar
                 </button>
             </div>
@@ -2566,6 +2598,9 @@ function abrirModalDireccion() {
         return;
     }
     
+    // Modo "pago" (no inicial)
+    window._modoModalDireccion = 'pago';
+    
     const verificarPeso = verificarPesoMinimo();
     if (verificarPeso.productosConPeso > 0 && !verificarPeso.cumple) {
         mostrarNotificacion('⚠️ ' + verificarPeso.mensaje);
@@ -2716,6 +2751,34 @@ async function continuarConPago() {
         nombreDireccion: nombreDireccion
     };
     
+        // ============================================
+    // ⭐ ETAPA 2: Manejo del modo "inicial" vs "pago"
+    // ============================================
+    if (window._modoModalDireccion === 'inicial') {
+        // Modo inicial: guardar la dirección recién creada y refrescar el selector
+        cerrarModalDireccion();
+        
+        // Recargar direcciones desde el backend para incluir la nueva
+        await cargarDireccionesCliente();
+        
+        // Refrescar el selector del Paso 1
+        inicializarPasoDireccion();
+        
+        // Auto-seleccionar la dirección recién guardada (la última de la lista)
+        const select = document.getElementById('selectDireccionInicial');
+        if (select && direccionesCliente.length > 0) {
+            select.value = direccionesCliente.length - 1;
+            habilitarContinuarDireccion();
+        }
+        
+        mostrarNotificacion('✅ Dirección registrada. Ahora presiona "Continuar".');
+        window._modoModalDireccion = null;
+        return;
+    }
+    
+    // ============================================
+    // Modo "pago" (flujo normal, sin cambios)
+    // ============================================
     cerrarModalDireccion();
     abrirModalFechaEntrega();
 }
@@ -2745,36 +2808,70 @@ function cerrarModalFechaEntrega() {
     fechaEntregaSeleccionada = null;
 }
 
+// ============================================
+// ⭐ ETAPA 4: CALENDARIO DINÁMICO POR PROVEEDOR
+// ============================================
+
+function determinarProveedorVentaFrontend() {
+    if (carrito.length === 0) return 'Grupo SAR Vertiz';
+    
+    // Regla 1: Pegarey → Vertiz
+    const tienePegarey = carrito.some(item => 
+        String(item.nombre || '').toLowerCase().includes('pegarey')
+    );
+    if (tienePegarey) return 'Grupo SAR Vertiz';
+    
+    // Regla 2: Tecámac + ≤1T + todos Coacalco
+    const alcaldiaRaw = (window.direccionInicialSeleccionada?.alcaldia) || 
+                        (window.datosEnvio?.alcaldia) || '';
+    const alcaldia = String(alcaldiaRaw)
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    const esTecamac = (alcaldia === 'tecamac');
+    
+    let pesoTotal = 0;
+    let todosCoacalco = true;
+    for (const item of carrito) {
+        const prod = productosGlobales.find(p => p.clave === item.clave);
+        if (!prod) continue;
+        if (prod.pesoCondicion === 'SI' && prod.peso > 0) {
+            pesoTotal += prod.peso * item.cantidad;
+        }
+        if (String(prod.proveedorCoacalco || '').trim() === '') {
+            todosCoacalco = false;
+        }
+    }
+    const pesoCumple = pesoTotal <= 1000;
+    
+    if (esTecamac && pesoCumple && todosCoacalco) return 'Grupo SAR Coacalco';
+    return 'Grupo SAR Vertiz';
+}
+
 function generarCalendario() {
     const ahora = new Date();
     const horaActual = ahora.getHours();
     const minutosActuales = ahora.getMinutes();
-    const diaSemanaHoy = ahora.getDay(); // 0=Dom, 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie, 6=Sáb
+    const diaSemanaHoy = ahora.getDay();
     
     const esDespuesDe540 = (horaActual > 17) || (horaActual === 17 && minutosActuales >= 40);
     
-    // ⭐ R5: Regla especial para viernes >17:40, sábado y domingo
-    // Deshabilita SOLO el siguiente lunes y el siguiente martes (no todos los del mes)
     const esViernesDespuesDe540 = (diaSemanaHoy === 5 && esDespuesDe540);
     const esSabado = (diaSemanaHoy === 6);
     const esDomingo = (diaSemanaHoy === 0);
     const deshabilitarSiguienteLunesMartes = esViernesDespuesDe540 || esSabado || esDomingo;
     
-    // Calcular las fechas exactas del siguiente lunes y siguiente martes
     let siguienteLunes = null;
     let siguienteMartes = null;
     
     if (deshabilitarSiguienteLunesMartes) {
         const cursor = new Date(ahora);
         cursor.setHours(0, 0, 0, 0);
-        
-        // Avanzar hasta encontrar el primer lunes (día 1)
         while (cursor.getDay() !== 1) {
             cursor.setDate(cursor.getDate() + 1);
         }
         siguienteLunes = new Date(cursor);
-        
-        // El siguiente martes es el día después del siguiente lunes
         siguienteMartes = new Date(cursor);
         siguienteMartes.setDate(siguienteMartes.getDate() + 1);
     }
@@ -2782,6 +2879,13 @@ function generarCalendario() {
     const fechaMinima = new Date(ahora);
     fechaMinima.setDate(fechaMinima.getDate() + (esDespuesDe540 ? 2 : 1) + 1);
     fechaMinima.setHours(0, 0, 0, 0);
+    
+    // ⭐ ETAPA 4: Sumar días extra según el proveedor
+    const proveedor = determinarProveedorVentaFrontend();
+    const diasExtra = (proveedor === 'Grupo SAR Vertiz') ? 1 : 0;
+    fechaMinima.setDate(fechaMinima.getDate() + diasExtra);
+    
+    console.log('🏢 Proveedor (frontend):', proveedor, '| Días extra:', diasExtra);
     
     const diasAMostrar = 30;
     const container = document.getElementById('calendarioContainer');
@@ -2806,27 +2910,19 @@ function generarCalendario() {
         const esAntesDeFechaMinima = fecha < fechaMinima;
         const esHoy = (i === 0);
         
-        // ⭐ R5: Solo bloquear si esta fecha coincide EXACTAMENTE con el siguiente lunes o martes
         const esSiguienteLunes = siguienteLunes && fecha.getTime() === siguienteLunes.getTime();
         const esSiguienteMartes = siguienteMartes && fecha.getTime() === siguienteMartes.getTime();
-        const bloqueadoPorReglaViernesSabadoDomingo = esSiguienteLunes || esSiguienteMartes;
+        const bloqueadoPorRegla = esSiguienteLunes || esSiguienteMartes;
         
         const fechaStr = fecha.getFullYear() + '-' + String(fecha.getMonth() + 1).padStart(2, '0') + '-' + String(fecha.getDate()).padStart(2, '0');
         const diaNumero = fecha.getDate();
         const mesNombre = fecha.toLocaleDateString('es-MX', { month: 'short' });
         
         let deshabilitado = false;
-        
-        if (esHoy) {
-            deshabilitado = true;
-        } else if (esFinDeSemana) {
-            deshabilitado = true;
-        } else if (esAntesDeFechaMinima) {
-            deshabilitado = true;
-        } else if (bloqueadoPorReglaViernesSabadoDomingo) {
-            deshabilitado = true;
-            // ⭐ Sin mensaje ni tooltip, solo se deshabilita
-        }
+        if (esHoy) deshabilitado = true;
+        else if (esFinDeSemana) deshabilitado = true;
+        else if (esAntesDeFechaMinima) deshabilitado = true;
+        else if (bloqueadoPorRegla) deshabilitado = true;
         
         const estilo = deshabilitado 
             ? 'background:#f3f4f6; color:#9ca3af; cursor:not-allowed; padding:0.8rem 0.3rem; border-radius:8px; font-size:0.85rem;'
@@ -5881,4 +5977,148 @@ function mostrarErrorSplash(mensaje) {
     if (subtext) subtext.style.display = 'none';
     if (errorText) errorText.textContent = mensaje;
     if (errorDiv) errorDiv.style.display = 'block';
+}
+// ============================================
+// ⭐ ETAPA 2: DIRECCIÓN OBLIGATORIA ANTES DE BUSCAR
+// ============================================
+
+let categoriaActiva = null;
+
+function inicializarPasoDireccion() {
+    const select = document.getElementById('selectDireccionInicial');
+    if (!select) return;
+    
+    select.innerHTML = '<option value="">-- Selecciona una dirección --</option>';
+    direccionesCliente.forEach((dir, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = `${dir.nombre || 'Sin nombre'} - ${dir.calle}, ${dir.colonia}, ${dir.alcaldia}, ${dir.estado}`;
+        select.appendChild(option);
+    });
+    
+    // Si ya hay una dirección guardada seleccionada, mantenerla
+    if (window.direccionInicialSeleccionada) {
+        const idx = direccionesCliente.findIndex(d => 
+            d.nombre === window.direccionInicialSeleccionada.nombre &&
+            d.calle === window.direccionInicialSeleccionada.calle
+        );
+        if (idx >= 0) {
+            select.value = idx;
+            habilitarContinuarDireccion();
+        }
+    }
+}
+
+function habilitarContinuarDireccion() {
+    const select = document.getElementById('selectDireccionInicial');
+    const btn = document.getElementById('btnContinuarDireccion');
+    if (!select || !btn) return;
+    
+    if (select.value !== '') {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+    } else {
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+    }
+}
+
+function continuarConBusqueda() {
+    const select = document.getElementById('selectDireccionInicial');
+    const index = parseInt(select.value);
+    
+    if (isNaN(index) || index < 0 || index >= direccionesCliente.length) {
+        mostrarNotificacion('⚠️ Selecciona una dirección para continuar.');
+        return;
+    }
+    
+    const dir = direccionesCliente[index];
+    window.direccionInicialSeleccionada = {
+        alcaldia: dir.alcaldia || '',
+        nombre: dir.nombre || 'Sin nombre',
+        calle: dir.calle || '',
+        colonia: dir.colonia || '',
+        estado: dir.estado || '',
+        cp: dir.cp || '',
+        mapsUrl: dir.mapsUrl || '',
+        telefono: dir.telefono || '',
+        nombreRecibe: dir.nombreRecibe || ''
+    };
+    
+    // Ocultar panel de dirección y mostrar buscador + categorías
+    document.getElementById('pasoDireccionInicial').style.display = 'none';
+    document.getElementById('menuCategorias').style.display = 'block';
+    document.getElementById('searchSection').style.display = 'block';
+    document.getElementById('resultsSection').style.display = 'block';
+    
+    // Inicializar categorías
+    renderizarMenuCategorias();
+    
+    mostrarNotificacion('✅ Dirección seleccionada: ' + dir.nombre);
+}
+
+function abrirModalDireccionInicial() {
+    // Reusa el modal existente de dirección
+    const modal = document.getElementById('modalDireccion');
+    if (!modal) return;
+    
+    // Limpiar campos
+    document.getElementById('dirCalle').value = '';
+    document.getElementById('dirColonia').value = '';
+    document.getElementById('dirAlcaldia').value = '';
+    document.getElementById('dirEstado').value = '';
+    document.getElementById('dirCP').value = '';
+    document.getElementById('dirMaps').value = '';
+    document.getElementById('dirTelefono').value = '';
+    document.getElementById('dirNombreRecibe').value = '';
+    document.getElementById('dirGuardarNombre').value = '';
+    document.getElementById('dirGuardarCheck').checked = false;
+    document.getElementById('dirGuardarCampos').style.display = 'none';
+    document.getElementById('modalDireccionMensaje').innerHTML = '';
+    document.getElementById('modalDireccionMensaje').style.display = 'none';
+    
+    // Marcar modo "inicial" para saber que al guardar hay que refrescar el selector
+    window._modoModalDireccion = 'inicial';
+    
+    modal.classList.add('active');
+}
+
+// ============================================
+// ⭐ ETAPA 3: MENÚ DE CATEGORÍAS
+// ============================================
+
+function renderizarMenuCategorias() {
+    const container = document.getElementById('botonesCategorias');
+    if (!container) return;
+    
+    const categorias = [...new Set(productosGlobales.map(p => p.categoria))].sort();
+    
+    let html = `
+        <button onclick="seleccionarCategoria(null)" 
+                class="btn-categoria ${categoriaActiva === null ? 'active' : ''}"
+                style="padding: 0.6rem 1.5rem; border-radius: 50px; border: 2px solid #e2e8f0; background: ${categoriaActiva === null ? 'var(--accent-orange)' : 'white'}; color: ${categoriaActiva === null ? 'white' : 'var(--primary-dark)'}; font-weight: 600; cursor: pointer; transition: all 0.3s; font-family: 'Inter', sans-serif;">
+            Todas
+        </button>
+    `;
+    
+    categorias.forEach(cat => {
+        const activa = categoriaActiva === cat;
+        html += `
+            <button onclick="seleccionarCategoria('${escapeHtml(cat)}')" 
+                    class="btn-categoria ${activa ? 'active' : ''}"
+                    style="padding: 0.6rem 1.5rem; border-radius: 50px; border: 2px solid #e2e8f0; background: ${activa ? 'var(--accent-orange)' : 'white'}; color: ${activa ? 'white' : 'var(--primary-dark)'}; font-weight: 600; cursor: pointer; transition: all 0.3s; font-family: 'Inter', sans-serif;">
+                ${escapeHtml(cat)}
+            </button>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function seleccionarCategoria(cat) {
+    categoriaActiva = cat;
+    renderizarMenuCategorias();
+    buscarProductos(); // Refresca resultados con la categoría activa
 }
