@@ -1105,7 +1105,7 @@
         <button data-tab="tab-sesiones"><i class="fas fa-shield-alt"></i> Mis Sesiones</button>
     </div>
 
-    <div id="tab-cotizar" class="tab-content active">
+        <div id="tab-cotizar" class="tab-content active">
         <div class="welcome-section">
             <h1>👋 ¡Hola, <span id="welcomeName">Cliente</span>!</h1>
             <p>Aquí puedes buscar y explorar los productos disponibles. Si no encuentras un producto, contacta a tu asesor.</p>
@@ -1115,7 +1115,38 @@
             </div>
         </div>
 
-        <div class="search-section">
+        <!-- ⭐ ETAPA 2: PASO 1 - SELECCIÓN DE DIRECCIÓN (obligatorio) -->
+        <div id="pasoDireccionInicial" class="search-section" style="border: 2px solid var(--accent-orange);">
+            <h2><i class="fas fa-map-marker-alt"></i> Paso 1: Selecciona tu dirección de entrega</h2>
+            <p style="color: var(--text-gray); margin-bottom: 1rem;">
+                Antes de buscar productos, elige la dirección donde recibirás tu pedido.
+            </p>
+            <div class="form-group">
+                <label>Dirección de entrega <span style="color:red;">*</span></label>
+                <select id="selectDireccionInicial" onchange="habilitarContinuarDireccion()">
+                    <option value="">-- Selecciona una dirección --</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <button onclick="abrirModalDireccionInicial()" class="btn-vaciar" style="flex: 1;">
+                    <i class="fas fa-plus"></i> Registrar nueva dirección
+                </button>
+                <button id="btnContinuarDireccion" onclick="continuarConBusqueda()" class="btn-comprar" style="flex: 1; opacity: 0.5; cursor: not-allowed;" disabled>
+                    <i class="fas fa-arrow-right"></i> Continuar
+                </button>
+            </div>
+        </div>
+
+        <!-- ⭐ ETAPA 3: MENÚ DE CATEGORÍAS (oculto hasta elegir dirección) -->
+        <div id="menuCategorias" class="search-section" style="display:none;">
+            <h2><i class="fas fa-tags"></i> Categorías</h2>
+            <div id="botonesCategorias" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <!-- Se llena dinámicamente -->
+            </div>
+        </div>
+
+        <!-- Buscador (oculto hasta elegir dirección) -->
+        <div id="searchSection" class="search-section" style="display:none;">
             <h2><i class="fas fa-search"></i> Buscar Productos</h2>
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="Ej: cemento, acero, pintura, madera..." onkeyup="buscarProductos()">
@@ -1124,17 +1155,19 @@
             </div>
         </div>
 
-        <div class="results-section" id="resultsSection">
+        <!-- Resultados (oculto hasta elegir dirección) -->
+        <div class="results-section" id="resultsSection" style="display:none;">
             <h3><i class="fas fa-list"></i> Productos Disponibles</h3>
             <div id="resultsContent">
                 <div class="empty-state">
                     <i class="fas fa-search"></i>
                     <h4>Busca productos</h4>
-                    <p>Escribe el nombre de un producto para comenzar.</p>
+                    <p>Escribe el nombre de un producto o selecciona una categoría.</p>
                 </div>
             </div>
         </div>
 
+        <!-- Carrito -->
         <div class="cart-section" id="cartSection">
             <h2><i class="fas fa-shopping-cart"></i> Carrito de Compra</h2>
             <div id="cartContent">
