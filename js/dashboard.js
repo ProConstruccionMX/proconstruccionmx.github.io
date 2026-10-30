@@ -268,7 +268,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const email = sessionStorage.getItem('userEmail');
     
     try {
-        await cargarDatosCliente(email);
+                await cargarDatosCliente(email);
         actualizarTexto()
         await cargarProductos();
         actualizarTexto()
@@ -276,6 +276,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         actualizarTexto()
         await cargarDireccionesCliente();
         actualizarTexto()
+        // ⭐ ETAPA 2: Inicializar el selector de dirección inicial DESPUÉS de cargar direcciones
+        inicializarPasoDireccion();
         await cargarFacturacionCliente();
         actualizarTexto()
         await cargarHistorialCompras();
@@ -5986,17 +5988,34 @@ let categoriaActiva = null;
 
 function inicializarPasoDireccion() {
     const select = document.getElementById('selectDireccionInicial');
-    if (!select) return;
+    if (!select) {
+        console.warn('⚠️ selectDireccionInicial no existe en el DOM todavía');
+        return;
+    }
+    
+    // Verificar que direccionesCliente sea un array con datos
+    if (!Array.isArray(direccionesCliente) || direccionesCliente.length === 0) {
+        console.warn('⚠️ direccionesCliente vacío, no se puede poblar el selector');
+        select.innerHTML = '<option value="">-- No tienes direcciones guardadas --</option>';
+        return;
+    }
+    
+    console.log('📍 Poblando selector de direcciones con', direccionesCliente.length, 'direcciones');
     
     select.innerHTML = '<option value="">-- Selecciona una dirección --</option>';
     direccionesCliente.forEach((dir, index) => {
         const option = document.createElement('option');
         option.value = index;
-        option.textContent = `${dir.nombre || 'Sin nombre'} - ${dir.calle}, ${dir.colonia}, ${dir.alcaldia}, ${dir.estado}`;
+        const nombre = dir.nombre || 'Sin nombre';
+        const calle = dir.calle || '';
+        const colonia = dir.colonia || '';
+        const alcaldia = dir.alcaldia || '';
+        const estado = dir.estado || '';
+        option.textContent = `${nombre} - ${calle}, ${colonia}, ${alcaldia}, ${estado}`;
         select.appendChild(option);
     });
     
-    // Si ya hay una dirección guardada seleccionada, mantenerla
+    // Si ya había una dirección seleccionada, restaurarla
     if (window.direccionInicialSeleccionada) {
         const idx = direccionesCliente.findIndex(d => 
             d.nombre === window.direccionInicialSeleccionada.nombre &&
@@ -6018,10 +6037,12 @@ function habilitarContinuarDireccion() {
         btn.disabled = false;
         btn.style.opacity = '1';
         btn.style.cursor = 'pointer';
+        btn.style.background = 'var(--accent-orange)';
     } else {
         btn.disabled = true;
         btn.style.opacity = '0.5';
         btn.style.cursor = 'not-allowed';
+        btn.style.background = 'var(--accent-orange)';
     }
 }
 
