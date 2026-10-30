@@ -986,7 +986,7 @@ function actualizarInfoCliente() {
 }
 
 // ============================================
-// CARGA DE PRODUCTOS (con categoria e imagen)
+// CARGA DE PRODUCTOS (con categoria e imagen + filtro Y)
 // ============================================
 async function cargarProductos() {
     try {
@@ -1001,9 +1001,8 @@ async function cargarProductos() {
         console.log(`📊 Total de filas en la hoja: ${rows.length}`);
         
         productosGlobales = [];
-        let contadorConPeso = 0;
-        let filasProcesadas = 0;
         let filasSaltadas = 0;
+        let sinCategoria = 0;
         
         for (let i = 0; i < rows.length; i++) {
             const values = rows[i].c.map(cell => cell ? cell.v : '');
@@ -1011,6 +1010,7 @@ async function cargarProductos() {
             const clave = String(values[0] || '').trim();
             const nombre = String(values[1] || '').trim();
             
+            // Saltar encabezados o filas inválidas
             if (!clave || !nombre || 
                 clave.toLowerCase() === 'clave' || 
                 clave.toLowerCase() === 'id' || 
@@ -1023,7 +1023,21 @@ async function cargarProductos() {
                 continue;
             }
             
-            filasProcesadas++;
+            const permitidoCondicion = String(values[21] || '').trim().toUpperCase();
+            const permitido = permitidoCondicion === 'SI';
+            
+            // ⭐ Solo cargar productos activos (V = SI)
+            if (!permitido) {
+                filasSaltadas++;
+                continue;
+            }
+            
+            // ⭐ Solo cargar productos con categoría válida en Y
+            const categoria = String(values[24] || '').trim();
+            if (!categoria) {
+                sinCategoria++;
+                continue;
+            }
             
             const descripcion = String(values[2] || '').trim();
             const precio = parseFloat(values[3]) || 0;
@@ -1040,16 +1054,12 @@ async function cargarProductos() {
             
             const pesoCondicionRaw = String(values[17] || '').trim().toUpperCase();
             const pesoCondicion = pesoCondicionRaw === 'SI' ? 'SI' : 'NO';
-            
-            const pesoRaw = String(values[18] || '').trim();
-            const peso = parseFloat(pesoRaw) || 0;
+            const peso = parseFloat(values[18]) || 0;
             
             const minPiezasCondicion = String(values[19] || '').trim().toUpperCase();
             const minPiezas = parseFloat(values[20]) || 0;
-            const permitidoCondicion = String(values[21] || '').trim().toUpperCase();
             
             // ⭐ NUEVO: columnas Y (categoría) y Z (imagen)
-            const categoria = String(values[24] || '').trim();
             const imagen = String(values[25] || '').trim();
             
             // ⭐ NUEVO: columnas I (Vertiz) y X (Coacalco)
@@ -1057,7 +1067,6 @@ async function cargarProductos() {
             const proveedorCoacalco = String(values[23] || '').trim();
             
             const requiereMinPiezas = minPiezasCondicion === 'SI';
-            const permitido = permitidoCondicion === 'SI';
             
             productosGlobales.push({
                 clave: clave,
@@ -1079,8 +1088,7 @@ async function cargarProductos() {
                 requiereMinPiezas: requiereMinPiezas,
                 minPiezas: minPiezas,
                 permitido: permitido,
-                // ⭐ NUEVOS CAMPOS
-                categoria: categoria || 'Sin categoría',
+                categoria: categoria,
                 imagen: imagen || '',
                 proveedorVertiz: proveedorVertiz,
                 proveedorCoacalco: proveedorCoacalco,
@@ -1089,6 +1097,8 @@ async function cargarProductos() {
         }
         
         console.log(`📦 Productos cargados: ${productosGlobales.length}`);
+        console.log(`⏭️ Filas saltadas (inactivas/encabezados): ${filasSaltadas}`);
+        console.log(`⚠️ Productos activos sin categoría (excluidos): ${sinCategoria}`);
         console.log(`📂 Categorías detectadas:`, [...new Set(productosGlobales.map(p => p.categoria))]);
         
     } catch (error) {
