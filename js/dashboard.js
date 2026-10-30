@@ -986,9 +986,8 @@ function actualizarInfoCliente() {
 }
 
 // ============================================
-// CARGA DE PRODUCTOS
+// CARGA DE PRODUCTOS (con categoria e imagen)
 // ============================================
-
 async function cargarProductos() {
     try {
         console.log('📥 Cargando productos desde Google Sheets...');
@@ -1000,7 +999,6 @@ async function cargarProductos() {
         const rows = data.table.rows;
         
         console.log(`📊 Total de filas en la hoja: ${rows.length}`);
-        console.log(`📌 La fila 0 es el encabezado. Los datos comienzan desde la fila 1.`);
         
         productosGlobales = [];
         let contadorConPeso = 0;
@@ -1050,6 +1048,14 @@ async function cargarProductos() {
             const minPiezas = parseFloat(values[20]) || 0;
             const permitidoCondicion = String(values[21] || '').trim().toUpperCase();
             
+            // ⭐ NUEVO: columnas Y (categoría) y Z (imagen)
+            const categoria = String(values[24] || '').trim();
+            const imagen = String(values[25] || '').trim();
+            
+            // ⭐ NUEVO: columnas I (Vertiz) y X (Coacalco)
+            const proveedorVertiz = String(values[8] || '').trim();
+            const proveedorCoacalco = String(values[23] || '').trim();
+            
             const requiereMinPiezas = minPiezasCondicion === 'SI';
             const permitido = permitidoCondicion === 'SI';
             
@@ -1073,12 +1079,17 @@ async function cargarProductos() {
                 requiereMinPiezas: requiereMinPiezas,
                 minPiezas: minPiezas,
                 permitido: permitido,
+                // ⭐ NUEVOS CAMPOS
+                categoria: categoria || 'Sin categoría',
+                imagen: imagen || '',
+                proveedorVertiz: proveedorVertiz,
+                proveedorCoacalco: proveedorCoacalco,
                 fila: i + 1
             });
         }
         
         console.log(`📦 Productos cargados: ${productosGlobales.length}`);
-        console.log(`📊 Filas procesadas: ${filasProcesadas}, Filas saltadas: ${filasSaltadas}`);
+        console.log(`📂 Categorías detectadas:`, [...new Set(productosGlobales.map(p => p.categoria))]);
         
     } catch (error) {
         console.error('❌ Error al cargar productos:', error);
