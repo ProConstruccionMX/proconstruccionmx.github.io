@@ -35,6 +35,7 @@ const PESO_MINIMO_TONELADA = 1000;
 let clienteData = null;
 let productosGlobales = [];
 let preciosEspecialesGlobales = [];
+let condicionesProveedorGlobales = [];   // ⭐ NUEVO (Etapa 1)
 let carrito = [];
 let pagoSeleccionado = null;
 let comprobanteBase64 = null;
@@ -273,6 +274,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         await cargarProductos();
         actualizarTexto()
         await cargarPreciosEspeciales();
+        actualizarTexto()
+        await cargarCondicionesProveedor();   // ⭐ NUEVO (Etapa 1)
         actualizarTexto()
         await cargarDireccionesCliente();
         actualizarTexto()
@@ -1064,9 +1067,13 @@ async function cargarProductos() {
             // ⭐ NUEVO: columnas Y (categoría) y Z (imagen)
             const imagen = String(values[25] || '').trim();
             
-            // ⭐ NUEVO: columnas I (Vertiz) y X (Coacalco)
+                        // ⭐ NUEVO: columnas I (Vertiz) y X (Coacalco)
             const proveedorVertiz = String(values[8] || '').trim();
             const proveedorCoacalco = String(values[23] || '').trim();
+            
+            // ⭐ ETAPA 1: columnas AB (Marca) y AC (Proveedor 3)
+            const marca = String(values[27] || '').trim();
+            const proveedor3 = String(values[28] || '').trim();
             
             const requiereMinPiezas = minPiezasCondicion === 'SI';
             
@@ -1092,8 +1099,10 @@ async function cargarProductos() {
                 permitido: permitido,
                 categoria: categoria,
                 imagen: imagen || '',
-                proveedorVertiz: proveedorVertiz,
+                                proveedorVertiz: proveedorVertiz,
                 proveedorCoacalco: proveedorCoacalco,
+                marca: marca,               // ⭐ NUEVO (Etapa 1)
+                proveedor3: proveedor3,     // ⭐ NUEVO (Etapa 1)
                 fila: i + 1
             });
         }
@@ -1144,7 +1153,40 @@ async function cargarPreciosEspeciales() {
         preciosEspecialesGlobales = [];
     }
 }
-
+// ============================================
+// ⭐ NUEVA FUNCIÓN (Etapa 1): Cargar condiciones de venta de proveedores
+// ============================================
+async function cargarCondicionesProveedor() {
+    try {
+        console.log('📥 Cargando condiciones de proveedores...');
+        
+        const url = `${WORKER_URL}/leer?tipo=condiciones-proveedor`;
+        const response = await fetchAutenticado(url);
+        const data = await response.json();
+        
+        if (!data.success) {
+            console.error('❌ No se pudieron cargar las condiciones:', data.error);
+            condicionesProveedorGlobales = [];
+            return;
+        }
+        
+        condicionesProveedorGlobales = (data.condiciones || []).map(c => ({
+            proveedor: String(c.proveedor || '').trim(),
+            pesoMaximo: (c.pesoMaximo === null || c.pesoMaximo === undefined) ? null : parseFloat(c.pesoMaximo),
+            costoEnvio: (c.costoEnvio === null || c.costoEnvio === undefined) ? null : parseFloat(c.costoEnvio),
+            montoEnvioGratis: (c.montoEnvioGratis === null || c.montoEnvioGratis === undefined) ? null : parseFloat(c.montoEnvioGratis),
+            diasEntrega: parseInt(c.diasEntrega) || 1,
+            localidades: Array.isArray(c.localidades) ? c.localidades.map(l => String(l).trim()).filter(Boolean) : []
+        }));
+        
+        console.log(`📦 Condiciones proveedor cargadas: ${condicionesProveedorGlobales.length}`);
+        console.log('📦 Proveedores:', condicionesProveedorGlobales.map(c => c.proveedor));
+        
+    } catch (error) {
+        console.error('❌ Error al cargar condiciones de proveedores:', error);
+        condicionesProveedorGlobales = [];
+    }
+}
 // ============================================
 // CARGA DE DIRECCIONES DEL CLIENTE (Fase 0.2)
 // ============================================
