@@ -3863,13 +3863,14 @@ async function procesarPagoTransferencia() {
         
         // 2. Construir body para /crearPedido
         const body = {
-            items: items,
-            metodoPago: 'Transferencia',
-            nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre',
-            requiereFactura: requiereFactura,
-            razonSocialFactura: datosFacturaSeleccionados ? datosFacturaSeleccionados.razonSocial : '',
-            fechaEntrega: window.fechaEntregaSeleccionada ? window.fechaEntregaSeleccionada.iso : ''
-        };
+    items: items,
+    metodoPago: 'Transferencia',
+    nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre',
+    requiereFactura: requiereFactura,
+    razonSocialFactura: datosFacturaSeleccionados ? datosFacturaSeleccionados.razonSocial : '',
+    fechaEntrega: window.fechaEntregaSeleccionada ? window.fechaEntregaSeleccionada.iso : '',
+    alcaldia: window.direccionInicialSeleccionada ? window.direccionInicialSeleccionada.alcaldia : (window.datosEnvio ? window.datosEnvio.alcaldia : '')
+};
         
         // 3. Llamar al Worker
         const response = await fetchAutenticado(`${WORKER_URL}/crearPedido`, {
@@ -4044,13 +4045,14 @@ async function procesarPagoCredito() {
         
         // 2. Construir body para /crearPedido
         const body = {
-            items: items,
-            metodoPago: 'Credito',
-            nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre',
-            requiereFactura: requiereFactura,
-            razonSocialFactura: datosFacturaSeleccionados ? datosFacturaSeleccionados.razonSocial : '',
-            fechaEntrega: window.fechaEntregaSeleccionada ? window.fechaEntregaSeleccionada.iso : ''
-        };
+    items: items,
+    metodoPago: 'Credito',
+    nombreDireccion: window.datosEnvio ? window.datosEnvio.nombreDireccion || 'Sin nombre' : 'Sin nombre',
+    requiereFactura: requiereFactura,
+    razonSocialFactura: datosFacturaSeleccionados ? datosFacturaSeleccionados.razonSocial : '',
+    fechaEntrega: window.fechaEntregaSeleccionada ? window.fechaEntregaSeleccionada.iso : '',
+    alcaldia: window.direccionInicialSeleccionada ? window.direccionInicialSeleccionada.alcaldia : (window.datosEnvio ? window.datosEnvio.alcaldia : '')
+};
         
         // 3. Llamar al Worker
         const response = await fetchAutenticado(`${WORKER_URL}/crearPedido`, {
