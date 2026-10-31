@@ -2878,16 +2878,46 @@ function generarCalendario() {
         siguienteMartes.setDate(siguienteMartes.getDate() + 1);
     }
     
-    const fechaMinima = new Date(ahora);
-    fechaMinima.setDate(fechaMinima.getDate() + (esDespuesDe540 ? 2 : 1) + 1);
-    fechaMinima.setHours(0, 0, 0, 0);
-    
-    // ⭐ ETAPA 4: Sumar días extra según el proveedor
+    // ============================================
+    // ⭐ ETAPA 4: Calcular días extra por proveedor
+    // ============================================
     const proveedor = determinarProveedorVentaFrontend();
     const diasExtra = (proveedor === 'Grupo SAR Vertiz') ? 1 : 0;
-    fechaMinima.setDate(fechaMinima.getDate() + diasExtra);
     
     console.log('🏢 Proveedor (frontend):', proveedor, '| Días extra:', diasExtra);
+    
+    // ============================================
+    // ⭐ Calcular el PRIMER DÍA HÁBIL REAL disponible
+    // (aplicando TODAS las reglas: hora, fin de semana, lunes/martes bloqueados, días extra)
+    // ============================================
+    const fechaMinima = new Date(ahora);
+    fechaMinima.setHours(0, 0, 0, 0);
+    
+    // Días base de anticipación (2 si es después de 5:40pm, 1 si no) + 1 día de logística
+    const diasAnticipacionBase = esDespuesDe540 ? 2 : 1;
+    fechaMinima.setDate(fechaMinima.getDate() + diasAnticipacionBase + 1);
+    
+    // Sumar días extra por proveedor
+    fechaMinima.setDate(fechaMinima.getDate() + diasExtra);
+    
+    // Función auxiliar: ¿esta fecha está bloqueada?
+    function estaBloqueada(fecha) {
+        const dia = fecha.getDay();
+        if (dia === 0 || dia === 6) return true; // fin de semana
+        const t = fecha.getTime();
+        if (siguienteLunes && t === siguienteLunes.getTime()) return true;
+        if (siguienteMartes && t === siguienteMartes.getTime()) return true;
+        return false;
+    }
+    
+    // Avanzar fechaMinima hasta el primer día hábil disponible
+    let guard = 0;
+    while (estaBloqueada(fechaMinima) && guard < 30) {
+        fechaMinima.setDate(fechaMinima.getDate() + 1);
+        guard++;
+    }
+    
+    console.log('📅 Primer día hábil disponible:', fechaMinima.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long', year:'numeric'}));
     
     const diasAMostrar = 30;
     const container = document.getElementById('calendarioContainer');
