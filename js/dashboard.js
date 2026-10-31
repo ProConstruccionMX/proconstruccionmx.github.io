@@ -2600,9 +2600,10 @@ function abrirModalDireccion() {
         return;
     }
     
-    // Modo "pago" (no inicial)
+    // Modo "pago"
     window._modoModalDireccion = 'pago';
     
+    // Validaciones de peso y piezas
     const verificarPeso = verificarPesoMinimo();
     if (verificarPeso.productosConPeso > 0 && !verificarPeso.cumple) {
         mostrarNotificacion('⚠️ ' + verificarPeso.mensaje);
@@ -2615,26 +2616,93 @@ function abrirModalDireccion() {
         return;
     }
     
-    cargarDireccionesCliente();
+    // Configurar modal para modo pago
+    document.getElementById('modalDireccionTitulo').textContent = '📦 Confirmar dirección de entrega';
+    document.getElementById('modalDireccionSubtitulo').textContent = 'Esta es la dirección que seleccionaste al inicio';
+    document.getElementById('modalDireccionModoPago').style.display = 'block';
+    document.getElementById('modalDireccionModoInicial').style.display = 'none';
     
-    document.getElementById('dirCalle').value = '';
-    document.getElementById('dirColonia').value = '';
-    document.getElementById('dirAlcaldia').value = '';
-    document.getElementById('dirEstado').value = '';
-    document.getElementById('dirCP').value = '';
-    document.getElementById('dirMaps').value = '';
-    document.getElementById('dirTelefono').value = '';
-    document.getElementById('dirNombreRecibe').value = '';
-    document.getElementById('dirGuardarNombre').value = '';
-    document.getElementById('dirGuardarCheck').checked = false;
-    document.getElementById('dirGuardarCampos').style.display = 'none';
+    // Renderizar resumen de la dirección inicial
+    const dir = window.direccionInicialSeleccionada;
+    const resumenContenido = document.getElementById('dirResumenContenido');
+    const avisoSinSeleccion = document.getElementById('dirSinSeleccion');
+    const btnConfirmar = document.getElementById('btnConfirmarDireccionPago');
+    
+    if (!dir || !dir.nombre) {
+        resumenContenido.innerHTML = '';
+        avisoSinSeleccion.style.display = 'block';
+        btnConfirmar.disabled = true;
+        btnConfirmar.style.opacity = '0.5';
+        btnConfirmar.style.cursor = 'not-allowed';
+    } else {
+        resumenContenido.innerHTML = `
+            <p style="margin:0 0 0.5rem 0; font-weight:700; color:var(--primary-dark); font-size:1.05rem;">
+                <i class="fas fa-map-marker-alt" style="color:var(--accent-orange);"></i>
+                ${escapeHtml(dir.nombre)}
+            </p>
+            <p style="margin:0.2rem 0; font-size:0.9rem; color:var(--text-gray);">
+                <strong>Calle:</strong> ${escapeHtml(dir.calle || '---')}
+            </p>
+            <p style="margin:0.2rem 0; font-size:0.9rem; color:var(--text-gray);">
+                <strong>Colonia:</strong> ${escapeHtml(dir.colonia || '---')}
+            </p>
+            <p style="margin:0.2rem 0; font-size:0.9rem; color:var(--text-gray);">
+                <strong>Alcaldía:</strong> ${escapeHtml(dir.alcaldia || '---')}
+            </p>
+            <p style="margin:0.2rem 0; font-size:0.9rem; color:var(--text-gray);">
+                <strong>Estado:</strong> ${escapeHtml(dir.estado || '---')}
+            </p>
+            <p style="margin:0.2rem 0; font-size:0.9rem; color:var(--text-gray);">
+                <strong>C.P.:</strong> ${escapeHtml(dir.cp || '---')}
+            </p>
+            <p style="margin:0.2rem 0; font-size:0.9rem; color:var(--text-gray);">
+                <strong>Teléfono:</strong> ${escapeHtml(dir.telefono || '---')}
+            </p>
+            <p style="margin:0.2rem 0; font-size:0.9rem; color:var(--text-gray);">
+                <strong>Recibe:</strong> ${escapeHtml(dir.nombreRecibe || '---')}
+            </p>
+        `;
+        avisoSinSeleccion.style.display = 'none';
+        btnConfirmar.disabled = false;
+        btnConfirmar.style.opacity = '1';
+        btnConfirmar.style.cursor = 'pointer';
+    }
+    
     document.getElementById('modalDireccionMensaje').innerHTML = '';
     document.getElementById('modalDireccionMensaje').style.display = 'none';
     
-    // ⭐ Limpiar el nombre de la dirección seleccionada al abrir el modal
-    direccionSeleccionadaNombre = null;
-    
     document.getElementById('modalDireccion').classList.add('active');
+}
+
+// ⭐ NUEVA: confirma la dirección de pago (solo lectura) y abre fecha de entrega
+function confirmarDireccionParaPago() {
+    const dir = window.direccionInicialSeleccionada;
+    
+    if (!dir || !dir.nombre) {
+        mostrarMensajeModalDireccion('error', '⚠️ Debes seleccionar una dirección al inicio antes de continuar.');
+        return;
+    }
+    
+    if (!dir.mapsUrl) {
+        mostrarMensajeModalDireccion('error', '⚠️ Esta dirección no tiene URL de Google Maps. Edítala en "Mis Direcciones" o elige otra.');
+        return;
+    }
+    
+    // Poblar window.datosEnvio con la dirección inicial
+    window.datosEnvio = {
+        calle: dir.calle || '',
+        colonia: dir.colonia || '',
+        alcaldia: dir.alcaldia || '',
+        estado: dir.estado || '',
+        cp: dir.cp || '',
+        mapsUrl: dir.mapsUrl || '',
+        telefono: dir.telefono || '',
+        nombreRecibe: dir.nombreRecibe || '',
+        nombreDireccion: dir.nombre || 'Sin nombre'
+    };
+    
+    cerrarModalDireccion();
+    abrirModalFechaEntrega();
 }
 
 function cargarDireccionSeleccionada() {
@@ -2689,6 +2757,7 @@ async function continuarConPago() {
     const telefono = document.getElementById('dirTelefono').value.trim();
     const nombreRecibe = document.getElementById('dirNombreRecibe').value.trim();
     const mapsUrl = document.getElementById('dirMaps').value.trim();
+    const nombreDireccion = document.getElementById('dirGuardarNombre').value.trim();
     
     if (!mapsUrl) {
         mostrarMensajeModalDireccion('error', '⚠️ La URL de Google Maps es obligatoria. Por favor, proporciona la ubicación exacta.');
@@ -2700,48 +2769,14 @@ async function continuarConPago() {
         return;
     }
     
-        const guardarDireccion = document.getElementById('dirGuardarCheck').checked;
-    let nombreDireccion = '';
-    
-    // ⭐ Prioridad 1: Si el usuario seleccionó una dirección del <select>, usar su nombre
-    if (direccionSeleccionadaNombre) {
-        nombreDireccion = direccionSeleccionadaNombre;
-    } else {
-        // Prioridad 2: Si el usuario escribió un nombre en el campo de guardar
-        nombreDireccion = document.getElementById('dirGuardarNombre').value.trim();
-    }
-    
-    // Si va a guardar la dirección y no tiene nombre, pedir nombre
-    if (guardarDireccion && !nombreDireccion) {
+    if (!nombreDireccion) {
         mostrarMensajeModalDireccion('error', '⚠️ Por favor, asigna un nombre a la dirección para guardarla.');
         return;
     }
     
-    // Si no hay nombre, usar "Sin nombre" como fallback
-    if (!nombreDireccion) {
-        nombreDireccion = 'Sin nombre';
-    }
-    
-    if (guardarDireccion && nombreDireccion && nombreDireccion !== 'Sin nombre') {
-        const guardado = await guardarNuevaDireccion({
-            nombre: nombreDireccion,
-            calle: calle,
-            colonia: colonia,
-            alcaldia: alcaldia,
-            estado: estado,
-            cp: cp,
-            mapsUrl: mapsUrl,
-            telefono: telefono,
-            nombreRecibe: nombreRecibe
-        });
-        
-        if (!guardado) {
-            mostrarMensajeModalDireccion('error', '❌ Error al guardar la dirección. Intenta de nuevo.');
-            return;
-        }
-    }
-    
-    window.datosEnvio = {
+    // Guardar la nueva dirección
+    const guardado = await guardarNuevaDireccion({
+        nombre: nombreDireccion,
         calle: calle,
         colonia: colonia,
         alcaldia: alcaldia,
@@ -2749,15 +2784,18 @@ async function continuarConPago() {
         cp: cp,
         mapsUrl: mapsUrl,
         telefono: telefono,
-        nombreRecibe: nombreRecibe,
-        nombreDireccion: nombreDireccion
-    };
+        nombreRecibe: nombreRecibe
+    });
     
-        // ============================================
-    // ⭐ ETAPA 2: Manejo del modo "inicial" vs "pago"
+    if (!guardado) {
+        mostrarMensajeModalDireccion('error', '❌ Error al guardar la dirección. Intenta de nuevo.');
+        return;
+    }
+    
+    // ============================================
+    // Modo inicial: refrescar el selector del Paso 1
     // ============================================
     if (window._modoModalDireccion === 'inicial') {
-        // Modo inicial: guardar la dirección recién creada y refrescar el selector
         cerrarModalDireccion();
         
         // Recargar direcciones desde el backend para incluir la nueva
@@ -2778,9 +2816,7 @@ async function continuarConPago() {
         return;
     }
     
-    // ============================================
-    // Modo "pago" (flujo normal, sin cambios)
-    // ============================================
+    // Este bloque nunca debería ejecutarse en modo pago (el pago usa confirmarDireccionParaPago)
     cerrarModalDireccion();
     abrirModalFechaEntrega();
 }
@@ -6126,11 +6162,20 @@ function continuarConBusqueda() {
 }
 
 function abrirModalDireccionInicial() {
-    // Reusa el modal existente de dirección
     const modal = document.getElementById('modalDireccion');
     if (!modal) return;
     
+    // Modo "inicial"
+    window._modoModalDireccion = 'inicial';
+    
+    // Configurar modal para modo inicial
+    document.getElementById('modalDireccionTitulo').textContent = '📦 Registrar nueva dirección';
+    document.getElementById('modalDireccionSubtitulo').textContent = 'Ingresa los datos de tu nueva dirección de entrega';
+    document.getElementById('modalDireccionModoPago').style.display = 'none';
+    document.getElementById('modalDireccionModoInicial').style.display = 'block';
+    
     // Limpiar campos
+    document.getElementById('dirGuardarNombre').value = '';
     document.getElementById('dirCalle').value = '';
     document.getElementById('dirColonia').value = '';
     document.getElementById('dirAlcaldia').value = '';
@@ -6139,14 +6184,9 @@ function abrirModalDireccionInicial() {
     document.getElementById('dirMaps').value = '';
     document.getElementById('dirTelefono').value = '';
     document.getElementById('dirNombreRecibe').value = '';
-    document.getElementById('dirGuardarNombre').value = '';
-    document.getElementById('dirGuardarCheck').checked = false;
-    document.getElementById('dirGuardarCampos').style.display = 'none';
+    
     document.getElementById('modalDireccionMensaje').innerHTML = '';
     document.getElementById('modalDireccionMensaje').style.display = 'none';
-    
-    // Marcar modo "inicial" para saber que al guardar hay que refrescar el selector
-    window._modoModalDireccion = 'inicial';
     
     modal.classList.add('active');
 }
