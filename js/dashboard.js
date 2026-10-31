@@ -2886,22 +2886,17 @@ function generarCalendario() {
     
     console.log('🏢 Proveedor (frontend):', proveedor, '| Días extra:', diasExtra);
     
+        // ============================================
+    // ⭐ Calcular el PRIMER DÍA HÁBIL BASE (regla Coacalco, sin días extra)
     // ============================================
-    // ⭐ Calcular el PRIMER DÍA HÁBIL REAL disponible
-    // (aplicando TODAS las reglas: hora, fin de semana, lunes/martes bloqueados, días extra)
-    // ============================================
-    const fechaMinima = new Date(ahora);
-    fechaMinima.setHours(0, 0, 0, 0);
+    const fechaBase = new Date(ahora);
+    fechaBase.setHours(0, 0, 0, 0);
     
-    // Días base de anticipación (2 si es después de 5:40pm, 1 si no) + 1 día de logística
     const diasAnticipacionBase = esDespuesDe540 ? 2 : 1;
-    fechaMinima.setDate(fechaMinima.getDate() + diasAnticipacionBase + 1);
+    fechaBase.setDate(fechaBase.getDate() + diasAnticipacionBase + 1);
     
-    // Sumar días extra por proveedor
-    fechaMinima.setDate(fechaMinima.getDate() + diasExtra);
-    
-    // Función auxiliar: ¿esta fecha está bloqueada?
-    function estaBloqueada(fecha) {
+    // Función auxiliar: ¿esta fecha está bloqueada por regla base?
+    function estaBloqueadaBase(fecha) {
         const dia = fecha.getDay();
         if (dia === 0 || dia === 6) return true; // fin de semana
         const t = fecha.getTime();
@@ -2910,14 +2905,32 @@ function generarCalendario() {
         return false;
     }
     
-    // Avanzar fechaMinima hasta el primer día hábil disponible
-    let guard = 0;
-    while (estaBloqueada(fechaMinima) && guard < 30) {
-        fechaMinima.setDate(fechaMinima.getDate() + 1);
-        guard++;
+    // Avanzar fechaBase hasta el primer día hábil base (Coacalco)
+    let guardBase = 0;
+    while (estaBloqueadaBase(fechaBase) && guardBase < 30) {
+        fechaBase.setDate(fechaBase.getDate() + 1);
+        guardBase++;
     }
     
-    console.log('📅 Primer día hábil disponible:', fechaMinima.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long', year:'numeric'}));
+    console.log('📅 Primer día hábil BASE (Coacalco):', fechaBase.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long', year:'numeric'}));
+    
+    // ============================================
+    // ⭐ Aplicar días de BLOQUEO extra (Vertiz = 1 día más bloqueado)
+    // El día extra corre el mínimo un día calendario más, y luego
+    // avanzamos hasta el primer día hábil (saltando solo fines de semana).
+    // ============================================
+    const fechaMinima = new Date(fechaBase);
+    fechaMinima.setDate(fechaMinima.getDate() + diasExtra);
+    
+    let guardFinal = 0;
+    while (guardFinal < 30) {
+        const dia = fechaMinima.getDay();
+        if (dia !== 0 && dia !== 6) break; // día hábil → salir
+        fechaMinima.setDate(fechaMinima.getDate() + 1);
+        guardFinal++;
+    }
+    
+    console.log('📅 Primer día hábil FINAL (con días extra):', fechaMinima.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long', year:'numeric'}));
     
     const diasAMostrar = 30;
     const container = document.getElementById('calendarioContainer');
