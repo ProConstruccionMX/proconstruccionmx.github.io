@@ -18,6 +18,63 @@ function escapeHtml(texto) {
         .replace(/'/g, '&#39;');
 }
 
+// ============================================
+// ⭐ ETAPA 2: NORMALIZACIÓN DE LOCALIDADES Y ALIAS
+// Resuelve acentos, mayúsculas, espacios, prefijos y sinónimos.
+// ============================================
+
+// Normaliza un texto de localidad: trim, lowercase, sin acentos, espacios colapsados
+function normalizarLocalidad(texto) {
+    if (!texto) return '';
+    return String(texto)
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+// Tabla de alias: variantes conocidas → forma canónica (la que usa la hoja Condiciones)
+// Cada vez que se agregue una localidad nueva con variantes, agregar aquí.
+const ALIAS_LOCALIDADES = {
+    // CDMX y variantes
+    'cdmx': 'CDMX',
+    'ciudad de mexico': 'CDMX',
+    'distrito federal': 'CDMX',
+    'df': 'CDMX',
+    'mexico df': 'CDMX',
+
+    // Tecámac y variantes
+    'tecamac': 'Tecamac',
+    'tecamac de felipe villanueva': 'Tecamac',
+
+    // Coacalco y variantes
+    'coacalco': 'Coacalco',
+    'coacalco de berriozabal': 'Coacalco',
+
+    // Ecatepec y variantes
+    'ecatepec': 'Ecatepec',
+    'ecatepec de morelos': 'Ecatepec',
+    'san cristobal ecatepec': 'Ecatepec'
+};
+
+// Resuelve una localidad a su forma canónica (aplica normalización + alias)
+function resolverLocalidad(texto) {
+    const normalizado = normalizarLocalidad(texto);
+    if (!normalizado) return '';
+    if (ALIAS_LOCALIDADES[normalizado]) return ALIAS_LOCALIDADES[normalizado];
+    return normalizado;
+}
+
+// Compara dos localidades (ambas pasan por resolverLocalidad)
+function localidadCoincide(localidadA, localidadB) {
+    const a = resolverLocalidad(localidadA);
+    const b = resolverLocalidad(localidadB);
+    if (!a || !b) return false;
+    return a === b;
+}
+
 // ⭐ Nombres de hoja (necesarios para guardarFilaGoogleSheets)
 const HOJA_PRODUCTOS = 'Hoja 1';
 const HOJA_BASE_CLIENTES = 'Hoja 1';
@@ -1471,9 +1528,22 @@ function buscarProductos() {
         return;
     }
     
-    // Filtrar por categoría activa + query
-    let resultados = productosGlobales;
+    // ⭐ ETAPA 2: Verificar que haya proveedores elegibles
+    if (!window.proveedoresElegibles || window.proveedoresElegibles.length === 0) {
+        resultsDiv.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-map-marker-slash"></i>
+                <h4>No hay productos disponibles para tu localidad</h4>
+                <p>No tenemos cobertura de proveedores para tu ubicación.</p>
+            </div>
+        `;
+        return;
+    }
     
+    // ⭐ ETAPA 2: Filtrar productos por proveedor elegible
+    let resultados = productosGlobales.filter(p => productoTieneProveedorElegible(p));
+    
+    // Filtrar por categoría activa + query
     if (categoriaActiva) {
         resultados = resultados.filter(p => p.categoria === categoriaActiva);
     }
@@ -6191,11 +6261,48 @@ function continuarConBusqueda() {
         nombreRecibe: dir.nombreRecibe || ''
     };
     
-    // Ocultar panel de dirección y mostrar buscador + categorías
+    // ⭐ ETAPA 2: Calcular localidad del cliente y proveedores elegibles
+    window.localidadCliente = determinarLocalidadCliente(dir);
+    window.proveedoresElegibles = calcularProveedoresElegibles(window.localidadCliente);
+    
+    console.log('📍 Localidad del cliente:', window.localidadCliente);
+    console.log('📍 Proveedores elegibles:', window.proveedoresElegibles);
+    
+    if (!window.localidadCliente) {
+        mostrarNotificacion('⚠️ La dirección no tiene alcaldía/municipio o estado. Edítala para continuar.');
+        return;
+    }
+    
+    if (window.proveedoresElegibles.length === 0) {
+        // No hay proveedores para esta localidad → mostrar mensaje en resultsSection
+        document.getElementById('pasoDireccionInicial').style.display = 'none';
+        document.getElementById('menuCategorias').style.display = 'none';
+        document.getElementById('searchSection').style.display = 'none';
+        document.getElementById('resultsSection').style.display = 'block';
+        
+        document.getElementById('resultsContent').innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-map-marker-slash"></i>
+                <h4>No hay productos disponibles para tu localidad</h4>
+                <p>No tenemos cobertura de proveedores para <strong>${escapeHtml(dir.alcaldia || dir.estado || 'esta ubicación')}</strong>.</p>
+                <p>Contacta a tu asesor para más información.</p>
+                <a href="https://wa.me/525540148827" target="_blank" class="btn-primary" style="display:inline-block; margin-top:1rem; padding:0.7rem 1.5rem; text-decoration:none;">
+                    <i class="fab fa-whatsapp"></i> Contactar asesor
+                </a>
+            </div>
+        `;
+        return;
+    }
+    
+        // Ocultar panel de dirección y mostrar buscador + categorías
     document.getElementById('pasoDireccionInicial').style.display = 'none';
     document.getElementById('menuCategorias').style.display = 'block';
     document.getElementById('searchSection').style.display = 'block';
     document.getElementById('resultsSection').style.display = 'block';
+    
+    // ⭐ ETAPA 2: Resetear categoría activa al cambiar de dirección
+    // (la categoría previa puede no tener productos en la nueva localidad)
+    categoriaActiva = null;
     
     // Inicializar categorías
     renderizarMenuCategorias();
@@ -6241,7 +6348,9 @@ function renderizarMenuCategorias() {
     const container = document.getElementById('botonesCategorias');
     if (!container) return;
     
-    const categorias = [...new Set(productosGlobales.map(p => p.categoria))].sort();
+    // ⭐ ETAPA 2: Solo mostrar categorías que tengan al menos un producto elegible
+    const productosElegibles = productosGlobales.filter(p => productoTieneProveedorElegible(p));
+    const categorias = [...new Set(productosElegibles.map(p => p.categoria))].sort();
     
     let html = `
         <button onclick="seleccionarCategoria(null)" 
@@ -6269,4 +6378,41 @@ function seleccionarCategoria(cat) {
     categoriaActiva = cat;
     renderizarMenuCategorias();
     buscarProductos(); // Refresca resultados con la categoría activa
+}
+// ============================================
+// ⭐ ETAPA 2: LOCALIDAD DEL CLIENTE Y PROVEEDORES ELEGIBLES
+// ============================================
+
+// Determina la localidad del cliente a partir de la dirección seleccionada
+// Regla: si el Estado (columna F) es CDMX → "CDMX"; si no → Alcaldía/Municipio (columna E)
+function determinarLocalidadCliente(dir) {
+    if (!dir) return '';
+    const estadoResuelto = resolverLocalidad(dir.estado);
+    if (estadoResuelto === 'CDMX') return 'CDMX';
+    return resolverLocalidad(dir.alcaldia);
+}
+
+// Calcula la lista de proveedores que surten en la localidad dada
+function calcularProveedoresElegibles(localidad) {
+    if (!localidad) return [];
+    if (!Array.isArray(condicionesProveedorGlobales)) return [];
+
+    return condicionesProveedorGlobales
+        .filter(c => c.localidades.some(l => localidadCoincide(localidad, l)))
+        .map(c => c.proveedor);
+}
+
+// Verifica si un producto tiene al menos un proveedor elegible para la localidad actual
+// Un producto es elegible si su proveedor 1, 2 o 3 está en window.proveedoresElegibles
+function productoTieneProveedorElegible(producto) {
+    if (!producto) return false;
+    if (!window.proveedoresElegibles || window.proveedoresElegibles.length === 0) return false;
+
+    const proveedoresProducto = [
+        producto.proveedorVertiz,   // I
+        producto.proveedorCoacalco, // X
+        producto.proveedor3         // AC
+    ].filter(Boolean).map(p => String(p).trim()).filter(Boolean);
+
+    return proveedoresProducto.some(p => window.proveedoresElegibles.includes(p));
 }
