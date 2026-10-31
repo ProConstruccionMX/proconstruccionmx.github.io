@@ -2309,10 +2309,13 @@ function agregarAlCarrito(clave) {
     if (existente) {
         existente.cantidad += 1;
         actualizarItemCarrito(existente);
-    } else {
+        } else {
         const precioFinal = obtenerPrecioFinal(producto);
         const descuento = calcularDescuentoProducto(producto, 1);
         const precioConDescuento = precioFinal.precio * (1 - descuento / 100);
+        
+        // ⭐ ETAPA 3: Seleccionar proveedor para este producto
+        const proveedorElegido = seleccionarProveedorParaProducto(producto, carrito);
         
         carrito.push({
             clave: producto.clave,
@@ -2330,7 +2333,8 @@ function agregarAlCarrito(clave) {
             minPiezas: producto.minPiezas,
             pxv: producto.pxv,
             descuentoVolumenP: producto.descuentoVolumenP,
-            descuentoVolumenQ: producto.descuentoVolumenQ
+            descuentoVolumenQ: producto.descuentoVolumenQ,
+            proveedorElegido: proveedorElegido   // ⭐ ETAPA 3
         });
     }
     
@@ -2345,6 +2349,15 @@ function actualizarItemCarrito(item) {
     const descuento = calcularDescuentoProducto(producto, item.cantidad);
     item.descuento = descuento;
     item.importe = item.precio * item.cantidad * (1 - descuento / 100);
+    
+    // ⭐ ETAPA 3: Recalcular proveedor al cambiar cantidad
+    // (el peso del grupo o el importe del carrito pueden haber cambiado)
+    // Construimos un carrito "temporal" sin este item para que la selección no se autoinfluya
+    const carritoSinItem = carrito.filter(i => i.clave !== item.clave);
+    const nuevoProveedor = seleccionarProveedorParaProducto(producto, carritoSinItem);
+    if (nuevoProveedor) {
+        item.proveedorElegido = nuevoProveedor;
+    }
 }
 
 function cambiarCantidad(clave, nuevaCantidad) {
@@ -2372,6 +2385,19 @@ function cambiarCantidad(clave, nuevaCantidad) {
 
 function eliminarDelCarrito(clave) {
     carrito = carrito.filter(i => i.clave !== clave);
+    
+    // ⭐ ETAPA 3: Recalcular proveedores de todos los items tras eliminar
+    // (el importe del carrito cambió y puede afectar la selección)
+    carrito.forEach(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        if (!producto) return;
+        const carritoSinItem = carrito.filter(i => i.clave !== item.clave);
+        const nuevoProveedor = seleccionarProveedorParaProducto(producto, carritoSinItem);
+        if (nuevoProveedor) {
+            item.proveedorElegido = nuevoProveedor;
+        }
+    });
+    
     renderizarCarrito();
 }
 
@@ -4046,10 +4072,11 @@ async function procesarPagoTransferencia() {
     }
     
     try {
-        // 1. Construir items: SOLO clave y cantidad
+                // 1. Construir items: clave, cantidad y proveedorElegido
         const items = carrito.map(item => ({
             clave: item.clave,
-            cantidad: item.cantidad
+            cantidad: item.cantidad,
+            proveedor: item.proveedorElegido || ''   // ⭐ ETAPA 3
         }));
         
         // 2. Construir body para /crearPedido
@@ -4228,10 +4255,11 @@ async function procesarPagoCredito() {
     }
     
     try {
-        // 1. Construir items: SOLO clave y cantidad
+                // 1. Construir items: clave, cantidad y proveedorElegido
         const items = carrito.map(item => ({
             clave: item.clave,
-            cantidad: item.cantidad
+            cantidad: item.cantidad,
+            proveedor: item.proveedorElegido || ''   // ⭐ ETAPA 3
         }));
         
         // 2. Construir body para /crearPedido
@@ -6261,7 +6289,7 @@ function continuarConBusqueda() {
         nombreRecibe: dir.nombreRecibe || ''
     };
     
-    // ⭐ ETAPA 2: Calcular localidad del cliente y proveedores elegibles
+        // ⭐ ETAPA 2: Calcular localidad del cliente y proveedores elegibles
     window.localidadCliente = determinarLocalidadCliente(dir);
     window.proveedoresElegibles = calcularProveedoresElegibles(window.localidadCliente);
     
@@ -6273,7 +6301,14 @@ function continuarConBusqueda() {
         return;
     }
     
-    if (window.proveedoresElegibles.length === 0) {
+    // ⭐ ETAPA 2 (opcional): Validar que la localidad sea "razonable"
+    // (mínimo 3 letras, no solo números o símbolos)
+    if (window.localidadCliente.length < 3 || /^[0-9\s]+$/.test(window.localidadCliente)) {
+        mostrarNotificacion('⚠️ La alcaldía/municipio de tu dirección no parece válida. Edítala para continuar.');
+        return;
+    }
+    
+        if (window.proveedoresElegibles.length === 0) {
         // No hay proveedores para esta localidad → mostrar mensaje en resultsSection
         document.getElementById('pasoDireccionInicial').style.display = 'none';
         document.getElementById('menuCategorias').style.display = 'none';
@@ -6284,8 +6319,7 @@ function continuarConBusqueda() {
             <div class="empty-state">
                 <i class="fas fa-map-marker-slash"></i>
                 <h4>No hay productos disponibles para tu localidad</h4>
-                <p>No tenemos cobertura de proveedores para <strong>${escapeHtml(dir.alcaldia || dir.estado || 'esta ubicación')}</strong>.</p>
-                <p>Contacta a tu asesor para más información.</p>
+                <p>Contacta a tu asesor para habilitar la cobertura en tu zona.</p>
                 <a href="https://wa.me/525540148827" target="_blank" class="btn-primary" style="display:inline-block; margin-top:1rem; padding:0.7rem 1.5rem; text-decoration:none;">
                     <i class="fab fa-whatsapp"></i> Contactar asesor
                 </a>
@@ -6415,4 +6449,112 @@ function productoTieneProveedorElegible(producto) {
     ].filter(Boolean).map(p => String(p).trim()).filter(Boolean);
 
     return proveedoresProducto.some(p => window.proveedoresElegibles.includes(p));
+}
+// ============================================
+// ⭐ ETAPA 3: SELECCIÓN DE PROVEEDOR POR PRODUCTO
+// ============================================
+
+// Devuelve el objeto de condición de un proveedor (o null)
+function obtenerCondicionProveedor(nombreProveedor) {
+    if (!nombreProveedor) return null;
+    return condicionesProveedorGlobales.find(c => c.proveedor === nombreProveedor) || null;
+}
+
+// Devuelve la lista de proveedores elegibles para un producto (intersección con la localidad)
+function obtenerProveedoresElegiblesProducto(producto) {
+    if (!producto || !window.proveedoresElegibles) return [];
+    
+    const proveedoresProducto = [
+        producto.proveedorVertiz,   // I
+        producto.proveedorCoacalco, // X
+        producto.proveedor3         // AC
+    ].filter(Boolean).map(p => String(p).trim()).filter(Boolean);
+    
+    return proveedoresProducto.filter(p => window.proveedoresElegibles.includes(p));
+}
+
+// Calcula el importe total de un proveedor dentro de un carrito
+function calcularImporteProveedorEnCarrito(proveedor, carritoActual) {
+    return carritoActual
+        .filter(item => item.proveedorElegido === proveedor && !item.esEnvio)
+        .reduce((sum, item) => sum + (item.importe || 0), 0);
+}
+
+// ⭐ Función principal: elige el proveedor óptimo para un producto dado el carrito actual
+// Reglas de orden:
+//   1. Envío gratis ya alcanzado (importe carrito del proveedor >= montoEnvioGratis)
+//   2. Menor costo de envío (null = 0)
+//   3. Orden de preferencia (1 → 2 → 3)
+// Si no hay candidatos, devuelve null (el llamador decide fallback).
+function seleccionarProveedorParaProducto(producto, carritoActual) {
+    if (!producto) return null;
+    
+    const candidatos = obtenerProveedoresElegiblesProducto(producto);
+    if (candidatos.length === 0) return null;
+    if (candidatos.length === 1) return candidatos[0];
+    
+    // Filtrar por peso máximo si el producto es Estuco/Adhesivo con peso
+    // (En Etapa 3 solo se valida peso máximo individual; la regla de grupo se hace en Etapa 4)
+    let candidatosFiltrados = candidatos;
+    const categoriaNorm = normalizarLocalidad(producto.categoria || '');
+    const esEstucoAdhesivo = (categoriaNorm === 'estucos' || categoriaNorm === 'adhesivos');
+    
+    if (esEstucoAdhesivo && producto.pesoCondicion === 'SI' && producto.peso > 0) {
+        // Por ahora, en Etapa 3, solo validamos que el peso del producto (1 unidad) no exceda el máximo
+        // En Etapa 4 se valida el peso del grupo completo
+        candidatosFiltrados = candidatos.filter(prov => {
+            const cond = obtenerCondicionProveedor(prov);
+            if (!cond || cond.pesoMaximo === null) return true;
+            return producto.peso <= cond.pesoMaximo;
+        });
+        if (candidatosFiltrados.length === 0) {
+            // Si todos exceden el peso, devolvemos el primero por fallback (se bloqueará en Etapa 4)
+            candidatosFiltrados = candidatos;
+        }
+    }
+    
+    // Ordenar candidatos
+    const candidatosConScore = candidatosFiltrados.map((prov, index) => {
+        const cond = obtenerCondicionProveedor(prov);
+        const importeProveedor = calcularImporteProveedorEnCarrito(prov, carritoActual);
+        
+        let envioGratisAlcanzado = false;
+        let costoEnvio = 0;
+        
+        if (cond) {
+            if (cond.costoEnvio !== null && cond.montoEnvioGratis !== null) {
+                if (importeProveedor >= cond.montoEnvioGratis) {
+                    envioGratisAlcanzado = true;
+                } else {
+                    costoEnvio = cond.costoEnvio;
+                }
+            } else if (cond.costoEnvio !== null && cond.montoEnvioGratis === null) {
+                // Cobra envío siempre (no hay monto para exentar)
+                costoEnvio = cond.costoEnvio;
+            }
+            // Si costoEnvio es null, no cobra envío
+        }
+        
+        return {
+            proveedor: prov,
+            envioGratisAlcanzado: envioGratisAlcanzado ? 1 : 0,
+            costoEnvio: costoEnvio,
+            ordenPreferencia: index
+        };
+    });
+    
+    candidatosConScore.sort((a, b) => {
+        // 1. Envío gratis ya alcanzado (descendente: true primero)
+        if (a.envioGratisAlcanzado !== b.envioGratisAlcanzado) {
+            return b.envioGratisAlcanzado - a.envioGratisAlcanzado;
+        }
+        // 2. Menor costo de envío (ascendente)
+        if (a.costoEnvio !== b.costoEnvio) {
+            return a.costoEnvio - b.costoEnvio;
+        }
+        // 3. Orden de preferencia (ascendente: 1 → 2 → 3)
+        return a.ordenPreferencia - b.ordenPreferencia;
+    });
+    
+    return candidatosConScore[0].proveedor;
 }
