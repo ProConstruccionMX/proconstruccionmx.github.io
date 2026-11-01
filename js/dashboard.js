@@ -1677,6 +1677,12 @@ function buscarProductos() {
 
 function limpiarBusqueda() {
     document.getElementById('searchInput').value = '';
+    // ⭐ ETAPA 6 (fix): Resetear filtro de marca según la categoría activa
+    const filtroMarca = document.getElementById('filtroMarca');
+    if (filtroMarca) filtroMarca.value = '';
+    const filtroOrden = document.getElementById('filtroOrdenPrecio');
+    if (filtroOrden) filtroOrden.value = '';
+    renderizarFiltrosMarca();
     buscarProductos();
 }
 
@@ -6551,6 +6557,8 @@ function renderizarMenuCategorias() {
 function seleccionarCategoria(cat) {
     categoriaActiva = cat;
     renderizarMenuCategorias();
+    // ⭐ ETAPA 6 (fix): Refrescar filtro de marca según la nueva categoría
+    renderizarFiltrosMarca();
     buscarProductos(); // Refresca resultados con la categoría activa
 }
 // ============================================
@@ -6897,14 +6905,26 @@ function verificarPesoMinimoPorProveedor(carritoActual) {
 // ⭐ ETAPA 6: FILTROS DE PRODUCTOS
 // ============================================
 
-// Llena el select de marcas con las marcas únicas de los productos elegibles
+// ⭐ ETAPA 6 (fix): Llena el select de marcas con las marcas disponibles
+// en la categoría activa (o todas las categorías si no hay filtro de categoría).
 function renderizarFiltrosMarca() {
     const select = document.getElementById('filtroMarca');
     if (!select) return;
     
-    // Solo marcas de productos elegibles para la localidad actual
-    const productosElegibles = productosGlobales.filter(p => productoTieneProveedorElegible(p));
-    const marcas = [...new Set(productosElegibles.map(p => String(p.marca || '').trim()).filter(Boolean))].sort();
+    // Productos elegibles para la localidad actual
+    let productosElegibles = productosGlobales.filter(p => productoTieneProveedorElegible(p));
+    
+    // Si hay categoría activa, filtrar por esa categoría
+    if (categoriaActiva) {
+        productosElegibles = productosElegibles.filter(p => p.categoria === categoriaActiva);
+    }
+    
+    // Extraer marcas únicas (trim, no vacías, ordenadas)
+    const marcas = [...new Set(
+        productosElegibles
+            .map(p => String(p.marca || '').trim())
+            .filter(Boolean)
+    )].sort();
     
     // Guardar la selección actual
     const seleccionActual = select.value;
@@ -6917,9 +6937,12 @@ function renderizarFiltrosMarca() {
         select.appendChild(option);
     });
     
-    // Restaurar selección si aún existe
+    // Restaurar selección solo si la marca sigue disponible
     if (seleccionActual && marcas.includes(seleccionActual)) {
         select.value = seleccionActual;
+    } else {
+        // Si la marca ya no está disponible, resetear a "Todas"
+        select.value = '';
     }
 }
 // ============================================
