@@ -3819,15 +3819,46 @@ function generarPDFComprobante(datos) {
             `;
         });
 
-        let infoCreditoHTML = '';
+               let infoCreditoHTML = '';
         if (datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial') {
             const diasCredito = datos.diasCredito || 20;
             const anticipo = datos.anticipo || 0;
             const saldoPendiente = datos.saldoPendiente || datos.total;
+            
+            // ⭐ ETAPA 7 (fix): parsear la fecha de pago correctamente
+            // (viene como string "DD/MM/YYYY" o como "Invalid Date" si el parseo falla)
             let fechaPago = '';
             if (datos.fechaPago) {
-                const fechaPagoDate = new Date(datos.fechaPago);
-                fechaPago = fechaPagoDate.toLocaleDateString('es-MX');
+                let fechaPagoDate = null;
+                
+                if (datos.fechaPago instanceof Date) {
+                    fechaPagoDate = datos.fechaPago;
+                } else if (typeof datos.fechaPago === 'string' && datos.fechaPago.trim() !== '') {
+                    const fechaStr = datos.fechaPago.trim();
+                    // Formato DD/MM/YYYY
+                    const match = fechaStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+                    if (match) {
+                        fechaPagoDate = new Date(
+                            parseInt(match[3]),
+                            parseInt(match[2]) - 1,
+                            parseInt(match[1])
+                        );
+                    } else {
+                        // Intentar parseo directo
+                        const parsed = new Date(fechaStr);
+                        if (!isNaN(parsed.getTime())) {
+                            fechaPagoDate = parsed;
+                        }
+                    }
+                }
+                
+                if (fechaPagoDate && !isNaN(fechaPagoDate.getTime())) {
+                    fechaPago = fechaPagoDate.toLocaleDateString('es-MX', {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric'
+                    });
+                }
             }
             
             infoCreditoHTML = `
