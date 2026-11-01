@@ -2606,7 +2606,7 @@ function renderizarCarrito() {
         </table>
     `;
     
-    if (!verificarMinPiezas.cumple) {
+       if (!verificarMinPiezas.cumple) {
         html += `
             <div style="margin-top: 1.5rem; padding: 1.5rem; border-radius: 12px; background: #fef3c7; border: 2px solid #fde68a;">
                 <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
@@ -2616,7 +2616,28 @@ function renderizarCarrito() {
                     </span>
                 </div>
                 <div style="background: white; padding: 0.8rem 1rem; border-radius: 8px; margin: 0.5rem 0;">
-                     cartContent.innerHTML = html;
+                    ${verificarMinPiezas.detalle.map(d => `
+                        <div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.9rem; border-bottom: 1px solid #f0f0f0;">
+                            <span>${d.nombre}</span>
+                            <span style="color: #92400e; font-weight: 600;">${d.actual} / ${d.minimo} piezas</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <div style="background: #fef3c7; padding: 0.8rem 1rem; border-radius: 8px; margin-top: 0.5rem; border: 1px solid #fde68a;">
+                    <p style="margin: 0; font-weight: 600; color: #92400e;">
+                        ⚠️ Debes completar el mínimo de piezas para poder realizar la compra.
+                    </p>
+                </div>
+            </div>
+        `;
+    }
+    
+    // ⭐ ETAPA 4: Mostrar validación de tonelada por proveedor (solo si aplica)
+    if (verificarPesoPorProv.grupos.length > 0) {
+        // ... (este bloque ya lo tienes bien, déjalo como está)
+    }
+    
+    cartContent.innerHTML = html;
     cartTotales.style.display = 'block';
     
     document.getElementById('subtotalSinDescuento').textContent = formatoMexicano(subtotalSinDescuento);
@@ -2625,7 +2646,7 @@ function renderizarCarrito() {
     document.getElementById('iva').textContent = formatoMexicano(iva);
     document.getElementById('total').textContent = formatoMexicano(total);
     
-        let puedeComprar = true;
+    let puedeComprar = true;
     let motivoBloqueo = '';
     
     // ⭐ ETAPA 4: Validar tonelada por proveedor
@@ -2651,7 +2672,6 @@ function renderizarCarrito() {
         btnComprar.style.cursor = 'not-allowed';
     }
 }
-
 // ============================================
 // VERIFICACIÓN DE PESO MÍNIMO
 // ============================================
