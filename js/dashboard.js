@@ -1236,8 +1236,7 @@ async function cargarCondicionesProveedor() {
             localidades: Array.isArray(c.localidades) ? c.localidades.map(l => String(l).trim()).filter(Boolean) : []
         }));
         
-        console.log(`📦 Condiciones proveedor cargadas: ${condicionesProveedorGlobales.length}`);
-        console.log('📦 Proveedores:', condicionesProveedorGlobales.map(c => c.proveedor));
+               console.log(`📦 Condiciones proveedor cargadas: ${condicionesProveedorGlobales.length}`);
         
     } catch (error) {
         console.error('❌ Error al cargar condiciones de proveedores:', error);
@@ -2505,19 +2504,15 @@ function renderizarCarrito() {
     let subtotal = 0;
     
     carrito.forEach(item => {
-        // ⭐ ETAPA 4: Línea de envío — se renderiza su propia fila y suma UNA sola vez al subtotal
+              // ⭐ ETAPA 4: Línea de envío — se renderiza su propia fila y suma UNA sola vez al subtotal
+        // ⭐ ETAPA 5: NO se muestra el proveedor al cliente (dato interno de la empresa)
         if (item.esEnvio) {
             subtotal += item.importe;
-            
-            const proveedoresTexto = item.proveedoresQueCobran && item.proveedoresQueCobran.length > 1
-                ? `<br><small style="color:var(--text-gray);">${item.proveedoresQueCobran.map(p => escapeHtml(p.proveedor)).join(' + ')}</small>`
-                : (item.proveedorElegido ? `<br><small style="color:var(--text-gray);">${escapeHtml(item.proveedorElegido)}</small>` : '');
             
             html += `
                 <tr style="background:#fef9e7;">
                     <td>
                         <strong>${escapeHtml(item.nombre)}</strong>
-                        ${proveedoresTexto}
                     </td>
                     <td>${formatoMexicano(item.precio)}</td>
                     <td style="text-align:center;">1</td>
@@ -2630,20 +2625,9 @@ function renderizarCarrito() {
         `;
     }
     
-    // ⭐ ETAPA 4: Mostrar validación de tonelada por proveedor (solo si aplica)
+       // ⭐ ETAPA 5: Mostrar validación de tonelada SIN mencionar al proveedor
+    // (el cliente no debe saber qué proveedor lo surte)
     if (verificarPesoPorProv.grupos.length > 0) {
-        let detalleGrupos = '';
-        verificarPesoPorProv.grupos.forEach(g => {
-            const icono = g.cumple ? '✅' : '⚠️';
-            const color = g.cumple ? '#16a34a' : '#92400e';
-            detalleGrupos += `
-                <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 0.9rem; border-bottom: 1px solid #f0f0f0;">
-                    <span>${icono} ${escapeHtml(g.proveedor)}</span>
-                    <span style="color:${color}; font-weight:600;">${g.pesoTotal.toFixed(2)} kg</span>
-                </div>
-            `;
-        });
-        
         const totalPesoGeneral = verificarPesoPorProv.grupos.reduce((s, g) => s + g.pesoTotal, 0);
         
         html += `
@@ -2655,13 +2639,8 @@ function renderizarCarrito() {
                     </span>
                 </div>
                 <div style="background: white; padding: 0.8rem 1rem; border-radius: 8px; margin: 0.5rem 0;">
-                    <div style="display: flex; justify-content: space-between; font-weight: 600; color: var(--primary-dark); border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
-                        <span>Proveedor</span>
-                        <span>Peso</span>
-                    </div>
-                    ${detalleGrupos}
-                    <div style="display: flex; justify-content: space-between; font-weight: 700; color: var(--primary-dark); padding-top: 0.5rem; margin-top: 0.5rem; border-top: 2px solid #e2e8f0;">
-                        <span>TOTAL</span>
+                    <div style="display: flex; justify-content: space-between; font-weight: 700; color: var(--primary-dark); padding: 0.3rem 0;">
+                        <span>Peso total del pedido</span>
                         <span>${totalPesoGeneral.toFixed(2)} kg</span>
                     </div>
                 </div>
@@ -2672,7 +2651,7 @@ function renderizarCarrito() {
                         </p>
                         ${verificarPesoPorProv.recomendaciones.length > 0 ? `
                             <div style="margin-top:0.5rem; font-size:0.85rem; color:#92400e;">
-                                <strong>Sugerencias para completar con ${escapeHtml(verificarPesoPorProv.recomendaciones[0].proveedor)}:</strong>
+                                <strong>Sugerencias para completar la tonelada:</strong>
                                 <ul style="margin:0.3rem 0 0 1.2rem; padding:0;">
                                     ${verificarPesoPorProv.recomendaciones[0].productosSugeridos.map(n => `<li>${escapeHtml(n)}</li>`).join('')}
                                 </ul>
@@ -3099,10 +3078,8 @@ function generarCalendario() {
     // ============================================
     // ⭐ ETAPA 5: Días de entrega del proveedor (máximo entre los involucrados)
     // ============================================
-    const proveedoresInvolucrados = listarProveedoresCarrito();
-    const diasEntregaMaximo = calcularDiasEntregaMaximo();
+        const diasEntregaMaximo = calcularDiasEntregaMaximo();
     
-    console.log('🏢 Proveedores en carrito:', proveedoresInvolucrados);
     console.log('📅 Días de entrega máximos:', diasEntregaMaximo);
     
     // ============================================
@@ -6367,8 +6344,7 @@ function continuarConBusqueda() {
     window.localidadCliente = determinarLocalidadCliente(dir);
     window.proveedoresElegibles = calcularProveedoresElegibles(window.localidadCliente);
     
-    console.log('📍 Localidad del cliente:', window.localidadCliente);
-    console.log('📍 Proveedores elegibles:', window.proveedoresElegibles);
+       console.log('📍 Localidad del cliente:', window.localidadCliente);
     
     if (!window.localidadCliente) {
         mostrarNotificacion('⚠️ La dirección no tiene alcaldía/municipio o estado. Edítala para continuar.');
@@ -6610,9 +6586,9 @@ function seleccionarProveedorParaProducto(producto, carritoActual) {
             
             const pesoTotal = pesoProveedorEnCarrito + pesoItemNuevo;
             
-            if (pesoTotal > cond.pesoMaximo) {
+                        if (pesoTotal > cond.pesoMaximo) {
                 // Este proveedor no puede surtir todo el pedido. Pasar al siguiente.
-                console.log(`⚖️ ${prov} descartado: peso ${pesoTotal.toFixed(2)} kg > máximo ${cond.pesoMaximo} kg`);
+                // ⭐ ETAPA 5: NO loguear el nombre del proveedor (dato interno)
                 continue;
             }
         }
@@ -6621,9 +6597,9 @@ function seleccionarProveedorParaProducto(producto, carritoActual) {
         return prov;
     }
     
-    // Si ninguno cumple (todos exceden peso máximo), devolver el primero como fallback
+       // Si ninguno cumple (todos exceden peso máximo), devolver el primero como fallback
     // (en Etapa 4 se bloqueará con el mensaje de tonelada)
-    console.warn('⚠️ Ningún proveedor cumple con las restricciones de peso, usando el primero como fallback');
+    // ⭐ ETAPA 5: NO loguear el nombre del proveedor (dato interno)
     return candidatos[0];
 }
 // ============================================
@@ -6796,10 +6772,11 @@ function verificarPesoMinimoPorProveedor(carritoActual) {
     }
     
     // Ningún grupo cumple: construir mensaje
-    if (grupos.length === 1) {
+        if (grupos.length === 1) {
         const g = grupos[0];
         const faltante = PESO_MINIMO_TONELADA - g.pesoTotal;
-        resultado.mensaje = `⚠️ Peso insuficiente con ${g.proveedor}. Tienes ${g.pesoTotal.toFixed(2)} kg, faltan ${faltante.toFixed(2)} kg para la tonelada (${PESO_MINIMO_TONELADA} kg).`;
+        // ⭐ ETAPA 5: mensaje genérico, sin mencionar el proveedor
+        resultado.mensaje = `⚠️ Peso insuficiente. Tienes ${g.pesoTotal.toFixed(2)} kg, faltan ${faltante.toFixed(2)} kg para la tonelada (${PESO_MINIMO_TONELADA} kg).`;
         
         // Buscar productos sugeridos del mismo proveedor disponibles en la localidad
         const sugeridos = productosGlobales.filter(p => {
@@ -6814,14 +6791,14 @@ function verificarPesoMinimoPorProveedor(carritoActual) {
         
         if (sugeridos.length > 0) {
             resultado.recomendaciones.push({
-                proveedor: g.proveedor,
                 productosSugeridos: sugeridos.map(p => p.nombre)
             });
         }
     } else {
         // 2+ grupos, ninguno cumple
-        const detalle = grupos.map(g => `${g.pesoTotal.toFixed(2)} kg con ${g.proveedor}`).join(' y ');
-        resultado.mensaje = `⚠️ La tonelada combinada debe ser con un solo proveedor. Tienes ${detalle}.`;
+        // ⭐ ETAPA 5: mensaje genérico, sin mencionar los proveedores
+        const totalPeso = grupos.reduce((s, g) => s + g.pesoTotal, 0);
+        resultado.mensaje = `⚠️ La tonelada combinada debe ser con un solo proveedor. Tienes ${totalPeso.toFixed(2)} kg en total, pero ningún proveedor alcanza la tonelada por sí solo.`;
     }
     
     return resultado;
