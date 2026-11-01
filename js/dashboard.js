@@ -2353,11 +2353,12 @@ function actualizarItemCarrito(item) {
     item.descuento = descuento;
     item.importe = item.precio * item.cantidad * (1 - descuento / 100);
     
-    // ⭐ ETAPA 3: Recalcular proveedor al cambiar cantidad
-    // (el peso del grupo o el importe del carrito pueden haber cambiado)
-    // Construimos un carrito "temporal" sin este item para que la selección no se autoinfluya
-       const carritoSinItem = carrito.filter(i => i.clave !== item.clave);
-    const nuevoProveedor = seleccionarProveedorParaProducto(producto, carritoSinItem);
+    // ⭐ ETAPA 5: Recalcular proveedor al cambiar cantidad
+    // Pasamos el carrito COMPLETO (con el item ya actualizado) para que el peso
+    // del item se cuente al validar el peso máximo del proveedor.
+    // Excluimos solo las líneas de envío para no contaminar el cálculo.
+    const carritoSinEnvio = carrito.filter(i => !i.esEnvio);
+    const nuevoProveedor = seleccionarProveedorParaProducto(producto, carritoSinEnvio);
     if (nuevoProveedor) {
         item.proveedorElegido = nuevoProveedor;
     }
@@ -6565,13 +6566,9 @@ function seleccionarProveedorParaProducto(producto, carritoActual) {
     if (candidatos.length === 0) return null;
     if (candidatos.length === 1) return candidatos[0];
     
-    // Calcular el peso del grupo del proveedor en el carrito actual
-    // (para validar pesoMaximo del proveedor contra el peso del pedido)
+       // Calcular el peso del grupo del proveedor en el carrito actual
     const categoriaNorm = normalizarLocalidad(producto.categoria || '');
     const esEstucoAdhesivo = (categoriaNorm === 'estucos' || categoriaNorm === 'adhesivos');
-    
-    // Peso de este producto en el carrito actual (incluyendo el nuevo item que se va a agregar)
-    const pesoProductoNuevo = (producto.pesoCondicion === 'SI' && producto.peso > 0) ? producto.peso : 0;
     
     // Recorrer candidatos en orden (I → X → AC)
     for (let i = 0; i < candidatos.length; i++) {
@@ -6585,23 +6582,37 @@ function seleccionarProveedorParaProducto(producto, carritoActual) {
         
         // Validar peso máximo del proveedor (solo si aplica)
         if (esEstucoAdhesivo && producto.pesoCondicion === 'SI' && cond.pesoMaximo !== null) {
-            // Peso actual del proveedor en el carrito (items ya asignados a este proveedor)
-            let pesoActualProveedor = 0;
-            carritoActual.forEach(item => {
-                if (item.esEnvio) return;
-                if (item.proveedorElegido !== prov) return;
-                const prod = productosGlobales.find(p => p.clave === item.clave);
+            // Peso del proveedor en el carrito actual.
+            // Incluye TODOS los items del proveedor (incluido el item actual si ya está en el carrito).
+            // Si el item aún NO está en el carrito (caso de agregarAlCarrito), sumamos su peso aquí.
+            let pesoProveedorEnCarrito = 0;
+            let itemActualYaEnCarrito = false;
+            
+            carritoActual.forEach(it => {
+                if (it.esEnvio) return;
+                if (it.proveedorElegido !== prov) return;
+                const prod = productosGlobales.find(p => p.clave === it.clave);
                 if (prod && prod.pesoCondicion === 'SI' && prod.peso > 0) {
-                    pesoActualProveedor += prod.peso * item.cantidad;
+                    pesoProveedorEnCarrito += prod.peso * it.cantidad;
+                    if (it.clave === producto.clave) {
+                        itemActualYaEnCarrito = true;
+                    }
                 }
             });
             
-            // Peso con el nuevo producto
-            const pesoConNuevo = pesoActualProveedor + pesoProductoNuevo;
+            // Si el item actual NO está en carritoActual (agregarAlCarrito con item nuevo),
+            // sumar el peso de 1 unidad (que es lo que se va a agregar).
+            // Si el item actual SÍ está en carritoActual (actualizarItemCarrito), no sumar nada:
+            // el peso ya está contado con la cantidad actual.
+            const pesoItemNuevo = itemActualYaEnCarrito
+                ? 0
+                : (producto.pesoCondicion === 'SI' && producto.peso > 0 ? producto.peso : 0);
             
-            if (pesoConNuevo > cond.pesoMaximo) {
+            const pesoTotal = pesoProveedorEnCarrito + pesoItemNuevo;
+            
+            if (pesoTotal > cond.pesoMaximo) {
                 // Este proveedor no puede surtir todo el pedido. Pasar al siguiente.
-                console.log(`⚖️ ${prov} descartado: peso ${pesoConNuevo.toFixed(2)} kg > máximo ${cond.pesoMaximo} kg`);
+                console.log(`⚖️ ${prov} descartado: peso ${pesoTotal.toFixed(2)} kg > máximo ${cond.pesoMaximo} kg`);
                 continue;
             }
         }
