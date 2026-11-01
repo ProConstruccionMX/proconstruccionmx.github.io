@@ -2502,13 +2502,8 @@ function renderizarCarrito() {
     let subtotalSinDescuento = 0;
     let descuentoTotal = 0;
     let subtotal = 0;
-        carrito.forEach(item => {
-        // ⭐ ETAPA 4: La línea de envío se suma al subtotal pero no a "subtotalSinDescuento" ni a "descuentoTotal"
-        if (item.esEnvio) {
-            subtotal += item.importe;
-            // subtotalSinDescuento y descuentoTotal no se tocan para envío
-            return;
-        }
+                    carrito.forEach(item => {
+        // ⭐ ETAPA 4: La línea de envío se maneja más abajo (suma al subtotal y renderiza su propia fila)
         
         const importeBase = item.precio * item.cantidad;
         const descuentoItem = importeBase * (item.descuento / 100);
@@ -2547,7 +2542,10 @@ function renderizarCarrito() {
         }
         
                       // ⭐ ETAPA 4: Fila especial para la línea de envío (sin botón eliminar, sin input de cantidad)
-        if (item.esEnvio) {
+                if (item.esEnvio) {
+            // ⭐ ETAPA 4: Sumar al subtotal (no a subtotalSinDescuento ni a descuentoTotal)
+            subtotal += item.importe;
+            
             const proveedoresTexto = item.proveedoresQueCobran && item.proveedoresQueCobran.length > 1
                 ? `<br><small style="color:var(--text-gray);">${item.proveedoresQueCobran.map(p => escapeHtml(p.proveedor)).join(' + ')}</small>`
                 : (item.proveedorElegido ? `<br><small style="color:var(--text-gray);">${escapeHtml(item.proveedorElegido)}</small>` : '');
