@@ -3123,13 +3123,13 @@ function generarCalendario() {
     // ⭐ Calcular "hoy normalizado" según regla 17:40 y fin de semana
     // (si es viernes >17:40, sábado o domingo → normaliza al siguiente lunes a las 09:00)
     // ============================================
-    const ahoraNormalizado = new Date(ahora);
-    ahoraNormalizado.setHours(9, 0, 0, 0);
+       const ahoraNormalizado = new Date(ahora);
+    ahoraNormalizado.setHours(0, 0, 0, 0);
     
     if (deshabilitarSiguienteLunesMartes) {
         // Si es viernes >17:40, sábado o domingo → normalizar al siguiente lunes
         const cursor = new Date(ahora);
-        cursor.setHours(9, 0, 0, 0);
+        cursor.setHours(0, 0, 0, 0);
         while (cursor.getDay() !== 1) {
             cursor.setDate(cursor.getDate() + 1);
         }
@@ -3138,14 +3138,14 @@ function generarCalendario() {
         // Día hábil después de 17:40 → normalizar al siguiente día hábil
         const cursor = new Date(ahora);
         cursor.setDate(cursor.getDate() + 1);
-        cursor.setHours(9, 0, 0, 0);
+        cursor.setHours(0, 0, 0, 0);
         while (cursor.getDay() === 0 || cursor.getDay() === 6) {
             cursor.setDate(cursor.getDate() + 1);
         }
         ahoraNormalizado.setTime(cursor.getTime());
     } else {
-        // Día hábil antes de 17:40 → hoy mismo a las 09:00
-        ahoraNormalizado.setHours(9, 0, 0, 0);
+        // Día hábil antes de 17:40 → hoy mismo a medianoche
+        ahoraNormalizado.setHours(0, 0, 0, 0);
     }
     
     console.log('📅 Hoy normalizado:', ahoraNormalizado.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long', year:'numeric'}));
@@ -3154,14 +3154,17 @@ function generarCalendario() {
     // ⭐ Calcular fecha mínima: ahoraNormalizado + diasEntregaMaximo días calendario
     // Luego avanzar hasta el primer día hábil (saltar sáb/dom)
     // ============================================
-    const fechaMinima = new Date(ahoraNormalizado);
+      const fechaMinima = new Date(ahoraNormalizado);
+    fechaMinima.setHours(0, 0, 0, 0);
     fechaMinima.setDate(fechaMinima.getDate() + diasEntregaMaximo);
+    fechaMinima.setHours(0, 0, 0, 0);
     
     let guard = 0;
     while (guard < 30) {
         const dia = fechaMinima.getDay();
         if (dia !== 0 && dia !== 6) break; // día hábil → salir
         fechaMinima.setDate(fechaMinima.getDate() + 1);
+        fechaMinima.setHours(0, 0, 0, 0);
         guard++;
     }
     
