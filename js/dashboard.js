@@ -2691,54 +2691,7 @@ function renderizarCarrito() {
             </div>
         `;
     }
-            detalleProductos += `
-                <div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.9rem; border-bottom: 1px solid #f0f0f0;">
-                    <span>${p.nombre}</span>
-                    <span>${p.cantidad} x ${p.pesoUnitario} kg = ${p.pesoTotal.toFixed(2)} kg</span>
-                </div>
-            `;
-        });
-        
-        const pesoRestante = PESO_MINIMO_TONELADA - verificarPeso.pesoTotal;
-        
-        html += `
-            <div style="margin-top: 1.5rem; padding: 1.5rem; border-radius: 12px; background: ${verificarPeso.cumple ? '#dcfce7' : '#fef3c7'}; border: 2px solid ${verificarPeso.cumple ? '#bbf7d0' : '#fde68a'};">
-                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-                    <span style="font-size: 1.5rem;">${verificarPeso.cumple ? '✅' : '⚠️'}</span>
-                    <span style="font-weight: 700; color: ${verificarPeso.cumple ? '#16a34a' : '#92400e'}; font-size: 1.1rem;">
-                        ${verificarPeso.cumple ? '¡Peso mínimo cumplido!' : 'Peso mínimo requerido'}
-                    </span>
-                </div>
-                <div style="background: white; padding: 0.8rem 1rem; border-radius: 8px; margin: 0.5rem 0;">
-                    <div style="display: flex; justify-content: space-between; font-weight: 600; color: var(--primary-dark); border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
-                        <span>Producto</span>
-                        <span>Peso total</span>
-                    </div>
-                    ${detalleProductos}
-                    <div style="display: flex; justify-content: space-between; font-weight: 700; color: var(--primary-dark); padding-top: 0.5rem; margin-top: 0.5rem; border-top: 2px solid #e2e8f0;">
-                        <span>TOTAL PESO</span>
-                        <span>${verificarPeso.pesoTotal.toFixed(2)} kg</span>
-                    </div>
-                </div>
-                ${!verificarPeso.cumple ? `
-                    <div style="background: #fef3c7; padding: 0.8rem 1rem; border-radius: 8px; margin-top: 0.5rem; border: 1px solid #fde68a;">
-                        <p style="margin: 0; font-weight: 600; color: #92400e;">
-                            ⚠️ Te faltan <strong>${pesoRestante.toFixed(2)} kg</strong> para alcanzar la tonelada (${PESO_MINIMO_TONELADA} kg).
-                            <br><small style="font-weight: normal;">Puedes combinar productos como estucos y adhesivos para completar el peso.</small>
-                        </p>
-                    </div>
-                ` : `
-                    <div style="background: #dcfce7; padding: 0.8rem 1rem; border-radius: 8px; margin-top: 0.5rem; border: 1px solid #bbf7d0;">
-                        <p style="margin: 0; font-weight: 600; color: #16a34a;">
-                            ✅ ¡Ya puedes realizar tu compra! Has alcanzado el peso mínimo de 1 tonelada.
-                        </p>
-                    </div>
-                `}
-            </div>
-        `;
-    }
-    
-    cartContent.innerHTML = html;
+               cartContent.innerHTML = html;
     cartTotales.style.display = 'block';
     
     document.getElementById('subtotalSinDescuento').textContent = formatoMexicano(subtotalSinDescuento);
@@ -4185,12 +4138,25 @@ async function procesarPagoTransferencia() {
     }
     
     try {
-                // 1. Construir items: clave, cantidad y proveedorElegido
-        const items = carrito.map(item => ({
-            clave: item.clave,
-            cantidad: item.cantidad,
-            proveedor: item.proveedorElegido || ''   // ⭐ ETAPA 3
-        }));
+                      // 1. Construir items: clave, cantidad, proveedorElegido y línea de envío
+        // ⭐ ETAPA 4: Incluir la línea de envío como un item más
+        const items = carrito.map(item => {
+            if (item.esEnvio) {
+                return {
+                    clave: '__ENVIO__',
+                    cantidad: 1,
+                    proveedor: item.proveedorElegido || '',
+                    esEnvio: true,
+                    monto: item.importe,
+                    proveedoresQueCobran: item.proveedoresQueCobran || []
+                };
+            }
+            return {
+                clave: item.clave,
+                cantidad: item.cantidad,
+                proveedor: item.proveedorElegido || ''
+            };
+        });
         
         // 2. Construir body para /crearPedido
         const body = {
@@ -4368,12 +4334,25 @@ async function procesarPagoCredito() {
     }
     
     try {
-                // 1. Construir items: clave, cantidad y proveedorElegido
-        const items = carrito.map(item => ({
-            clave: item.clave,
-            cantidad: item.cantidad,
-            proveedor: item.proveedorElegido || ''   // ⭐ ETAPA 3
-        }));
+                       // 1. Construir items: clave, cantidad, proveedorElegido y línea de envío
+        // ⭐ ETAPA 4: Incluir la línea de envío como un item más
+        const items = carrito.map(item => {
+            if (item.esEnvio) {
+                return {
+                    clave: '__ENVIO__',
+                    cantidad: 1,
+                    proveedor: item.proveedorElegido || '',
+                    esEnvio: true,
+                    monto: item.importe,
+                    proveedoresQueCobran: item.proveedoresQueCobran || []
+                };
+            }
+            return {
+                clave: item.clave,
+                cantidad: item.cantidad,
+                proveedor: item.proveedorElegido || ''
+            };
+        });
         
         // 2. Construir body para /crearPedido
         const body = {
