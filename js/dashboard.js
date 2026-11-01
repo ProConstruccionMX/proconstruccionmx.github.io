@@ -142,9 +142,12 @@ async function fetchAutenticado(url, opciones = {}) {
         'Authorization': `Bearer ${token}`
     };
     
+       // ⭐ ETAPA 8: Forzar no-cache en todas las peticiones autenticadas
+    // Esto evita que el navegador reutilice respuestas viejas (precios, productos, etc.)
     const response = await fetch(url, {
         ...opciones,
-        headers: headers
+        headers: headers,
+        cache: 'no-store'
     });
     
     if (response.status === 401) {
