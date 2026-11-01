@@ -7185,19 +7185,27 @@ function iniciarActualizacionAutomatica() {
     if (intervaloActualizacion) {
         clearInterval(intervaloActualizacion);
     }
-    intervaloActualizacion = setInterval(actualizarDatosEnTiempoReal, INTERVALO_ACTUALIZACION_MS);
-    console.log(`🔄 Actualización automática activada (cada ${INTERVALO_ACTUALIZACION_MS / 60000} minutos)`);
-}
-
-// Detiene el intervalo (útil si el cliente cierra sesión)
-function detenerActualizacionAutomatica() {
-    if (intervaloActualizacion) {
-        clearInterval(intervaloActualizacion);
-        intervaloActualizacion = null;
-        console.log('⏸️ Actualización automática detenida');
+    
+    // ⭐ ETAPA 8: Solo actualizar si la pestaña está visible
+    // (evita consumir cuota de Apps Script cuando el cliente no está mirando)
+    intervaloActualizacion = setInterval(() => {
+        if (!document.hidden) {
+            actualizarDatosEnTiempoReal();
+        }
+    }, INTERVALO_ACTUALIZACION_MS);
+    
+    console.log(`🔄 Actualización automática activada (cada ${INTERVALO_ACTUALIZACION_MS / 60000} minutos, pausada si la pestaña no está visible)`);
+    
+    // ⭐ ETAPA 8: Cuando el cliente vuelve a la pestaña, actualizar inmediatamente
+    if (!window._listenerVisibility) {
+        window._listenerVisibility = true;
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                console.log('👁️ Pestaña visible de nuevo. Actualizando datos...');
+                actualizarDatosEnTiempoReal();
+            } else {
+                console.log('👁️ Pestaña oculta. Actualización automática pausada.');
+            }
+        });
     }
 }
-// ⭐ ETAPA 8: Detener el intervalo cuando el cliente cierra la pestaña o navega fuera
-window.addEventListener('beforeunload', function() {
-    detenerActualizacionAutomatica();
-});
