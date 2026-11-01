@@ -377,3 +377,83 @@ table td {
     display: inline-block;
     margin-top: 0.3rem;
 }
+/* ============================================
+   ⭐ ETAPA 6: Precio tachado y ajustes móviles
+   ============================================ */
+
+/* Precio tachado (base con IVA cuando hay descuento) */
+.precio-tachado {
+    text-decoration: line-through;
+    opacity: 0.5;
+    font-size: 0.8rem;
+    font-weight: 400;
+    margin-left: 0.4rem;
+    color: var(--text-gray);
+}
+
+/* Etiqueta "IVA incluido" */
+.precio-iva {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--text-gray);
+    margin-top: 0.1rem;
+    font-weight: 400;
+}
+
+/* ============================================
+   ⭐ ETAPA 6: Barra de dirección en móvil
+   ============================================ */
+@media (max-width: 768px) {
+    #pasoDireccionInicial {
+        padding: 1rem !important;
+    }
+    
+    #pasoDireccionInicial h2 {
+        font-size: 1.1rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    #pasoDireccionInicial p {
+        font-size: 0.85rem !important;
+        margin-bottom: 0.75rem !important;
+    }
+    
+    #pasoDireccionInicial .form-group label {
+        font-size: 0.85rem !important;
+        margin-bottom: 0.3rem !important;
+    }
+    
+    #selectDireccionInicial {
+        padding: 0.6rem 0.8rem !important;
+        font-size: 0.85rem !important;
+        border-radius: 8px !important;
+    }
+    
+    #pasoDireccionInicial > div:last-child {
+        gap: 0.4rem !important;
+        margin-top: 0.6rem !important;
+    }
+    
+    #pasoDireccionInicial button {
+        font-size: 0.8rem !important;
+        padding: 0.45rem 0.8rem !important;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    
+    /* Filtros en móvil */
+    #resultsSection > div:first-child {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+    
+    #resultsSection > div:first-child > div {
+        width: 100% !important;
+    }
+    
+    #resultsSection select {
+        width: 100% !important;
+        font-size: 0.8rem !important;
+        padding: 0.45rem 0.6rem !important;
+    }
+}
