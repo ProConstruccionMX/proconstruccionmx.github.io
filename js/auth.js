@@ -287,6 +287,11 @@ async function handleRecuperar(event) {
 async function cerrarSesion() {
     const token = sessionStorage.getItem('sessionToken');
     
+    // ⭐ ETAPA 8: Detener la actualización automática antes de cerrar sesión
+    if (typeof detenerActualizacionAutomatica === 'function') {
+        detenerActualizacionAutomatica();
+    }
+    
     // Intentar invalidar el token en el Sheet (no bloquea si falla)
     if (token) {
         try {
