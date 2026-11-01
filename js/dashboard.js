@@ -7197,3 +7197,7 @@ function detenerActualizacionAutomatica() {
         console.log('⏸️ Actualización automática detenida');
     }
 }
+// ⭐ ETAPA 8: Detener el intervalo cuando el cliente cierra la pestaña o navega fuera
+window.addEventListener('beforeunload', function() {
+    detenerActualizacionAutomatica();
+});
