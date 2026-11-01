@@ -1539,8 +1539,12 @@ function buscarProductos() {
         return;
     }
     
-    // ⭐ ETAPA 2: Filtrar productos por proveedor elegible
+        // ⭐ ETAPA 2: Filtrar productos por proveedor elegible
     let resultados = productosGlobales.filter(p => productoTieneProveedorElegible(p));
+    
+    // ⭐ ETAPA 6 (fix): Excluir productos incompatibles con Estucos/Adhesivos del carrito
+    // (los que no pueden convivir con el grupo actual se ocultan de la lista)
+    resultados = resultados.filter(p => productoEsCompatibleConCarrito(p));
     
     // Filtrar por categoría activa + query
     if (categoriaActiva) {
@@ -2333,6 +2337,14 @@ function agregarAlCarrito(clave) {
         return;
     }
     
+    // ⭐ ETAPA 6 (fix): Validación defensiva de compatibilidad
+    // (si el producto ya no es compatible porque el carrito cambió, no se agrega)
+    if (!productoEsCompatibleConCarrito(producto)) {
+        // No mostrar mensaje (el producto ya no debería estar visible)
+        console.warn('Producto incompatible con el carrito actual');
+        return;
+    }
+    
     if (producto.requiereMinPiezas && producto.minPiezas > 0) {
         const existente = carrito.find(item => item.clave === clave);
         const cantidadActual = existente ? existente.cantidad : 0;
@@ -2732,7 +2744,7 @@ function renderizarCarrito() {
         motivoBloqueo = '⚠️ Debes completar el mínimo de piezas requerido para todos los productos.';
     }
     
-    if (puedeComprar) {
+       if (puedeComprar) {
         btnComprar.disabled = false;
         btnComprar.title = '';
         btnComprar.style.opacity = '1';
@@ -2742,6 +2754,14 @@ function renderizarCarrito() {
         btnComprar.title = motivoBloqueo;
         btnComprar.style.opacity = '0.5';
         btnComprar.style.cursor = 'not-allowed';
+    }
+    
+    // ⭐ ETAPA 6 (fix): Refrescar la lista de productos para reflejar cambios
+    // de compatibilidad (los incompatibles desaparecen, los compatibles aparecen)
+    if (document.getElementById('resultsSection') && 
+        document.getElementById('resultsSection').style.display !== 'none' &&
+        document.getElementById('searchInput')) {
+        buscarProductos();
     }
 }
 // ============================================
@@ -3928,9 +3948,11 @@ function generarPDFComprobante(datos) {
         </tbody>
     </table>
     
-    <div class="totales">
-        <p><strong>Importe base:</strong> ${formatoMexicano(datos.subtotal + (datos.subtotal * 0.16))}</p>
-        <p><strong>Descuento aplicado:</strong> -${formatoMexicano((datos.subtotal + (datos.subtotal * 0.16)) - datos.total)}</p>
+       <div class="totales">
+        ${datos.subtotalSinDescuento !== undefined && datos.descuentoTotal !== undefined ? `
+            <p><strong>Importe base:</strong> ${formatoMexicano(datos.subtotalSinDescuento * 1.16)}</p>
+            <p><strong>Descuento aplicado:</strong> -${formatoMexicano(datos.descuentoTotal * 1.16)}</p>
+        ` : ''}
         <p><strong>Subtotal:</strong> ${formatoMexicano(datos.subtotal)}</p>
         <p><strong>IVA (16%):</strong> ${formatoMexicano(datos.iva)}</p>
         <p class="total-row"><strong>Total a pagar:</strong> ${formatoMexicano(datos.total)}</p>
@@ -4200,6 +4222,17 @@ async function procesarPagoTransferencia() {
             importe: p.importe
         }));
         
+                // ⭐ ETAPA 6 (fix): Calcular subtotal sin descuento y descuento total
+        // a partir de los datos del servidor (result.subtotal es subtotal con descuento, sin IVA)
+        let subtotalSinDescuentoPDF = 0;
+        let descuentoTotalPDF = 0;
+        productosParaPDF.forEach(p => {
+            const importeBase = p.precio * p.cantidad;
+            const descuentoItem = importeBase * (p.descuento / 100);
+            subtotalSinDescuentoPDF += importeBase;
+            descuentoTotalPDF += descuentoItem;
+        });
+        
         const datosVenta = {
             folio: result.folio,
             fecha: new Date(),
@@ -4209,6 +4242,8 @@ async function procesarPagoTransferencia() {
             total: result.total,
             subtotal: result.subtotal,
             iva: result.iva,
+            subtotalSinDescuento: subtotalSinDescuentoPDF,   // ⭐ ETAPA 6 (fix)
+            descuentoTotal: descuentoTotalPDF,               // ⭐ ETAPA 6 (fix)
             tipoPago: 'Transferencia',
             referencia: referencia,
             comprobante: comprobanteBase64,
@@ -4395,6 +4430,16 @@ async function procesarPagoCredito() {
             importe: p.importe
         }));
         
+              // ⭐ ETAPA 6 (fix): Calcular subtotal sin descuento y descuento total
+        let subtotalSinDescuentoPDF = 0;
+        let descuentoTotalPDF = 0;
+        productosParaPDF.forEach(p => {
+            const importeBase = p.precio * p.cantidad;
+            const descuentoItem = importeBase * (p.descuento / 100);
+            subtotalSinDescuentoPDF += importeBase;
+            descuentoTotalPDF += descuentoItem;
+        });
+        
         const datosVenta = {
             folio: result.folio,
             fecha: new Date(),
@@ -4404,6 +4449,8 @@ async function procesarPagoCredito() {
             total: result.total,
             subtotal: result.subtotal,
             iva: result.iva,
+            subtotalSinDescuento: subtotalSinDescuentoPDF,   // ⭐ ETAPA 6 (fix)
+            descuentoTotal: descuentoTotalPDF,               // ⭐ ETAPA 6 (fix)
             tipoPago: result.esCreditoParcial ? 'Crédito Parcial' : 'Crédito',
             diasCredito: result.diasCredito || DIAS_CREDITO_FIJO,
             anticipo: result.esCreditoParcial ? result.montoPagoExcedente : 0,
@@ -6874,4 +6921,87 @@ function renderizarFiltrosMarca() {
     if (seleccionActual && marcas.includes(seleccionActual)) {
         select.value = seleccionActual;
     }
+}
+// ============================================
+// ⭐ ETAPA 6 (fix): COMPATIBILIDAD DE ESTUCOS/ADHESIVOS
+// ============================================
+
+// Devuelve el set de proveedores que pueden surtir TODOS los items de
+// Estuco/Adhesivo actualmente en el carrito.
+// Si no hay items de Estuco/Adhesivo en el carrito, devuelve null
+// (sin restricción).
+function obtenerProveedoresCompatiblesCarrito() {
+    const itemsReales = carrito.filter(i => !i.esEnvio);
+    
+    // Filtrar solo Estucos/Adhesivos
+    const itemsEstuco = itemsReales.filter(item => {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        if (!producto) return false;
+        const catNorm = normalizarLocalidad(producto.categoria || '');
+        return (catNorm === 'estucos' || catNorm === 'adhesivos');
+    });
+    
+    if (itemsEstuco.length === 0) return null; // sin restricción
+    
+    // Para cada item, obtener los proveedores que pueden surtirlo
+    // (intersección de sus proveedores I/X/AC con los elegibles para la localidad)
+    let proveedoresComunes = null;
+    
+    for (const item of itemsEstuco) {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        if (!producto) continue;
+        
+        const proveedoresProducto = [
+            producto.proveedorVertiz,
+            producto.proveedorCoacalco,
+            producto.proveedor3
+        ].filter(Boolean).map(p => String(p).trim()).filter(Boolean);
+        
+        const elegibles = proveedoresProducto.filter(p => 
+            window.proveedoresElegibles && window.proveedoresElegibles.includes(p)
+        );
+        
+        if (proveedoresComunes === null) {
+            proveedoresComunes = new Set(elegibles);
+        } else {
+            // Intersección
+            const nuevaInterseccion = new Set();
+            elegibles.forEach(p => {
+                if (proveedoresComunes.has(p)) nuevaInterseccion.add(p);
+            });
+            proveedoresComunes = nuevaInterseccion;
+        }
+        
+        if (proveedoresComunes.size === 0) return proveedoresComunes; // incompatible desde ya
+    }
+    
+    return proveedoresComunes;
+}
+
+// Devuelve true si el producto puede convivir con los Estucos/Adhesivos del carrito.
+// - Si el producto no es Estuco/Adhesivo → siempre true.
+// - Si no hay Estucos/Adhesivos en el carrito → siempre true.
+// - Si hay Estucos/Adhesivos → el producto debe tener al menos un proveedor
+//   en común con la intersección del carrito.
+function productoEsCompatibleConCarrito(producto) {
+    if (!producto) return true;
+    
+    const catNorm = normalizarLocalidad(producto.categoria || '');
+    const esEstucoAdhesivo = (catNorm === 'estucos' || catNorm === 'adhesivos');
+    
+    if (!esEstucoAdhesivo) return true; // no aplica restricción
+    
+    const comunesCarrito = obtenerProveedoresCompatiblesCarrito();
+    if (comunesCarrito === null) return true; // no hay estucos/adhesivos en el carrito
+    
+    if (comunesCarrito.size === 0) return false; // intersección vacía (no debería pasar)
+    
+    const proveedoresProducto = [
+        producto.proveedorVertiz,
+        producto.proveedorCoacalco,
+        producto.proveedor3
+    ].filter(Boolean).map(p => String(p).trim()).filter(Boolean);
+    
+    // El producto es compatible si al menos uno de sus proveedores está en la intersección
+    return proveedoresProducto.some(p => comunesCarrito.has(p));
 }
