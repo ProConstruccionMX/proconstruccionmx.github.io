@@ -1590,14 +1590,28 @@ function buscarProductos() {
         return;
     }
     
-    let html = `<div class="product-grid">`;
+        let html = `<div class="product-grid">`;
     resultados.forEach(producto => {
         const precioFinal = obtenerPrecioFinal(producto);
-        // ⭐ ETAPA 6: precio con IVA (final) y precio base con IVA (tachado)
-        const precioConIva = precioFinal.precio * 1.16;
+        
+        // ⭐ ETAPA 6 (fix): aplicar el descuento del cliente (giro, especial, volumen, etc.)
+        // Se usa la misma lógica que el carrito: calcularDescuentoProducto(producto, cantidad)
+        // Para la tarjeta usamos cantidad = 1 (o la cantidad mínima si el producto la requiere).
+        const cantidadParaDescuento = (producto.requiereMinPiezas && producto.minPiezas > 0)
+            ? producto.minPiezas
+            : 1;
+        const descuento = calcularDescuentoProducto(producto, cantidadParaDescuento);
+        
+        // Precio unitario con descuento (sin IVA)
+        const precioConDescuento = precioFinal.precio * (1 - descuento / 100);
+        
+        // Precio con IVA al que realmente lo compra el cliente
+        const precioConIva = precioConDescuento * 1.16;
+        
+        // Precio base con IVA (para tachado, solo si hay descuento)
         const precioBaseConIva = producto.precio * 1.16;
         
-        // Solo mostrar tachado si hay descuento real (precio final < precio base)
+        // Solo mostrar tachado si hay descuento real
         const hayDescuento = precioConIva < precioBaseConIva - 0.01;
         
         let etiquetaMinPiezas = '';
