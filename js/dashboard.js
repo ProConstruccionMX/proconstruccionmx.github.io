@@ -2338,6 +2338,9 @@ function agregarAlCarrito(clave) {
         });
     }
     
+        // ⭐ ETAPA 4: Sincronizar línea de envío
+    carrito = sincronizarLineaEnvio(carrito);
+    
     renderizarCarrito();
     mostrarNotificacion('✅ Producto agregado al carrito');
 }
@@ -2353,12 +2356,14 @@ function actualizarItemCarrito(item) {
     // ⭐ ETAPA 3: Recalcular proveedor al cambiar cantidad
     // (el peso del grupo o el importe del carrito pueden haber cambiado)
     // Construimos un carrito "temporal" sin este item para que la selección no se autoinfluya
-    const carritoSinItem = carrito.filter(i => i.clave !== item.clave);
+       const carritoSinItem = carrito.filter(i => i.clave !== item.clave);
     const nuevoProveedor = seleccionarProveedorParaProducto(producto, carritoSinItem);
     if (nuevoProveedor) {
         item.proveedorElegido = nuevoProveedor;
     }
 }
+
+// (La sincronización de envío se hace después de renderizar, en renderizarCarrito)
 
 function cambiarCantidad(clave, nuevaCantidad) {
     const item = carrito.find(i => i.clave === clave);
@@ -2384,10 +2389,15 @@ function cambiarCantidad(clave, nuevaCantidad) {
 }
 
 function eliminarDelCarrito(clave) {
-    carrito = carrito.filter(i => i.clave !== clave);
+    // ⭐ ETAPA 4: Bloquear eliminación de la línea de envío
+    if (clave === '__ENVIO__') {
+        mostrarNotificacion('ℹ️ El envío no se puede eliminar manualmente.');
+        return;
+    }
+    
+    carrito = carrito.filter(i => i.clave !== clave && !i.esEnvio);
     
     // ⭐ ETAPA 3: Recalcular proveedores de todos los items tras eliminar
-    // (el importe del carrito cambió y puede afectar la selección)
     carrito.forEach(item => {
         const producto = productosGlobales.find(p => p.clave === item.clave);
         if (!producto) return;
@@ -2398,11 +2408,14 @@ function eliminarDelCarrito(clave) {
         }
     });
     
+    // ⭐ ETAPA 4: Sincronizar envío
+    carrito = sincronizarLineaEnvio(carrito);
+    
     renderizarCarrito();
 }
 
 function vaciarCarrito() {
-    if (carrito.length === 0) return;
+    if (carrito.filter(i => !i.esEnvio).length === 0) return;
     if (!confirm('¿Seguro que quieres vaciar el carrito?')) return;
     carrito = [];
     renderizarCarrito();
@@ -2446,7 +2459,12 @@ function renderizarCarrito() {
     const cartTotales = document.getElementById('cartTotales');
     const btnComprar = document.getElementById('btnComprar');
     
-    if (carrito.length === 0) {
+    // ⭐ ETAPA 4: Sincronizar línea de envío antes de renderizar
+    carrito = sincronizarLineaEnvio(carrito);
+    
+    // Si el carrito solo tiene la línea de envío, tratarlo como vacío
+    const itemsReales = carrito.filter(i => !i.esEnvio);
+    if (itemsReales.length === 0) {
         cartContent.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-cart-plus"></i>
@@ -2462,7 +2480,8 @@ function renderizarCarrito() {
         return;
     }
     
-    const verificarPeso = verificarPesoMinimo();
+     // ⭐ ETAPA 4: Validar tonelada por proveedor (solo Estucos/Adhesivos con peso)
+    const verificarPesoPorProv = verificarPesoMinimoPorProveedor(itemsReales);
     const verificarMinPiezas = verificarMinimoPiezas();
     
     let html = `
@@ -2483,8 +2502,14 @@ function renderizarCarrito() {
     let subtotalSinDescuento = 0;
     let descuentoTotal = 0;
     let subtotal = 0;
-    
-    carrito.forEach(item => {
+        carrito.forEach(item => {
+        // ⭐ ETAPA 4: La línea de envío se suma al subtotal pero no a "subtotalSinDescuento" ni a "descuentoTotal"
+        if (item.esEnvio) {
+            subtotal += item.importe;
+            // subtotalSinDescuento y descuentoTotal no se tocan para envío
+            return;
+        }
+        
         const importeBase = item.precio * item.cantidad;
         const descuentoItem = importeBase * (item.descuento / 100);
         const importeFinal = importeBase - descuentoItem;
@@ -2521,7 +2546,33 @@ function renderizarCarrito() {
             pxvInfo = `<br><small style="color:var(--text-gray);">📦 ${info}</small>`;
         }
         
-                html += `
+                      // ⭐ ETAPA 4: Fila especial para la línea de envío (sin botón eliminar, sin input de cantidad)
+        if (item.esEnvio) {
+            const proveedoresTexto = item.proveedoresQueCobran && item.proveedoresQueCobran.length > 1
+                ? `<br><small style="color:var(--text-gray);">${item.proveedoresQueCobran.map(p => escapeHtml(p.proveedor)).join(' + ')}</small>`
+                : (item.proveedorElegido ? `<br><small style="color:var(--text-gray);">${escapeHtml(item.proveedorElegido)}</small>` : '');
+            
+            html += `
+                <tr style="background:#fef9e7;">
+                    <td>
+                        <strong>${escapeHtml(item.nombre)}</strong>
+                        ${proveedoresTexto}
+                    </td>
+                    <td>${formatoMexicano(item.precio)}</td>
+                    <td style="text-align:center;">1</td>
+                    <td>0%</td>
+                    <td>${formatoMexicano(item.importe)}</td>
+                    <td>
+                        <span style="color:var(--text-gray); font-size:0.75rem;" title="El envío no se puede eliminar manualmente">
+                            <i class="fas fa-lock"></i>
+                        </span>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        html += `
             <tr>
                 <td>
                     <strong>${escapeHtml(item.nombre)}</strong>
@@ -2581,9 +2632,65 @@ function renderizarCarrito() {
         `;
     }
     
-    if (verificarPeso.productosConPeso > 0) {
-        let detalleProductos = '';
-        verificarPeso.productosAfectados.forEach(p => {
+       // ⭐ ETAPA 4: Mostrar validación de tonelada por proveedor (solo si aplica)
+    if (verificarPesoPorProv.grupos.length > 0) {
+        let detalleGrupos = '';
+        verificarPesoPorProv.grupos.forEach(g => {
+            const icono = g.cumple ? '✅' : '⚠️';
+            const color = g.cumple ? '#16a34a' : '#92400e';
+            detalleGrupos += `
+                <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 0.9rem; border-bottom: 1px solid #f0f0f0;">
+                    <span>${icono} ${escapeHtml(g.proveedor)}</span>
+                    <span style="color:${color}; font-weight:600;">${g.pesoTotal.toFixed(2)} kg</span>
+                </div>
+            `;
+        });
+        
+        const totalPesoGeneral = verificarPesoPorProv.grupos.reduce((s, g) => s + g.pesoTotal, 0);
+        
+        html += `
+            <div style="margin-top: 1.5rem; padding: 1.5rem; border-radius: 12px; background: ${verificarPesoPorProv.cumple ? '#dcfce7' : '#fef3c7'}; border: 2px solid ${verificarPesoPorProv.cumple ? '#bbf7d0' : '#fde68a'};">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <span style="font-size: 1.5rem;">${verificarPesoPorProv.cumple ? '✅' : '⚠️'}</span>
+                    <span style="font-weight: 700; color: ${verificarPesoPorProv.cumple ? '#16a34a' : '#92400e'}; font-size: 1.1rem;">
+                        ${verificarPesoPorProv.cumple ? 'Tonelada combinada cumplida' : 'Tonelada combinada pendiente'}
+                    </span>
+                </div>
+                <div style="background: white; padding: 0.8rem 1rem; border-radius: 8px; margin: 0.5rem 0;">
+                    <div style="display: flex; justify-content: space-between; font-weight: 600; color: var(--primary-dark); border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
+                        <span>Proveedor</span>
+                        <span>Peso</span>
+                    </div>
+                    ${detalleGrupos}
+                    <div style="display: flex; justify-content: space-between; font-weight: 700; color: var(--primary-dark); padding-top: 0.5rem; margin-top: 0.5rem; border-top: 2px solid #e2e8f0;">
+                        <span>TOTAL</span>
+                        <span>${totalPesoGeneral.toFixed(2)} kg</span>
+                    </div>
+                </div>
+                ${!verificarPesoPorProv.cumple ? `
+                    <div style="background: #fef3c7; padding: 0.8rem 1rem; border-radius: 8px; margin-top: 0.5rem; border: 1px solid #fde68a;">
+                        <p style="margin: 0; font-weight: 600; color: #92400e;">
+                            ${verificarPesoPorProv.mensaje}
+                        </p>
+                        ${verificarPesoPorProv.recomendaciones.length > 0 ? `
+                            <div style="margin-top:0.5rem; font-size:0.85rem; color:#92400e;">
+                                <strong>Sugerencias para completar con ${escapeHtml(verificarPesoPorProv.recomendaciones[0].proveedor)}:</strong>
+                                <ul style="margin:0.3rem 0 0 1.2rem; padding:0;">
+                                    ${verificarPesoPorProv.recomendaciones[0].productosSugeridos.map(n => `<li>${escapeHtml(n)}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                    </div>
+                ` : `
+                    <div style="background: #dcfce7; padding: 0.8rem 1rem; border-radius: 8px; margin-top: 0.5rem; border: 1px solid #bbf7d0;">
+                        <p style="margin: 0; font-weight: 600; color: #16a34a;">
+                            ✅ ¡Ya puedes realizar tu compra!
+                        </p>
+                    </div>
+                `}
+            </div>
+        `;
+    }
             detalleProductos += `
                 <div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.9rem; border-bottom: 1px solid #f0f0f0;">
                     <span>${p.nombre}</span>
@@ -2640,12 +2747,13 @@ function renderizarCarrito() {
     document.getElementById('iva').textContent = formatoMexicano(iva);
     document.getElementById('total').textContent = formatoMexicano(total);
     
-    let puedeComprar = true;
+        let puedeComprar = true;
     let motivoBloqueo = '';
     
-    if (verificarPeso.productosConPeso > 0 && !verificarPeso.cumple) {
+    // ⭐ ETAPA 4: Validar tonelada por proveedor
+    if (verificarPesoPorProv.grupos.length > 0 && !verificarPesoPorProv.cumple) {
         puedeComprar = false;
-        motivoBloqueo = '⚠️ Debes completar el peso mínimo de 1 tonelada (1000 kg) para productos con peso.';
+        motivoBloqueo = verificarPesoPorProv.mensaje || '⚠️ Debes completar la tonelada combinada con un solo proveedor.';
     }
     
     if (!verificarMinPiezas.cumple) {
@@ -3679,6 +3787,11 @@ document.addEventListener('DOMContentLoaded', function() {
 function calcularTotal() {
     let subtotal = 0;
     carrito.forEach(item => {
+        // ⭐ ETAPA 4: La línea de envío ya viene con importe directo, sin descuento
+        if (item.esEnvio) {
+            subtotal += item.importe;
+            return;
+        }
         const importeBase = item.precio * item.cantidad;
         const descuentoItem = importeBase * (item.descuento / 100);
         subtotal += importeBase - descuentoItem;
@@ -6557,4 +6670,204 @@ function seleccionarProveedorParaProducto(producto, carritoActual) {
     });
     
     return candidatosConScore[0].proveedor;
+}
+// ============================================
+// ⭐ ETAPA 4: CÁLCULO DE ENVÍO CONSOLIDADO
+// ============================================
+
+// Calcula el envío consolidado del carrito.
+// Devuelve { envioTotal, detalles: [{ proveedor, costoEnvio, importeProveedor, montoEnvioGratis }], proveedoresQueCobran: [...] }
+function calcularEnvioConsolidado(carritoActual) {
+    const resultado = {
+        envioTotal: 0,
+        detalles: [],
+        proveedoresQueCobran: []
+    };
+    
+    if (!Array.isArray(carritoActual) || carritoActual.length === 0) return resultado;
+    if (!Array.isArray(condicionesProveedorGlobales)) return resultado;
+    
+    // Agrupar items por proveedorElegido (ignorar líneas de envío)
+    const itemsPorProveedor = new Map();
+    carritoActual.forEach(item => {
+        if (item.esEnvio) return;
+        if (!item.proveedorElegido) return;
+        if (!itemsPorProveedor.has(item.proveedorElegido)) {
+            itemsPorProveedor.set(item.proveedorElegido, []);
+        }
+        itemsPorProveedor.get(item.proveedorElegido).push(item);
+    });
+    
+    // Para cada proveedor con items, calcular si aplica envío
+    itemsPorProveedor.forEach((items, proveedor) => {
+        const cond = obtenerCondicionProveedor(proveedor);
+        if (!cond) return;
+        if (cond.costoEnvio === null) return; // No cobra envío
+        
+        const importeProveedor = items.reduce((sum, item) => sum + (item.importe || 0), 0);
+        
+        // ¿Alcanza envío gratis?
+        let aplicaEnvio = true;
+        if (cond.montoEnvioGratis !== null && importeProveedor >= cond.montoEnvioGratis) {
+            aplicaEnvio = false;
+        }
+        
+        resultado.detalles.push({
+            proveedor: proveedor,
+            costoEnvio: cond.costoEnvio,
+            importeProveedor: importeProveedor,
+            montoEnvioGratis: cond.montoEnvioGratis,
+            aplicaEnvio: aplicaEnvio
+        });
+        
+        if (aplicaEnvio) {
+            resultado.envioTotal += cond.costoEnvio;
+            resultado.proveedoresQueCobran.push({
+                proveedor: proveedor,
+                costoEnvio: cond.costoEnvio
+            });
+        }
+    });
+    
+    return resultado;
+}
+
+// Devuelve true si el carrito ya tiene una línea de envío
+function carritoTieneLineaEnvio(carritoActual) {
+    return carritoActual.some(item => item.esEnvio === true);
+}
+
+// Sincroniza la línea de envío en el carrito (la agrega, actualiza o elimina según corresponda)
+// Devuelve el carrito modificado (no muta el original).
+function sincronizarLineaEnvio(carritoActual) {
+    // 1. Quitar línea de envío existente (se recalcula desde cero)
+    const carritoSinEnvio = carritoActual.filter(item => !item.esEnvio);
+    
+    // 2. Calcular envío consolidado
+    const envio = calcularEnvioConsolidado(carritoSinEnvio);
+    
+    // 3. Si no hay envío, devolver sin línea
+    if (envio.envioTotal <= 0) return carritoSinEnvio;
+    
+    // 4. Agregar línea de envío
+    const lineaEnvio = {
+        clave: '__ENVIO__',
+        nombre: 'Envío',
+        descripcion: '',
+        precio: envio.envioTotal,
+        precioCompra: 0,
+        cantidad: 1,
+        descuento: 0,
+        importe: envio.envioTotal,
+        personalizado: false,
+        pesoCondicion: 'NO',
+        peso: 0,
+        requiereMinPiezas: false,
+        minPiezas: 0,
+        pxv: '',
+        descuentoVolumenP: 0,
+        descuentoVolumenQ: 0,
+        proveedorElegido: envio.proveedoresQueCobran.length === 1
+            ? envio.proveedoresQueCobran[0].proveedor
+            : '',
+        esEnvio: true,
+        proveedoresQueCobran: envio.proveedoresQueCobran
+    };
+    
+    return [...carritoSinEnvio, lineaEnvio];
+}
+// ============================================
+// ⭐ ETAPA 4: VALIDACIÓN DE TONELADA POR PROVEEDOR (Estucos/Adhesivos con peso)
+// ============================================
+
+// Verifica si la tonelada combinada se cumple por proveedor.
+// Devuelve {
+//   cumple: boolean,
+//   grupos: [{ proveedor, pesoTotal, items, cumple }],
+//   mensaje: string,
+//   recomendaciones: [{ proveedor, productosSugeridos }]
+// }
+function verificarPesoMinimoPorProveedor(carritoActual) {
+    const resultado = {
+        cumple: true,
+        grupos: [],
+        mensaje: '',
+        recomendaciones: []
+    };
+    
+    if (!Array.isArray(carritoActual) || carritoActual.length === 0) return resultado;
+    
+    // Filtrar solo productos Estuco/Adhesivo con peso (ignorar línea de envío)
+    const itemsEstucoPeso = carritoActual.filter(item => {
+        if (item.esEnvio) return false;
+        if (item.pesoCondicion !== 'SI' || !item.peso || item.peso <= 0) return false;
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        if (!producto) return false;
+        const catNorm = normalizarLocalidad(producto.categoria || '');
+        return (catNorm === 'estucos' || catNorm === 'adhesivos');
+    });
+    
+    if (itemsEstucoPeso.length === 0) return resultado; // No aplica
+    
+    // Agrupar por proveedorElegido
+    const gruposMap = new Map();
+    itemsEstucoPeso.forEach(item => {
+        const prov = item.proveedorElegido || '(sin proveedor)';
+        if (!gruposMap.has(prov)) gruposMap.set(prov, []);
+        gruposMap.get(prov).push(item);
+    });
+    
+    // Calcular peso por grupo
+    const grupos = [];
+    gruposMap.forEach((items, proveedor) => {
+        const pesoTotal = items.reduce((sum, item) => sum + (item.peso * item.cantidad), 0);
+        grupos.push({
+            proveedor: proveedor,
+            pesoTotal: pesoTotal,
+            items: items,
+            cumple: pesoTotal >= PESO_MINIMO_TONELADA
+        });
+    });
+    
+    resultado.grupos = grupos;
+    
+    // ¿Algún grupo cumple?
+    const algunGrupoCumple = grupos.some(g => g.cumple);
+    resultado.cumple = algunGrupoCumple;
+    
+    if (algunGrupoCumple) {
+        // Al menos un grupo llegó a 1000 kg. OK.
+        return resultado;
+    }
+    
+    // Ningún grupo cumple: construir mensaje
+    if (grupos.length === 1) {
+        const g = grupos[0];
+        const faltante = PESO_MINIMO_TONELADA - g.pesoTotal;
+        resultado.mensaje = `⚠️ Peso insuficiente con ${g.proveedor}. Tienes ${g.pesoTotal.toFixed(2)} kg, faltan ${faltante.toFixed(2)} kg para la tonelada (${PESO_MINIMO_TONELADA} kg).`;
+        
+        // Buscar productos sugeridos del mismo proveedor disponibles en la localidad
+        const sugeridos = productosGlobales.filter(p => {
+            if (!productoTieneProveedorElegible(p)) return false;
+            const catNorm = normalizarLocalidad(p.categoria || '');
+            if (catNorm !== 'estucos' && catNorm !== 'adhesivos') return false;
+            if (p.pesoCondicion !== 'SI' || !p.peso || p.peso <= 0) return false;
+            // ¿El producto tiene ese proveedor?
+            const provs = [p.proveedorVertiz, p.proveedorCoacalco, p.proveedor3].filter(Boolean).map(x => String(x).trim());
+            return provs.includes(g.proveedor);
+        }).slice(0, 3);
+        
+        if (sugeridos.length > 0) {
+            resultado.recomendaciones.push({
+                proveedor: g.proveedor,
+                productosSugeridos: sugeridos.map(p => p.nombre)
+            });
+        }
+    } else {
+        // 2+ grupos, ninguno cumple
+        const detalle = grupos.map(g => `${g.pesoTotal.toFixed(2)} kg con ${g.proveedor}`).join(' y ');
+        resultado.mensaje = `⚠️ La tonelada combinada debe ser con un solo proveedor. Tienes ${detalle}.`;
+    }
+    
+    return resultado;
 }
