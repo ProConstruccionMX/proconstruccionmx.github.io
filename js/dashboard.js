@@ -3819,14 +3819,13 @@ function generarPDFComprobante(datos) {
             `;
         });
 
-               let infoCreditoHTML = '';
+                     let infoCreditoHTML = '';
         if (datos.tipoPago === 'Crédito' || datos.tipoPago === 'Crédito Parcial') {
             const diasCredito = datos.diasCredito || 20;
             const anticipo = datos.anticipo || 0;
             const saldoPendiente = datos.saldoPendiente || datos.total;
             
             // ⭐ ETAPA 7 (fix): parsear la fecha de pago correctamente
-            // (viene como string "DD/MM/YYYY" o como "Invalid Date" si el parseo falla)
             let fechaPago = '';
             if (datos.fechaPago) {
                 let fechaPagoDate = null;
@@ -3844,7 +3843,6 @@ function generarPDFComprobante(datos) {
                             parseInt(match[1])
                         );
                     } else {
-                        // Intentar parseo directo
                         const parsed = new Date(fechaStr);
                         if (!isNaN(parsed.getTime())) {
                             fechaPagoDate = parsed;
@@ -3891,14 +3889,8 @@ function generarPDFComprobante(datos) {
             `;
         }
 
+             // ⭐ ETAPA 7 (fix): Ya no se muestra la fecha de entrega programada en el comprobante
         let fechaEntregaHTML = '';
-        if (window.fechaEntregaSeleccionada) {
-            fechaEntregaHTML = `
-                <div style="background:#dcfce7; padding:15px; border-radius:8px; margin:20px 0; border:1px solid #bbf7d0;">
-                    <p style="margin:0; color:#16a34a;"><strong>📅 Fecha de entrega programada:</strong> ${window.fechaEntregaSeleccionada.texto}</p>
-                </div>
-            `;
-        }
 
         let metodoPagoHTML = `<p><strong>Método de pago:</strong> ${datos.tipoPago.toUpperCase()}</p>`;
 
