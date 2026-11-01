@@ -1124,13 +1124,17 @@ async function cargarProductos() {
             // ⭐ NUEVO: columnas Y (categoría) y Z (imagen)
             const imagen = String(values[25] || '').trim();
             
-                        // ⭐ NUEVO: columnas I (Vertiz) y X (Coacalco)
+                                  // ⭐ NUEVO: columnas I (Vertiz) y X (Coacalco)
             const proveedorVertiz = String(values[8] || '').trim();
             const proveedorCoacalco = String(values[23] || '').trim();
             
             // ⭐ ETAPA 1: columnas AB (Marca) y AC (Proveedor 3)
             const marca = String(values[27] || '').trim();
             const proveedor3 = String(values[28] || '').trim();
+            
+            // ⭐ ETAPA 7: columnas AD (precio compra proveedor 2) y AE (precio compra proveedor 3)
+            const precioCompraProveedor2 = parseFloat(values[29]) || 0;
+            const precioCompraProveedor3 = parseFloat(values[30]) || 0;
             
             const requiereMinPiezas = minPiezasCondicion === 'SI';
             
@@ -1156,10 +1160,12 @@ async function cargarProductos() {
                 permitido: permitido,
                 categoria: categoria,
                 imagen: imagen || '',
-                                proveedorVertiz: proveedorVertiz,
+                                             proveedorVertiz: proveedorVertiz,
                 proveedorCoacalco: proveedorCoacalco,
                 marca: marca,               // ⭐ NUEVO (Etapa 1)
                 proveedor3: proveedor3,     // ⭐ NUEVO (Etapa 1)
+                precioCompraProveedor2: precioCompraProveedor2,   // ⭐ NUEVO (Etapa 7)
+                precioCompraProveedor3: precioCompraProveedor3,   // ⭐ NUEVO (Etapa 7)
                 fila: i + 1
             });
         }
