@@ -1158,9 +1158,21 @@
             </div>
         </div>
 
-        <!-- Resultados (oculto hasta elegir dirección) -->
+                <!-- Resultados (oculto hasta elegir dirección) -->
         <div class="results-section" id="resultsSection" style="display:none;">
-            <h3><i class="fas fa-list"></i> Productos Disponibles</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem;">
+                <h3 style="margin: 0;"><i class="fas fa-list"></i> Productos Disponibles</h3>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                    <select id="filtroOrdenPrecio" onchange="buscarProductos()" style="padding: 0.5rem 0.8rem; border: 2px solid #e2e8f0; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.85rem; background: white; cursor: pointer;">
+                        <option value="">Sin orden</option>
+                        <option value="precio_asc">Precio: menor a mayor</option>
+                        <option value="precio_desc">Precio: mayor a menor</option>
+                    </select>
+                    <select id="filtroMarca" onchange="buscarProductos()" style="padding: 0.5rem 0.8rem; border: 2px solid #e2e8f0; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.85rem; background: white; cursor: pointer;">
+                        <option value="">Todas las marcas</option>
+                    </select>
+                </div>
+            </div>
             <div id="resultsContent">
                 <div class="empty-state">
                     <i class="fas fa-search"></i>
