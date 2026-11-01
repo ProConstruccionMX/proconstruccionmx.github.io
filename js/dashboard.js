@@ -354,10 +354,13 @@ document.addEventListener('DOMContentLoaded', async function() {
             document.getElementById('welcomeName').textContent = clienteData.nombre;
         }
         
-        console.log('✅ Dashboard inicializado correctamente');
+              console.log('✅ Dashboard inicializado correctamente');
         
         // ⭐ Ocultar splash con fade-out
         finalizarSplashScreen();
+        
+        // ⭐ ETAPA 8: Iniciar actualización automática cada 5 minutos
+        iniciarActualizacionAutomatica();
         
     } catch (error) {
         console.error('❌ Error al inicializar dashboard:', error);
@@ -7061,4 +7064,136 @@ function productoEsCompatibleConCarrito(producto) {
     
     // El producto es compatible si al menos uno de sus proveedores está en la intersección
     return proveedoresProducto.some(p => comunesCarrito.has(p));
+}
+// ============================================
+// ⭐ ETAPA 8: Actualización automática de datos cada 5 minutos
+// - Refresca productos, precios especiales y condiciones de proveedores.
+// - Si hay productos en el carrito, recalcula precios y proveedores SIN perder cantidades.
+// - Se PAUSA si el cliente tiene un modal abierto (para no interrumpir).
+// - Se PAUSA si el cliente está escribiendo en un input (para no borrar lo que escribe).
+// ============================================
+
+const INTERVALO_ACTUALIZACION_MS = 5 * 60 * 1000; // 5 minutos
+let intervaloActualizacion = null;
+
+// Verifica si hay algún modal abierto (para pausar la actualización)
+function hayModalAbierto() {
+    const modales = document.querySelectorAll('.modal-overlay.active');
+    return modales.length > 0;
+}
+
+// Verifica si el cliente está escribiendo en un input
+function clienteEstaEscribiendo() {
+    const activo = document.activeElement;
+    if (!activo) return false;
+    const tag = activo.tagName ? activo.tagName.toLowerCase() : '';
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+        // Solo pausar si está dentro de un modal o en el buscador
+        return true;
+    }
+    return false;
+}
+
+// Refresca los datos críticos sin interrumpir al cliente
+async function actualizarDatosEnTiempoReal() {
+    // Pausar si hay modal abierto o el cliente está escribiendo
+    if (hayModalAbierto()) {
+        console.log('⏸️ Actualización pausada: hay un modal abierto');
+        return;
+    }
+    if (clienteEstaEscribiendo()) {
+        console.log('⏸️ Actualización pausada: el cliente está escribiendo');
+        return;
+    }
+    
+    try {
+        console.log('🔄 Actualización automática en tiempo real...');
+        
+        // 1. Recargar productos (precios, descripciones, disponibilidad, etc.)
+        const productosAntes = JSON.parse(JSON.stringify(productosGlobales));
+        await cargarProductos();
+        
+        // 2. Recargar precios especiales (si el cliente tiene alguno asignado)
+        await cargarPreciosEspeciales();
+        
+        // 3. Recargar condiciones de proveedores (por si cambió algún peso máximo, costo de envío, etc.)
+        await cargarCondicionesProveedor();
+        
+        // 4. Si hay productos en el carrito, recalcular precios y proveedores
+        if (carrito.length > 0) {
+            const itemsReales = carrito.filter(i => !i.esEnvio);
+            
+            for (const item of itemsReales) {
+                const producto = productosGlobales.find(p => p.clave === item.clave);
+                if (!producto) {
+                    // El producto ya no existe o se desactivó. Quitarlo del carrito.
+                    console.warn(`⚠️ Producto ${item.clave} ya no disponible. Quitando del carrito.`);
+                    carrito = carrito.filter(i => i.clave !== item.clave);
+                    continue;
+                }
+                
+                // Recalcular precio final (por si cambió el precio de lista o el precio especial)
+                const precioFinal = obtenerPrecioFinal(producto);
+                const descuento = calcularDescuentoProducto(producto, item.cantidad);
+                
+                // Actualizar precio y descuento del item
+                item.precio = precioFinal.precio;
+                item.descuento = descuento;
+                item.importe = precioFinal.precio * item.cantidad * (1 - descuento / 100);
+                item.personalizado = precioFinal.personalizado;
+                
+                // Recalcular proveedor elegido (por si cambió el peso máximo, la localidad o los proveedores)
+                const carritoSinItem = carrito.filter(i => i.clave !== item.clave && !i.esEnvio);
+                const nuevoProveedor = seleccionarProveedorParaProducto(producto, carritoSinItem);
+                if (nuevoProveedor) {
+                    item.proveedorElegido = nuevoProveedor;
+                }
+            }
+            
+            // Sincronizar línea de envío (por si cambió el costo de envío o el monto mínimo)
+            carrito = sincronizarLineaEnvio(carrito);
+        }
+        
+        // 5. Refrescar la lista de productos visibles (si está en la vista principal)
+        if (document.getElementById('resultsSection') && 
+            document.getElementById('resultsSection').style.display !== 'none' &&
+            document.getElementById('searchInput')) {
+            buscarProductos();
+        }
+        
+        // 6. Refrescar el carrito (si hay productos)
+        if (carrito.length > 0) {
+            renderizarCarrito();
+        }
+        
+        // 7. Refrescar el menú de categorías (por si cambió la disponibilidad)
+        if (document.getElementById('botonesCategorias')) {
+            renderizarMenuCategorias();
+            renderizarFiltrosMarca();
+        }
+        
+        console.log('✅ Actualización automática completada');
+        
+    } catch (error) {
+        console.error('❌ Error en actualización automática:', error);
+        // No interrumpir al cliente si falla. Solo loguear.
+    }
+}
+
+// Inicia el intervalo de actualización
+function iniciarActualizacionAutomatica() {
+    if (intervaloActualizacion) {
+        clearInterval(intervaloActualizacion);
+    }
+    intervaloActualizacion = setInterval(actualizarDatosEnTiempoReal, INTERVALO_ACTUALIZACION_MS);
+    console.log(`🔄 Actualización automática activada (cada ${INTERVALO_ACTUALIZACION_MS / 60000} minutos)`);
+}
+
+// Detiene el intervalo (útil si el cliente cierra sesión)
+function detenerActualizacionAutomatica() {
+    if (intervaloActualizacion) {
+        clearInterval(intervaloActualizacion);
+        intervaloActualizacion = null;
+        console.log('⏸️ Actualización automática detenida');
+    }
 }
