@@ -1555,12 +1555,36 @@ function buscarProductos() {
         );
     }
     
+    // ⭐ ETAPA 6: Filtrar por marca
+    const filtroMarca = document.getElementById('filtroMarca');
+    const marcaSeleccionada = filtroMarca ? filtroMarca.value : '';
+    if (marcaSeleccionada) {
+        resultados = resultados.filter(p => String(p.marca || '').trim() === marcaSeleccionada);
+    }
+    
+    // ⭐ ETAPA 6: Ordenar por precio
+    const filtroOrden = document.getElementById('filtroOrdenPrecio');
+    const ordenSeleccionado = filtroOrden ? filtroOrden.value : '';
+    if (ordenSeleccionado === 'precio_asc') {
+        resultados.sort((a, b) => {
+            const precioA = obtenerPrecioFinal(a).precio;
+            const precioB = obtenerPrecioFinal(b).precio;
+            return precioA - precioB;
+        });
+    } else if (ordenSeleccionado === 'precio_desc') {
+        resultados.sort((a, b) => {
+            const precioA = obtenerPrecioFinal(a).precio;
+            const precioB = obtenerPrecioFinal(b).precio;
+            return precioB - precioA;
+        });
+    }
+    
     if (resultados.length === 0) {
         resultsDiv.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-search"></i>
                 <h4>No se encontraron resultados</h4>
-                <p>Intenta con otra palabra${categoriaActiva ? ' o cambia de categoría' : ''} o contacta a tu asesor.</p>
+                <p>Intenta con otra palabra${categoriaActiva ? ', cambia de categoría' : ''}${marcaSeleccionada ? ', quita el filtro de marca' : ''} o contacta a tu asesor.</p>
             </div>
         `;
         return;
@@ -1569,12 +1593,12 @@ function buscarProductos() {
     let html = `<div class="product-grid">`;
     resultados.forEach(producto => {
         const precioFinal = obtenerPrecioFinal(producto);
-        const precioMostrar = precioFinal.precio;
+        // ⭐ ETAPA 6: precio con IVA (final) y precio base con IVA (tachado)
+        const precioConIva = precioFinal.precio * 1.16;
+        const precioBaseConIva = producto.precio * 1.16;
         
-        let etiquetaPeso = '';
-        if (producto.pesoCondicion === 'SI' && producto.peso > 0) {
-            etiquetaPeso = `<span class="tag-peso">⚖️ ${producto.peso} kg/unidad - Mínimo 1 tonelada combinada</span>`;
-        }
+        // Solo mostrar tachado si hay descuento real (precio final < precio base)
+        const hayDescuento = precioConIva < precioBaseConIva - 0.01;
         
         let etiquetaMinPiezas = '';
         if (producto.requiereMinPiezas && producto.minPiezas > 0) {
@@ -1614,13 +1638,15 @@ function buscarProductos() {
         html += `
             <div class="product-card">
                 ${imagenHtml}
-                <span class="clave">${escapeHtml(producto.clave)}</span>
                 ${producto.pxv === 'PXV' && producto.pesoCondicion === 'SI' ? etiquetaPXV : ''}
-                ${etiquetaPeso}
                 ${etiquetaMinPiezas}
                 <h4>${escapeHtml(producto.nombre)}</h4>
                 <p class="descripcion">${escapeHtml(producto.descripcion) || 'Sin descripción'}</p>
-                <p class="precio">${formatoMexicano(precioMostrar)}</p>
+                <p class="precio">
+                    ${formatoMexicano(precioConIva)}
+                    ${hayDescuento ? `<span class="precio-tachado">${formatoMexicano(precioBaseConIva)}</span>` : ''}
+                </p>
+                <small class="precio-iva">IVA incluido</small>
                 <button class="btn-agregar" onclick="agregarAlCarrito('${escapeHtml(producto.clave)}')">
                     <i class="fas fa-plus"></i> Agregar
                 </button>
@@ -6388,8 +6414,11 @@ function continuarConBusqueda() {
     // (la categoría previa puede no tener productos en la nueva localidad)
     categoriaActiva = null;
     
-    // Inicializar categorías
+        // Inicializar categorías
     renderizarMenuCategorias();
+    
+    // ⭐ ETAPA 6: Inicializar filtros de marca
+    renderizarFiltrosMarca();
     
     mostrarNotificacion('✅ Dirección seleccionada: ' + dir.nombre);
 }
@@ -6802,4 +6831,33 @@ function verificarPesoMinimoPorProveedor(carritoActual) {
     }
     
     return resultado;
+}
+// ============================================
+// ⭐ ETAPA 6: FILTROS DE PRODUCTOS
+// ============================================
+
+// Llena el select de marcas con las marcas únicas de los productos elegibles
+function renderizarFiltrosMarca() {
+    const select = document.getElementById('filtroMarca');
+    if (!select) return;
+    
+    // Solo marcas de productos elegibles para la localidad actual
+    const productosElegibles = productosGlobales.filter(p => productoTieneProveedorElegible(p));
+    const marcas = [...new Set(productosElegibles.map(p => String(p.marca || '').trim()).filter(Boolean))].sort();
+    
+    // Guardar la selección actual
+    const seleccionActual = select.value;
+    
+    select.innerHTML = '<option value="">Todas las marcas</option>';
+    marcas.forEach(marca => {
+        const option = document.createElement('option');
+        option.value = marca;
+        option.textContent = marca;
+        select.appendChild(option);
+    });
+    
+    // Restaurar selección si aún existe
+    if (seleccionActual && marcas.includes(seleccionActual)) {
+        select.value = seleccionActual;
+    }
 }
