@@ -2480,7 +2480,7 @@ function renderizarCarrito() {
         return;
     }
     
-     // ⭐ ETAPA 4: Validar tonelada por proveedor (solo Estucos/Adhesivos con peso)
+    // ⭐ ETAPA 4: Validar tonelada por proveedor (solo Estucos/Adhesivos con peso)
     const verificarPesoPorProv = verificarPesoMinimoPorProveedor(itemsReales);
     const verificarMinPiezas = verificarMinimoPiezas();
     
@@ -2502,9 +2502,37 @@ function renderizarCarrito() {
     let subtotalSinDescuento = 0;
     let descuentoTotal = 0;
     let subtotal = 0;
-                    carrito.forEach(item => {
-        // ⭐ ETAPA 4: La línea de envío se maneja más abajo (suma al subtotal y renderiza su propia fila)
+    
+    carrito.forEach(item => {
+        // ⭐ ETAPA 4: Línea de envío — se renderiza su propia fila y suma UNA sola vez al subtotal
+        if (item.esEnvio) {
+            subtotal += item.importe;
+            
+            const proveedoresTexto = item.proveedoresQueCobran && item.proveedoresQueCobran.length > 1
+                ? `<br><small style="color:var(--text-gray);">${item.proveedoresQueCobran.map(p => escapeHtml(p.proveedor)).join(' + ')}</small>`
+                : (item.proveedorElegido ? `<br><small style="color:var(--text-gray);">${escapeHtml(item.proveedorElegido)}</small>` : '');
+            
+            html += `
+                <tr style="background:#fef9e7;">
+                    <td>
+                        <strong>${escapeHtml(item.nombre)}</strong>
+                        ${proveedoresTexto}
+                    </td>
+                    <td>${formatoMexicano(item.precio)}</td>
+                    <td style="text-align:center;">1</td>
+                    <td>0%</td>
+                    <td>${formatoMexicano(item.importe)}</td>
+                    <td>
+                        <span style="color:var(--text-gray); font-size:0.75rem;" title="El envío no se puede eliminar manualmente">
+                            <i class="fas fa-lock"></i>
+                        </span>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
         
+        // ⭐ Producto normal
         const importeBase = item.precio * item.cantidad;
         const descuentoItem = importeBase * (item.descuento / 100);
         const importeFinal = importeBase - descuentoItem;
@@ -2541,35 +2569,6 @@ function renderizarCarrito() {
             pxvInfo = `<br><small style="color:var(--text-gray);">📦 ${info}</small>`;
         }
         
-                      // ⭐ ETAPA 4: Fila especial para la línea de envío (sin botón eliminar, sin input de cantidad)
-                if (item.esEnvio) {
-            // ⭐ ETAPA 4: Sumar al subtotal (no a subtotalSinDescuento ni a descuentoTotal)
-            subtotal += item.importe;
-            
-            const proveedoresTexto = item.proveedoresQueCobran && item.proveedoresQueCobran.length > 1
-                ? `<br><small style="color:var(--text-gray);">${item.proveedoresQueCobran.map(p => escapeHtml(p.proveedor)).join(' + ')}</small>`
-                : (item.proveedorElegido ? `<br><small style="color:var(--text-gray);">${escapeHtml(item.proveedorElegido)}</small>` : '');
-            
-            html += `
-                <tr style="background:#fef9e7;">
-                    <td>
-                        <strong>${escapeHtml(item.nombre)}</strong>
-                        ${proveedoresTexto}
-                    </td>
-                    <td>${formatoMexicano(item.precio)}</td>
-                    <td style="text-align:center;">1</td>
-                    <td>0%</td>
-                    <td>${formatoMexicano(item.importe)}</td>
-                    <td>
-                        <span style="color:var(--text-gray); font-size:0.75rem;" title="El envío no se puede eliminar manualmente">
-                            <i class="fas fa-lock"></i>
-                        </span>
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-        
         html += `
             <tr>
                 <td>
@@ -2604,7 +2603,7 @@ function renderizarCarrito() {
         </table>
     `;
     
-       if (!verificarMinPiezas.cumple) {
+    if (!verificarMinPiezas.cumple) {
         html += `
             <div style="margin-top: 1.5rem; padding: 1.5rem; border-radius: 12px; background: #fef3c7; border: 2px solid #fde68a;">
                 <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
@@ -2632,7 +2631,62 @@ function renderizarCarrito() {
     
     // ⭐ ETAPA 4: Mostrar validación de tonelada por proveedor (solo si aplica)
     if (verificarPesoPorProv.grupos.length > 0) {
-        // ... (este bloque ya lo tienes bien, déjalo como está)
+        let detalleGrupos = '';
+        verificarPesoPorProv.grupos.forEach(g => {
+            const icono = g.cumple ? '✅' : '⚠️';
+            const color = g.cumple ? '#16a34a' : '#92400e';
+            detalleGrupos += `
+                <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 0.9rem; border-bottom: 1px solid #f0f0f0;">
+                    <span>${icono} ${escapeHtml(g.proveedor)}</span>
+                    <span style="color:${color}; font-weight:600;">${g.pesoTotal.toFixed(2)} kg</span>
+                </div>
+            `;
+        });
+        
+        const totalPesoGeneral = verificarPesoPorProv.grupos.reduce((s, g) => s + g.pesoTotal, 0);
+        
+        html += `
+            <div style="margin-top: 1.5rem; padding: 1.5rem; border-radius: 12px; background: ${verificarPesoPorProv.cumple ? '#dcfce7' : '#fef3c7'}; border: 2px solid ${verificarPesoPorProv.cumple ? '#bbf7d0' : '#fde68a'};">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <span style="font-size: 1.5rem;">${verificarPesoPorProv.cumple ? '✅' : '⚠️'}</span>
+                    <span style="font-weight: 700; color: ${verificarPesoPorProv.cumple ? '#16a34a' : '#92400e'}; font-size: 1.1rem;">
+                        ${verificarPesoPorProv.cumple ? 'Tonelada combinada cumplida' : 'Tonelada combinada pendiente'}
+                    </span>
+                </div>
+                <div style="background: white; padding: 0.8rem 1rem; border-radius: 8px; margin: 0.5rem 0;">
+                    <div style="display: flex; justify-content: space-between; font-weight: 600; color: var(--primary-dark); border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
+                        <span>Proveedor</span>
+                        <span>Peso</span>
+                    </div>
+                    ${detalleGrupos}
+                    <div style="display: flex; justify-content: space-between; font-weight: 700; color: var(--primary-dark); padding-top: 0.5rem; margin-top: 0.5rem; border-top: 2px solid #e2e8f0;">
+                        <span>TOTAL</span>
+                        <span>${totalPesoGeneral.toFixed(2)} kg</span>
+                    </div>
+                </div>
+                ${!verificarPesoPorProv.cumple ? `
+                    <div style="background: #fef3c7; padding: 0.8rem 1rem; border-radius: 8px; margin-top: 0.5rem; border: 1px solid #fde68a;">
+                        <p style="margin: 0; font-weight: 600; color: #92400e;">
+                            ${verificarPesoPorProv.mensaje}
+                        </p>
+                        ${verificarPesoPorProv.recomendaciones.length > 0 ? `
+                            <div style="margin-top:0.5rem; font-size:0.85rem; color:#92400e;">
+                                <strong>Sugerencias para completar con ${escapeHtml(verificarPesoPorProv.recomendaciones[0].proveedor)}:</strong>
+                                <ul style="margin:0.3rem 0 0 1.2rem; padding:0;">
+                                    ${verificarPesoPorProv.recomendaciones[0].productosSugeridos.map(n => `<li>${escapeHtml(n)}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                    </div>
+                ` : `
+                    <div style="background: #dcfce7; padding: 0.8rem 1rem; border-radius: 8px; margin-top: 0.5rem; border: 1px solid #bbf7d0;">
+                        <p style="margin: 0; font-weight: 600; color: #16a34a;">
+                            ✅ ¡Ya puedes realizar tu compra!
+                        </p>
+                    </div>
+                `}
+            </div>
+        `;
     }
     
     cartContent.innerHTML = html;
