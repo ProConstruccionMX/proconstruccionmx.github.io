@@ -3043,44 +3043,44 @@ function cerrarModalFechaEntrega() {
 }
 
 // ============================================
-// ⭐ ETAPA 4: CALENDARIO DINÁMICO POR PROVEEDOR
+// ⭐ ETAPA 5: Calendario dinámico por días de entrega del proveedor
 // ============================================
 
-function determinarProveedorVentaFrontend() {
-    if (carrito.length === 0) return 'Grupo SAR Vertiz';
+// Devuelve el máximo de diasEntrega entre los proveedores involucrados en el carrito.
+// Si no hay items o no hay condiciones, devuelve 1 (default).
+function calcularDiasEntregaMaximo() {
+    const itemsReales = carrito.filter(i => !i.esEnvio);
+    if (itemsReales.length === 0) return 1;
     
-    // Regla 1: Pegarey → Vertiz
-    const tienePegarey = carrito.some(item => 
-        String(item.nombre || '').toLowerCase().includes('pegarey')
-    );
-    if (tienePegarey) return 'Grupo SAR Vertiz';
-    
-    // Regla 2: Tecámac + ≤1T + todos Coacalco
-    const alcaldiaRaw = (window.direccionInicialSeleccionada?.alcaldia) || 
-                        (window.datosEnvio?.alcaldia) || '';
-    const alcaldia = String(alcaldiaRaw)
-        .trim()
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
-    const esTecamac = (alcaldia === 'tecamac');
-    
-    let pesoTotal = 0;
-    let todosCoacalco = true;
-    for (const item of carrito) {
-        const prod = productosGlobales.find(p => p.clave === item.clave);
-        if (!prod) continue;
-        if (prod.pesoCondicion === 'SI' && prod.peso > 0) {
-            pesoTotal += prod.peso * item.cantidad;
+    const proveedoresInvolucrados = new Set();
+    itemsReales.forEach(item => {
+        if (item.proveedorElegido) {
+            proveedoresInvolucrados.add(item.proveedorElegido);
         }
-        if (String(prod.proveedorCoacalco || '').trim() === '') {
-            todosCoacalco = false;
-        }
-    }
-    const pesoCumple = pesoTotal <= 1000;
+    });
     
-    if (esTecamac && pesoCumple && todosCoacalco) return 'Grupo SAR Coacalco';
-    return 'Grupo SAR Vertiz';
+    if (proveedoresInvolucrados.size === 0) return 1;
+    if (!Array.isArray(condicionesProveedorGlobales)) return 1;
+    
+    let maxDias = 1;
+    proveedoresInvolucrados.forEach(prov => {
+        const cond = condicionesProveedorGlobales.find(c => c.proveedor === prov);
+        if (cond && cond.diasEntrega > maxDias) {
+            maxDias = cond.diasEntrega;
+        }
+    });
+    
+    return maxDias;
+}
+
+// Devuelve la lista de proveedores involucrados (para logs)
+function listarProveedoresCarrito() {
+    const itemsReales = carrito.filter(i => !i.esEnvio);
+    const set = new Set();
+    itemsReales.forEach(item => {
+        if (item.proveedorElegido) set.add(item.proveedorElegido);
+    });
+    return Array.from(set);
 }
 
 function generarCalendario() {
@@ -3111,59 +3111,65 @@ function generarCalendario() {
     }
     
     // ============================================
-    // ⭐ ETAPA 4: Calcular días extra por proveedor
+    // ⭐ ETAPA 5: Calcular días de entrega reales del proveedor (máximo entre los involucrados)
     // ============================================
-    const proveedor = determinarProveedorVentaFrontend();
-    const diasExtra = (proveedor === 'Grupo SAR Vertiz') ? 1 : 0;
+    const proveedoresInvolucrados = listarProveedoresCarrito();
+    const diasEntregaMaximo = calcularDiasEntregaMaximo();
     
-    console.log('🏢 Proveedor (frontend):', proveedor, '| Días extra:', diasExtra);
+    console.log('🏢 Proveedores en carrito:', proveedoresInvolucrados);
+    console.log('📅 Días de entrega máximos:', diasEntregaMaximo);
     
-        // ============================================
-    // ⭐ Calcular el PRIMER DÍA HÁBIL BASE (regla Coacalco, sin días extra)
     // ============================================
-    const fechaBase = new Date(ahora);
-    fechaBase.setHours(0, 0, 0, 0);
+    // ⭐ Calcular "hoy normalizado" según regla 17:40 y fin de semana
+    // (si es viernes >17:40, sábado o domingo → normaliza al siguiente lunes a las 09:00)
+    // ============================================
+    const ahoraNormalizado = new Date(ahora);
+    ahoraNormalizado.setHours(9, 0, 0, 0);
     
-    const diasAnticipacionBase = esDespuesDe540 ? 2 : 1;
-    fechaBase.setDate(fechaBase.getDate() + diasAnticipacionBase + 1);
-    
-    // Función auxiliar: ¿esta fecha está bloqueada por regla base?
-    function estaBloqueadaBase(fecha) {
-        const dia = fecha.getDay();
-        if (dia === 0 || dia === 6) return true; // fin de semana
-        const t = fecha.getTime();
-        if (siguienteLunes && t === siguienteLunes.getTime()) return true;
-        if (siguienteMartes && t === siguienteMartes.getTime()) return true;
-        return false;
+    if (deshabilitarSiguienteLunesMartes) {
+        // Si es viernes >17:40, sábado o domingo → normalizar al siguiente lunes
+        const cursor = new Date(ahora);
+        cursor.setHours(9, 0, 0, 0);
+        while (cursor.getDay() !== 1) {
+            cursor.setDate(cursor.getDate() + 1);
+        }
+        ahoraNormalizado.setTime(cursor.getTime());
+    } else if (esDespuesDe540) {
+        // Día hábil después de 17:40 → normalizar al siguiente día hábil
+        const cursor = new Date(ahora);
+        cursor.setDate(cursor.getDate() + 1);
+        cursor.setHours(9, 0, 0, 0);
+        while (cursor.getDay() === 0 || cursor.getDay() === 6) {
+            cursor.setDate(cursor.getDate() + 1);
+        }
+        ahoraNormalizado.setTime(cursor.getTime());
+    } else {
+        // Día hábil antes de 17:40 → hoy mismo a las 09:00
+        ahoraNormalizado.setHours(9, 0, 0, 0);
     }
     
-    // Avanzar fechaBase hasta el primer día hábil base (Coacalco)
-    let guardBase = 0;
-    while (estaBloqueadaBase(fechaBase) && guardBase < 30) {
-        fechaBase.setDate(fechaBase.getDate() + 1);
-        guardBase++;
-    }
-    
-    console.log('📅 Primer día hábil BASE (Coacalco):', fechaBase.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long', year:'numeric'}));
+    console.log('📅 Hoy normalizado:', ahoraNormalizado.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long', year:'numeric'}));
     
     // ============================================
-    // ⭐ Aplicar días de BLOQUEO extra (Vertiz = 1 día más bloqueado)
-    // El día extra corre el mínimo un día calendario más, y luego
-    // avanzamos hasta el primer día hábil (saltando solo fines de semana).
+    // ⭐ Calcular fecha mínima: ahoraNormalizado + diasEntregaMaximo días calendario
+    // Luego avanzar hasta el primer día hábil (saltar sáb/dom)
     // ============================================
-    const fechaMinima = new Date(fechaBase);
-    fechaMinima.setDate(fechaMinima.getDate() + diasExtra);
+    const fechaMinima = new Date(ahoraNormalizado);
+    fechaMinima.setDate(fechaMinima.getDate() + diasEntregaMaximo);
     
-    let guardFinal = 0;
-    while (guardFinal < 30) {
+    let guard = 0;
+    while (guard < 30) {
         const dia = fechaMinima.getDay();
         if (dia !== 0 && dia !== 6) break; // día hábil → salir
         fechaMinima.setDate(fechaMinima.getDate() + 1);
-        guardFinal++;
+        guard++;
     }
     
-    console.log('📅 Primer día hábil FINAL (con días extra):', fechaMinima.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long', year:'numeric'}));
+    console.log('📅 Primer día hábil seleccionable:', fechaMinima.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long', year:'numeric'}));
     
+    // ============================================
+    // ⭐ Renderizar calendario
+    // ============================================
     const diasAMostrar = 30;
     const container = document.getElementById('calendarioContainer');
     
