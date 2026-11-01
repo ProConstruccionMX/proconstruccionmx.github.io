@@ -3090,28 +3090,13 @@ function generarCalendario() {
     const diaSemanaHoy = ahora.getDay();
     
     const esDespuesDe540 = (horaActual > 17) || (horaActual === 17 && minutosActuales >= 40);
-    
     const esViernesDespuesDe540 = (diaSemanaHoy === 5 && esDespuesDe540);
     const esSabado = (diaSemanaHoy === 6);
     const esDomingo = (diaSemanaHoy === 0);
-    const deshabilitarSiguienteLunesMartes = esViernesDespuesDe540 || esSabado || esDomingo;
-    
-    let siguienteLunes = null;
-    let siguienteMartes = null;
-    
-    if (deshabilitarSiguienteLunesMartes) {
-        const cursor = new Date(ahora);
-        cursor.setHours(0, 0, 0, 0);
-        while (cursor.getDay() !== 1) {
-            cursor.setDate(cursor.getDate() + 1);
-        }
-        siguienteLunes = new Date(cursor);
-        siguienteMartes = new Date(cursor);
-        siguienteMartes.setDate(siguienteMartes.getDate() + 1);
-    }
+    const normalizaAlLunes = esViernesDespuesDe540 || esSabado || esDomingo;
     
     // ============================================
-    // ⭐ ETAPA 5: Calcular días de entrega reales del proveedor (máximo entre los involucrados)
+    // ⭐ ETAPA 5: Días de entrega del proveedor (máximo entre los involucrados)
     // ============================================
     const proveedoresInvolucrados = listarProveedoresCarrito();
     const diasEntregaMaximo = calcularDiasEntregaMaximo();
@@ -3120,51 +3105,43 @@ function generarCalendario() {
     console.log('📅 Días de entrega máximos:', diasEntregaMaximo);
     
     // ============================================
-    // ⭐ Calcular "hoy normalizado" según regla 17:40 y fin de semana
-    // (si es viernes >17:40, sábado o domingo → normaliza al siguiente lunes a las 09:00)
+    // ⭐ "Hoy normalizado": base desde donde se cuenta diasEntrega
+    // - Viernes >17:40, sábado, domingo → lunes siguiente (00:00)
+    // - Día hábil >17:40 → siguiente día hábil (00:00)
+    // - Día hábil antes de 17:40 → hoy (00:00)
     // ============================================
-       const ahoraNormalizado = new Date(ahora);
-    ahoraNormalizado.setHours(0, 0, 0, 0);
+    const base = new Date(ahora);
+    base.setHours(0, 0, 0, 0);
     
-    if (deshabilitarSiguienteLunesMartes) {
-        // Si es viernes >17:40, sábado o domingo → normalizar al siguiente lunes
-        const cursor = new Date(ahora);
-        cursor.setHours(0, 0, 0, 0);
-        while (cursor.getDay() !== 1) {
-            cursor.setDate(cursor.getDate() + 1);
+    if (normalizaAlLunes) {
+        // Avanzar al siguiente lunes
+        while (base.getDay() !== 1) {
+            base.setDate(base.getDate() + 1);
         }
-        ahoraNormalizado.setTime(cursor.getTime());
     } else if (esDespuesDe540) {
-        // Día hábil después de 17:40 → normalizar al siguiente día hábil
-        const cursor = new Date(ahora);
-        cursor.setDate(cursor.getDate() + 1);
-        cursor.setHours(0, 0, 0, 0);
-        while (cursor.getDay() === 0 || cursor.getDay() === 6) {
-            cursor.setDate(cursor.getDate() + 1);
+        // Día hábil >17:40 → siguiente día hábil
+        base.setDate(base.getDate() + 1);
+        while (base.getDay() === 0 || base.getDay() === 6) {
+            base.setDate(base.getDate() + 1);
         }
-        ahoraNormalizado.setTime(cursor.getTime());
-    } else {
-        // Día hábil antes de 17:40 → hoy mismo a medianoche
-        ahoraNormalizado.setHours(0, 0, 0, 0);
     }
+    // Si no, base = hoy a medianoche
     
-    console.log('📅 Hoy normalizado:', ahoraNormalizado.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long', year:'numeric'}));
+    console.log('📅 Día base (desde donde se cuenta diasEntrega):', base.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long', year:'numeric'}));
     
     // ============================================
-    // ⭐ Calcular fecha mínima: ahoraNormalizado + diasEntregaMaximo días calendario
+    // ⭐ Sumar diasEntregaMaximo días calendario desde base
     // Luego avanzar hasta el primer día hábil (saltar sáb/dom)
     // ============================================
-      const fechaMinima = new Date(ahoraNormalizado);
+    const fechaMinima = new Date(base);
     fechaMinima.setHours(0, 0, 0, 0);
     fechaMinima.setDate(fechaMinima.getDate() + diasEntregaMaximo);
-    fechaMinima.setHours(0, 0, 0, 0);
     
     let guard = 0;
     while (guard < 30) {
         const dia = fechaMinima.getDay();
         if (dia !== 0 && dia !== 6) break; // día hábil → salir
         fechaMinima.setDate(fechaMinima.getDate() + 1);
-        fechaMinima.setHours(0, 0, 0, 0);
         guard++;
     }
     
@@ -3196,19 +3173,16 @@ function generarCalendario() {
         const esAntesDeFechaMinima = fecha < fechaMinima;
         const esHoy = (i === 0);
         
-        const esSiguienteLunes = siguienteLunes && fecha.getTime() === siguienteLunes.getTime();
-        const esSiguienteMartes = siguienteMartes && fecha.getTime() === siguienteMartes.getTime();
-        const bloqueadoPorRegla = esSiguienteLunes || esSiguienteMartes;
-        
-        const fechaStr = fecha.getFullYear() + '-' + String(fecha.getMonth() + 1).padStart(2, '0') + '-' + String(fecha.getDate()).padStart(2, '0');
+         const fechaStr = fecha.getFullYear() + '-' + String(fecha.getMonth() + 1).padStart(2, '0') + '-' + String(fecha.getDate()).padStart(2, '0');
         const diaNumero = fecha.getDate();
         const mesNombre = fecha.toLocaleDateString('es-MX', { month: 'short' });
         
+        // ⭐ ETAPA 5: Solo se bloquea por hoy, fin de semana y fecha < fechaMinima
+        // (R5 ya está aplicado en el cálculo de fechaMinima)
         let deshabilitado = false;
         if (esHoy) deshabilitado = true;
         else if (esFinDeSemana) deshabilitado = true;
         else if (esAntesDeFechaMinima) deshabilitado = true;
-        else if (bloqueadoPorRegla) deshabilitado = true;
         
         const estilo = deshabilitado 
             ? 'background:#f3f4f6; color:#9ca3af; cursor:not-allowed; padding:0.8rem 0.3rem; border-radius:8px; font-size:0.85rem;'
@@ -3225,12 +3199,13 @@ function generarCalendario() {
     }
     
     html += `</div>`;
-    html += `
+        html += `
         <div style="margin-top:1rem; font-size:0.8rem; color:var(--text-gray); text-align:center;">
             ${esDespuesDe540 
-                ? '⏰ Son más de las 5:40 pm, por lo que tu pedido requiere 2 días de anticipación.' 
-                : '⏰ Pedidos antes de las 5:40 pm requieren 1 día de anticipación.'}
+                ? '⏰ Son más de las 5:40 pm, por lo que tu pedido se procesa al siguiente día hábil.' 
+                : '⏰ Pedidos antes de las 5:40 pm se procesan el mismo día.'}
             <br>Sábados y domingos no hay entregas.
+            <br>Los días de entrega dependen del proveedor asignado.
         </div>
     `;
     
@@ -6578,12 +6553,11 @@ function calcularImporteProveedorEnCarrito(proveedor, carritoActual) {
         .reduce((sum, item) => sum + (item.importe || 0), 0);
 }
 
-// ⭐ Función principal: elige el proveedor óptimo para un producto dado el carrito actual
-// Reglas de orden:
-//   1. Envío gratis ya alcanzado (importe carrito del proveedor >= montoEnvioGratis)
-//   2. Menor costo de envío (null = 0)
-//   3. Orden de preferencia (1 → 2 → 3)
-// Si no hay candidatos, devuelve null (el llamador decide fallback).
+// ⭐ ETAPA 5: Selección de proveedor respetando el orden del Sheet (I → X → AC)
+// Se elige el primer candidato en orden que cumpla con:
+//   - Cobertura en la localidad (ya filtrado por obtenerProveedoresElegiblesProducto)
+//   - Peso máximo del proveedor (columna B de Condiciones)
+// Si el primero falla por peso máximo, se pasa al siguiente.
 function seleccionarProveedorParaProducto(producto, carritoActual) {
     if (!producto) return null;
     
@@ -6591,70 +6565,55 @@ function seleccionarProveedorParaProducto(producto, carritoActual) {
     if (candidatos.length === 0) return null;
     if (candidatos.length === 1) return candidatos[0];
     
-    // Filtrar por peso máximo si el producto es Estuco/Adhesivo con peso
-    // (En Etapa 3 solo se valida peso máximo individual; la regla de grupo se hace en Etapa 4)
-    let candidatosFiltrados = candidatos;
+    // Calcular el peso del grupo del proveedor en el carrito actual
+    // (para validar pesoMaximo del proveedor contra el peso del pedido)
     const categoriaNorm = normalizarLocalidad(producto.categoria || '');
     const esEstucoAdhesivo = (categoriaNorm === 'estucos' || categoriaNorm === 'adhesivos');
     
-    if (esEstucoAdhesivo && producto.pesoCondicion === 'SI' && producto.peso > 0) {
-        // Por ahora, en Etapa 3, solo validamos que el peso del producto (1 unidad) no exceda el máximo
-        // En Etapa 4 se valida el peso del grupo completo
-        candidatosFiltrados = candidatos.filter(prov => {
-            const cond = obtenerCondicionProveedor(prov);
-            if (!cond || cond.pesoMaximo === null) return true;
-            return producto.peso <= cond.pesoMaximo;
-        });
-        if (candidatosFiltrados.length === 0) {
-            // Si todos exceden el peso, devolvemos el primero por fallback (se bloqueará en Etapa 4)
-            candidatosFiltrados = candidatos;
+    // Peso de este producto en el carrito actual (incluyendo el nuevo item que se va a agregar)
+    const pesoProductoNuevo = (producto.pesoCondicion === 'SI' && producto.peso > 0) ? producto.peso : 0;
+    
+    // Recorrer candidatos en orden (I → X → AC)
+    for (let i = 0; i < candidatos.length; i++) {
+        const prov = candidatos[i];
+        const cond = obtenerCondicionProveedor(prov);
+        
+        if (!cond) {
+            // Sin condición registrada, no se puede validar peso. Se acepta.
+            return prov;
         }
+        
+        // Validar peso máximo del proveedor (solo si aplica)
+        if (esEstucoAdhesivo && producto.pesoCondicion === 'SI' && cond.pesoMaximo !== null) {
+            // Peso actual del proveedor en el carrito (items ya asignados a este proveedor)
+            let pesoActualProveedor = 0;
+            carritoActual.forEach(item => {
+                if (item.esEnvio) return;
+                if (item.proveedorElegido !== prov) return;
+                const prod = productosGlobales.find(p => p.clave === item.clave);
+                if (prod && prod.pesoCondicion === 'SI' && prod.peso > 0) {
+                    pesoActualProveedor += prod.peso * item.cantidad;
+                }
+            });
+            
+            // Peso con el nuevo producto
+            const pesoConNuevo = pesoActualProveedor + pesoProductoNuevo;
+            
+            if (pesoConNuevo > cond.pesoMaximo) {
+                // Este proveedor no puede surtir todo el pedido. Pasar al siguiente.
+                console.log(`⚖️ ${prov} descartado: peso ${pesoConNuevo.toFixed(2)} kg > máximo ${cond.pesoMaximo} kg`);
+                continue;
+            }
+        }
+        
+        // El proveedor cumple, es el elegido
+        return prov;
     }
     
-    // Ordenar candidatos
-    const candidatosConScore = candidatosFiltrados.map((prov, index) => {
-        const cond = obtenerCondicionProveedor(prov);
-        const importeProveedor = calcularImporteProveedorEnCarrito(prov, carritoActual);
-        
-        let envioGratisAlcanzado = false;
-        let costoEnvio = 0;
-        
-        if (cond) {
-            if (cond.costoEnvio !== null && cond.montoEnvioGratis !== null) {
-                if (importeProveedor >= cond.montoEnvioGratis) {
-                    envioGratisAlcanzado = true;
-                } else {
-                    costoEnvio = cond.costoEnvio;
-                }
-            } else if (cond.costoEnvio !== null && cond.montoEnvioGratis === null) {
-                // Cobra envío siempre (no hay monto para exentar)
-                costoEnvio = cond.costoEnvio;
-            }
-            // Si costoEnvio es null, no cobra envío
-        }
-        
-        return {
-            proveedor: prov,
-            envioGratisAlcanzado: envioGratisAlcanzado ? 1 : 0,
-            costoEnvio: costoEnvio,
-            ordenPreferencia: index
-        };
-    });
-    
-    candidatosConScore.sort((a, b) => {
-        // 1. Envío gratis ya alcanzado (descendente: true primero)
-        if (a.envioGratisAlcanzado !== b.envioGratisAlcanzado) {
-            return b.envioGratisAlcanzado - a.envioGratisAlcanzado;
-        }
-        // 2. Menor costo de envío (ascendente)
-        if (a.costoEnvio !== b.costoEnvio) {
-            return a.costoEnvio - b.costoEnvio;
-        }
-        // 3. Orden de preferencia (ascendente: 1 → 2 → 3)
-        return a.ordenPreferencia - b.ordenPreferencia;
-    });
-    
-    return candidatosConScore[0].proveedor;
+    // Si ninguno cumple (todos exceden peso máximo), devolver el primero como fallback
+    // (en Etapa 4 se bloqueará con el mensaje de tonelada)
+    console.warn('⚠️ Ningún proveedor cumple con las restricciones de peso, usando el primero como fallback');
+    return candidatos[0];
 }
 // ============================================
 // ⭐ ETAPA 4: CÁLCULO DE ENVÍO CONSOLIDADO
