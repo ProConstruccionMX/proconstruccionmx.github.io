@@ -7239,3 +7239,166 @@ function iniciarActualizacionAutomatica() {
         });
     }
 }
+// ============================================
+// ⭐ ETAPA 9: Calcular el precio del cliente con la nueva lógica
+// Replica EXACTAMENTE la lógica del backend (crearPedido en Apps Script Ventas).
+// Reglas (en orden de prioridad):
+//   1. PRECIO ESPECIAL: si existe, se aplica ANTES de cualquier otra regla.
+//   2. Si columna E (na) es "N/A" → precio = precioCompra del proveedor (sin margen)
+//   3. Si columna E (na) es "-" → precio = precioCompra × (1 + %giro/100)
+//   4. Si columna E (na) es número → precio = D × (1 - número/100)
+//   5. Si columna E (na) está vacía → precio = D × (1 - descuentoBaseCliente/100)
+// Devuelve un objeto con:
+//   - precioBase: D (precio de lista)
+//   - precioCompra: precio de compra del proveedor que surtió
+//   - precioCliente: precio subtotal del cliente (sin IVA)
+//   - descuentoPorcentaje: % de descuento sobre D
+//   - descuentoMonto: $ de descuento sobre D (unitario)
+//   - tipoCalculo: qué caso se aplicó
+//   - personalizado: true si fue precio especial
+// ============================================
+function calcularPrecioClienteFrontend(producto, cantidad, proveedorElegido) {
+    if (!producto) {
+        return {
+            precioBase: 0,
+            precioCompra: 0,
+            precioCliente: 0,
+            descuentoPorcentaje: 0,
+            descuentoMonto: 0,
+            tipoCalculo: 'sin_producto',
+            personalizado: false
+        };
+    }
+    
+    const precioCompraReal = obtenerPrecioCompraPorProveedorFrontend(producto, proveedorElegido);
+    const precioBaseD = producto.precio || 0;
+    
+    const clienteCodigo = clienteData ? clienteData.codigo : null;
+    const precioEspecial = preciosEspecialesGlobales.find(p => 
+        p.codigoCliente === clienteCodigo && 
+        p.claveProducto === producto.clave
+    );
+    
+    let precioCliente = 0;
+    let descuentoPorcentaje = 0;
+    let descuentoMonto = 0;
+    let personalizado = false;
+    let tipoCalculo = '';
+    
+    // ⭐ CASO 1 — PRECIO ESPECIAL (prioridad absoluta)
+    if (precioEspecial && precioEspecial.precioPersonalizado !== undefined && precioEspecial.precioPersonalizado !== null) {
+        precioCliente = parseFloat(precioEspecial.precioPersonalizado) || precioBaseD;
+        personalizado = true;
+        tipoCalculo = 'precio_especial';
+        descuentoMonto = Math.max(0, precioBaseD - precioCliente);
+        descuentoPorcentaje = precioBaseD > 0 ? (descuentoMonto / precioBaseD) * 100 : 0;
+    }
+    // ⭐ CASO 2 en adelante: solo se evalúa si NO hay precio especial
+    else {
+        const naRaw = String(producto.na || '').trim();
+        const naUpper = naRaw.toUpperCase();
+        
+        if (naUpper === 'N/A') {
+            precioCliente = precioCompraReal;
+            tipoCalculo = 'precio_compra_sin_margen';
+            descuentoMonto = Math.max(0, precioBaseD - precioCliente);
+            descuentoPorcentaje = precioBaseD > 0 ? (descuentoMonto / precioBaseD) * 100 : 0;
+        }
+        else if (naRaw === '-') {
+            const porcentajeMargen = obtenerPorcentajeMargenPorGiroFrontend(producto, clienteData ? clienteData.giro : '');
+            precioCliente = precioCompraReal * (1 + porcentajeMargen / 100);
+            tipoCalculo = 'margen_sobre_compra';
+            descuentoMonto = Math.max(0, precioBaseD - precioCliente);
+            descuentoPorcentaje = precioBaseD > 0 ? (descuentoMonto / precioBaseD) * 100 : 0;
+        }
+        else if (naRaw !== '' && !isNaN(parseFloat(naRaw))) {
+            const naNumero = parseFloat(naRaw);
+            precioCliente = precioBaseD * (1 - naNumero / 100);
+            tipoCalculo = 'descuento_sobre_D';
+            descuentoPorcentaje = naNumero;
+            descuentoMonto = precioBaseD * (naNumero / 100);
+        }
+        else {
+            const descBase = clienteData ? (clienteData.descuento || 0) : 0;
+            precioCliente = precioBaseD * (1 - descBase / 100);
+            tipoCalculo = 'descuento_base_cliente';
+            descuentoPorcentaje = descBase;
+            descuentoMonto = precioBaseD * (descBase / 100);
+        }
+    }
+    
+    // Descuento por volumen (PXV + peso)
+    if (producto.pxv === 'PXV' && producto.pesoCondicion === 'SI') {
+        let descuentoAdicional = 0;
+        if (cantidad >= 250 && producto.descuentoVolumenQ > 0) {
+            descuentoAdicional = producto.descuentoVolumenQ;
+        } else if (cantidad >= 150 && producto.descuentoVolumenP > 0) {
+            descuentoAdicional = producto.descuentoVolumenP;
+        }
+        if (descuentoAdicional > 0) {
+            const descuentoAdicionalMonto = precioCliente * (descuentoAdicional / 100);
+            precioCliente = precioCliente - descuentoAdicionalMonto;
+            descuentoPorcentaje += descuentoAdicional;
+            descuentoMonto += descuentoAdicionalMonto;
+        }
+    }
+    
+    return {
+        precioBase: precioBaseD,
+        precioCompra: precioCompraReal,
+        precioCliente: precioCliente,
+        descuentoPorcentaje: descuentoPorcentaje,
+        descuentoMonto: descuentoMonto,
+        tipoCalculo: tipoCalculo,
+        personalizado: personalizado
+    };
+}
+
+// ============================================
+// ⭐ ETAPA 9: Obtener el precio de compra del proveedor que surtió (frontend)
+// ============================================
+function obtenerPrecioCompraPorProveedorFrontend(producto, proveedorElegido) {
+    if (!producto) return 0;
+    
+    const prov = String(proveedorElegido || '').trim();
+    if (!prov) return producto.precioCompra || 0;
+    
+    const prov1 = String(producto.proveedorVertiz || '').trim();
+    if (prov1 && prov === prov1) return producto.precioCompra || 0;
+    
+    const prov2 = String(producto.proveedorCoacalco || '').trim();
+    if (prov2 && prov === prov2) return producto.precioCompraProveedor2 || 0;
+    
+    const prov3 = String(producto.proveedor3 || '').trim();
+    if (prov3 && prov === prov3) return producto.precioCompraProveedor3 || 0;
+    
+    return producto.precioCompra || 0;
+}
+
+// ============================================
+// ⭐ ETAPA 9: Obtener el % de margen según el giro (frontend)
+// ============================================
+function obtenerPorcentajeMargenPorGiroFrontend(producto, giroCliente) {
+    if (!producto) return 0;
+    
+    const giro = String(giroCliente || '').trim();
+    if (!giro) return 0;
+    
+    if (giro === 'Público en general' || giro === 'Público') {
+        return producto.descuentoPublico || 0;
+    }
+    if (giro === 'Trabajador') {
+        return producto.descuentoTrabajador || 0;
+    }
+    if (giro === 'Arquitecto' || giro === 'Inmobiliaria') {
+        return producto.descuentoArquitecto || 0;
+    }
+    if (giro === 'Constructora') {
+        return producto.descuentoConstructora || 0;
+    }
+    if (giro === 'Distribuidor') {
+        return producto.descuentoDistribuidor || 0;
+    }
+    
+    return 0;
+}
