@@ -1613,26 +1613,24 @@ function buscarProductos() {
     
         let html = `<div class="product-grid">`;
     resultados.forEach(producto => {
-        const precioFinal = obtenerPrecioFinal(producto);
-        
-        // ⭐ ETAPA 6 (fix): aplicar el descuento del cliente (giro, especial, volumen, etc.)
-        // Se usa la misma lógica que el carrito: calcularDescuentoProducto(producto, cantidad)
-        // Para la tarjeta usamos cantidad = 1 (o la cantidad mínima si el producto la requiere).
+            // ⭐ ETAPA 9: Usar la nueva lógica para la tarjeta
         const cantidadParaDescuento = (producto.requiereMinPiezas && producto.minPiezas > 0)
             ? producto.minPiezas
             : 1;
-        const descuento = calcularDescuentoProducto(producto, cantidadParaDescuento);
         
-        // Precio unitario con descuento (sin IVA)
-        const precioConDescuento = precioFinal.precio * (1 - descuento / 100);
+        // Obtener proveedor elegible para este producto
+        let provParaTarjeta = producto.proveedorVertiz || producto.proveedorCoacalco || producto.proveedor3 || '';
+        const itemEnCarrito = carrito.find(i => i.clave === producto.clave && !i.esEnvio);
+        if (itemEnCarrito && itemEnCarrito.proveedorElegido) {
+            provParaTarjeta = itemEnCarrito.proveedorElegido;
+        }
         
-        // Precio con IVA al que realmente lo compra el cliente
+        const precioFinal = obtenerPrecioFinal(producto, provParaTarjeta);
+        const descuento = calcularDescuentoProducto(producto, cantidadParaDescuento, provParaTarjeta);
+        
+        const precioConDescuento = precioFinal.precio;   // ⭐ ya es el precio del cliente
         const precioConIva = precioConDescuento * 1.16;
-        
-        // Precio base con IVA (para tachado, solo si hay descuento)
         const precioBaseConIva = producto.precio * 1.16;
-        
-        // Solo mostrar tachado si hay descuento real
         const hayDescuento = precioConIva < precioBaseConIva - 0.01;
         
         let etiquetaMinPiezas = '';
@@ -1707,97 +1705,60 @@ function limpiarBusqueda() {
 // PRECIOS Y DESCUENTOS (CON PRECIOS ESPECIALES)
 // ============================================
 
-function obtenerPrecioFinal(producto) {
-    const precioEspecial = preciosEspecialesGlobales.find(p => 
-        p.codigoCliente === clienteData.codigo && 
-        p.claveProducto === producto.clave
-    );
-    
-    if (precioEspecial) {
+// ⭐ ETAPA 9: obtenerPrecioFinal ahora usa la nueva lógica (precio especial > columna E > descuento base)
+// Acepta el proveedor elegido para saber qué precio de compra usar (F, AD o AE).
+function obtenerPrecioFinal(producto, proveedorElegido) {
+    if (!producto) {
         return {
-            precio: precioEspecial.precioPersonalizado,
-            personalizado: true,
-            descuentoAplicado: 0
+            precio: 0,
+            personalizado: false,
+            descuentoAplicado: 0,
+            precioBase: 0,
+            descuentoMonto: 0,
+            tipoCalculo: 'sin_producto'
         };
     }
     
+    // Si no se pasa proveedor, intentar obtenerlo del carrito (si existe) o del primer proveedor del producto
+    let prov = proveedorElegido;
+    if (!prov) {
+        const itemEnCarrito = carrito.find(i => i.clave === producto.clave && !i.esEnvio);
+        if (itemEnCarrito && itemEnCarrito.proveedorElegido) {
+            prov = itemEnCarrito.proveedorElegido;
+        } else {
+            prov = producto.proveedorVertiz || producto.proveedorCoacalco || producto.proveedor3 || '';
+        }
+    }
+    
+    const calc = calcularPrecioClienteFrontend(producto, 1, prov);
+    
     return {
-        precio: producto.precio,
-        personalizado: false,
-        descuentoAplicado: 0
+        precio: calc.precioCliente,
+        personalizado: calc.personalizado,
+        descuentoAplicado: calc.descuentoPorcentaje,
+        precioBase: calc.precioBase,
+        descuentoMonto: calc.descuentoMonto,
+        tipoCalculo: calc.tipoCalculo
     };
 }
 
-function calcularDescuentoProducto(producto, cantidad) {
-    const precioEspecial = preciosEspecialesGlobales.find(p => 
-        p.codigoCliente === clienteData.codigo && 
-        p.claveProducto === producto.clave
-    );
+// ⭐ ETAPA 9: calcularDescuentoProducto ahora usa la nueva lógica
+// Acepta el proveedor elegido para saber qué precio de compra usar (F, AD o AE).
+function calcularDescuentoProducto(producto, cantidad, proveedorElegido) {
+    if (!producto) return 0;
     
-    if (precioEspecial) {
-        return 0;
-    }
-    
-    if (producto.na === 'N/A') {
-        return 0;
-    }
-    
-    const naNumero = parseFloat(producto.na);
-    if (!isNaN(naNumero) && producto.na !== '' && producto.na !== '-' && producto.na !== 'N/A') {
-        return naNumero;
-    }
-    
-    if (producto.na === '-') {
-        const giro = clienteData.giro || 'Público en general';
-        
-        const mapGiro = {
-            'Público en general': producto.descuentoPublico,
-            'Público': producto.descuentoPublico,
-            'Trabajador': producto.descuentoTrabajador,
-            'Arquitecto': producto.descuentoArquitecto,
-            'Inmobiliaria': producto.descuentoArquitecto,
-            'Constructora': producto.descuentoConstructora,
-            'Distribuidor': producto.descuentoDistribuidor
-        };
-        
-        let descuentoBase = mapGiro[giro] || 0;
-        
-        if (producto.pxv === 'PXV' && producto.pesoCondicion === 'SI') {
-            let descuentoAdicional = 0;
-            
-            if (cantidad >= 250 && producto.descuentoVolumenQ > 0) {
-                descuentoAdicional = producto.descuentoVolumenQ;
-            } else if (cantidad >= 150 && producto.descuentoVolumenP > 0) {
-                descuentoAdicional = producto.descuentoVolumenP;
-            }
-            
-            if (descuentoAdicional > 0) {
-                return descuentoBase + descuentoAdicional;
-            }
+    let prov = proveedorElegido;
+    if (!prov) {
+        const itemEnCarrito = carrito.find(i => i.clave === producto.clave && !i.esEnvio);
+        if (itemEnCarrito && itemEnCarrito.proveedorElegido) {
+            prov = itemEnCarrito.proveedorElegido;
+        } else {
+            prov = producto.proveedorVertiz || producto.proveedorCoacalco || producto.proveedor3 || '';
         }
-        return descuentoBase;
     }
     
-    if (producto.na === '' || producto.na === null || producto.na === undefined) {
-        let descuentoBase = clienteData.descuento || 0;
-        
-        if (producto.pxv === 'PXV' && producto.pesoCondicion === 'SI') {
-            let descuentoAdicional = 0;
-            
-            if (cantidad >= 250 && producto.descuentoVolumenQ > 0) {
-                descuentoAdicional = producto.descuentoVolumenQ;
-            } else if (cantidad >= 150 && producto.descuentoVolumenP > 0) {
-                descuentoAdicional = producto.descuentoVolumenP;
-            }
-            
-            if (descuentoAdicional > 0) {
-                return descuentoBase + descuentoAdicional;
-            }
-        }
-        return descuentoBase;
-    }
-    
-    return 0;
+    const calc = calcularPrecioClienteFrontend(producto, cantidad, prov);
+    return calc.descuentoPorcentaje;
 }
 
 // ============================================
@@ -2384,9 +2345,13 @@ function agregarAlCarrito(clave) {
         existente.cantidad += 1;
         actualizarItemCarrito(existente);
         } else {
-        const precioFinal = obtenerPrecioFinal(producto);
-        const descuento = calcularDescuentoProducto(producto, 1);
-        const precioConDescuento = precioFinal.precio * (1 - descuento / 100);
+        // ⭐ ETAPA 9: Calcular proveedor primero, luego precio
+        const proveedorElegido = seleccionarProveedorParaProducto(producto, carrito);
+        const precioFinal = obtenerPrecioFinal(producto, proveedorElegido);
+        const descuento = calcularDescuentoProducto(producto, 1, proveedorElegido);
+        
+        // ⭐ ETAPA 9: El importe ahora se calcula con el precio del cliente (no con D × (1 - desc))
+        const precioConDescuento = precioFinal.precio;
         
         // ⭐ ETAPA 3: Seleccionar proveedor para este producto
         const proveedorElegido = seleccionarProveedorParaProducto(producto, carrito);
@@ -2423,9 +2388,17 @@ function actualizarItemCarrito(item) {
     const producto = productosGlobales.find(p => p.clave === item.clave);
     if (!producto) return;
     
-    const descuento = calcularDescuentoProducto(producto, item.cantidad);
+    // ⭐ ETAPA 9: Usar el proveedor del item para el cálculo
+    const proveedorItem = item.proveedorElegido || producto.proveedorVertiz || '';
+    const precioFinal = obtenerPrecioFinal(producto, proveedorItem);
+    const descuento = calcularDescuentoProducto(producto, item.cantidad, proveedorItem);
+    
+    item.precio = precioFinal.precio;
     item.descuento = descuento;
-    item.importe = item.precio * item.cantidad * (1 - descuento / 100);
+    item.importe = precioFinal.precio * item.cantidad;   // ⭐ ya no se multiplica por (1 - desc)
+    item.precioBase = precioFinal.precioBase;
+    item.descuentoMonto = precioFinal.descuentoMonto;
+    item.tipoCalculo = precioFinal.tipoCalculo;
     
     // ⭐ ETAPA 5: Recalcular proveedor al cambiar cantidad
     // Pasamos el carrito COMPLETO (con el item ya actualizado) para que el peso
@@ -2604,9 +2577,10 @@ function renderizarCarrito() {
         }
         
         // ⭐ Producto normal
-        const importeBase = item.precio * item.cantidad;
-        const descuentoItem = importeBase * (item.descuento / 100);
-        const importeFinal = importeBase - descuentoItem;
+               // ⭐ ETAPA 9: El item ya viene con precio calculado y descuentoMonto
+        const importeBase = (item.precioBase !== undefined ? item.precioBase : item.precio) * item.cantidad;
+        const descuentoItem = (item.descuentoMonto !== undefined ? item.descuentoMonto : 0) * item.cantidad;
+        const importeFinal = item.precio * item.cantidad;
         
         subtotalSinDescuento += importeBase;
         descuentoTotal += descuentoItem;
