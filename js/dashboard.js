@@ -2859,6 +2859,33 @@ function abrirModalDireccion() {
     // Modo "pago"
     window._modoModalDireccion = 'pago';
     
+    // ⭐ ETAPA 9 (Opción B, capa frontend): Validar elegibilidad por localidad
+    // antes de abrir el modal de pago.
+    // Si algún producto del carrito no es elegible en la localidad actual,
+    // NO se permite continuar. Esto evita que el cliente transfiera dinero
+    // y el backend rechace después.
+    const itemsReales = carrito.filter(i => !i.esEnvio);
+    const productosNoElegibles = [];
+    
+    for (const item of itemsReales) {
+        const producto = productosGlobales.find(p => p.clave === item.clave);
+        if (!producto) {
+            // El producto ya no existe (fue eliminado del Sheet).
+            productosNoElegibles.push({ nombre: item.nombre, motivo: 'ya no disponible' });
+            continue;
+        }
+        
+        if (!productoTieneProveedorElegible(producto)) {
+            productosNoElegibles.push({ nombre: producto.nombre, motivo: 'sin cobertura en tu localidad' });
+        }
+    }
+    
+    if (productosNoElegibles.length > 0) {
+        const nombres = productosNoElegibles.map(p => `"${p.nombre}"`).join(', ');
+        mostrarNotificacion(`⚠️ No puedes continuar: ${nombres} no tiene(n) cobertura en tu localidad. Elimínalo(s) del carrito o cambia de dirección.`);
+        return;
+    }
+    
     // Validaciones de peso y piezas
     const verificarPeso = verificarPesoMinimo();
     if (verificarPeso.productosConPeso > 0 && !verificarPeso.cumple) {
