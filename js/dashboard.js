@@ -1140,9 +1140,16 @@ async function cargarProductos() {
             const marca = String(values[27] || '').trim();
             const proveedor3 = String(values[28] || '').trim();
             
-            // ⭐ ETAPA 7: columnas AD (precio compra proveedor 2) y AE (precio compra proveedor 3)
+                       // ⭐ ETAPA 7: columnas AD (precio compra proveedor 2) y AE (precio compra proveedor 3)
             const precioCompraProveedor2 = parseFloat(values[29]) || 0;
             const precioCompraProveedor3 = parseFloat(values[30]) || 0;
+            
+            // ⭐ ETAPA 9: columnas J, K, L, M, N (descuentos por giro)
+            const descuentoPublico = parseFloat(values[9]) || 0;         // J
+            const descuentoTrabajador = parseFloat(values[10]) || 0;     // K
+            const descuentoArquitecto = parseFloat(values[11]) || 0;     // L
+            const descuentoConstructora = parseFloat(values[12]) || 0;   // M
+            const descuentoDistribuidor = parseFloat(values[13]) || 0;   // N
             
             const requiereMinPiezas = minPiezasCondicion === 'SI';
             
@@ -1172,8 +1179,14 @@ async function cargarProductos() {
                 proveedorCoacalco: proveedorCoacalco,
                 marca: marca,               // ⭐ NUEVO (Etapa 1)
                 proveedor3: proveedor3,     // ⭐ NUEVO (Etapa 1)
-                precioCompraProveedor2: precioCompraProveedor2,   // ⭐ NUEVO (Etapa 7)
-                precioCompraProveedor3: precioCompraProveedor3,   // ⭐ NUEVO (Etapa 7)
+                                precioCompraProveedor2: precioCompraProveedor2,   // ⭐ Etapa 7
+                precioCompraProveedor3: precioCompraProveedor3,   // ⭐ Etapa 7
+                // ⭐ ETAPA 9: descuentos por giro (columnas J-N)
+                descuentoPublico: descuentoPublico,               // J
+                descuentoTrabajador: descuentoTrabajador,         // K
+                descuentoArquitecto: descuentoArquitecto,         // L
+                descuentoConstructora: descuentoConstructora,     // M
+                descuentoDistribuidor: descuentoDistribuidor,     // N
                 fila: i + 1
             });
         }
