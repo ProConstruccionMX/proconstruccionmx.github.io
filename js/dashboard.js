@@ -2353,11 +2353,14 @@ function agregarAlCarrito(clave) {
         // ⭐ ETAPA 9: El importe ahora se calcula con el precio del cliente (no con D × (1 - desc))
         const precioConDescuento = precioFinal.precio;
         
-        carrito.push({
+               carrito.push({
             clave: producto.clave,
             nombre: producto.nombre,
             descripcion: producto.descripcion,
             precio: precioFinal.precio,
+            precioBase: precioFinal.precioBase,           // ⭐ ETAPA 9
+            descuentoMonto: precioFinal.descuentoMonto,   // ⭐ ETAPA 9
+            tipoCalculo: precioFinal.tipoCalculo,         // ⭐ ETAPA 9
             precioCompra: producto.precioCompra,
             cantidad: 1,
             descuento: descuento,
@@ -2370,7 +2373,7 @@ function agregarAlCarrito(clave) {
             pxv: producto.pxv,
             descuentoVolumenP: producto.descuentoVolumenP,
             descuentoVolumenQ: producto.descuentoVolumenQ,
-            proveedorElegido: proveedorElegido   // ⭐ ETAPA 3
+            proveedorElegido: proveedorElegido
         });
     }
     
@@ -2392,17 +2395,14 @@ function actualizarItemCarrito(item) {
     
     item.precio = precioFinal.precio;
     item.descuento = descuento;
-    item.importe = precioFinal.precio * item.cantidad;   // ⭐ ya no se multiplica por (1 - desc)
+    item.importe = precioFinal.precio * item.cantidad;
     item.precioBase = precioFinal.precioBase;
     item.descuentoMonto = precioFinal.descuentoMonto;
     item.tipoCalculo = precioFinal.tipoCalculo;
     
-    // ⭐ ETAPA 5: Recalcular proveedor al cambiar cantidad
-    // Pasamos el carrito COMPLETO (con el item ya actualizado) para que el peso
-    // del item se cuente al validar el peso máximo del proveedor.
-    // Excluimos solo las líneas de envío para no contaminar el cálculo.
-    const carritoSinEnvio = carrito.filter(i => !i.esEnvio);
-    const nuevoProveedor = seleccionarProveedorParaProducto(producto, carritoSinEnvio);
+    // ⭐ ETAPA 3: Recalcular proveedor al cambiar cantidad
+    const carritoSinItem = carrito.filter(i => i.clave !== item.clave);
+    const nuevoProveedor = seleccionarProveedorParaProducto(producto, carritoSinItem);
     if (nuevoProveedor) {
         item.proveedorElegido = nuevoProveedor;
     }
@@ -3785,9 +3785,8 @@ function calcularTotal() {
             subtotal += item.importe;
             return;
         }
-        const importeBase = item.precio * item.cantidad;
-        const descuentoItem = importeBase * (item.descuento / 100);
-        subtotal += importeBase - descuentoItem;
+        // ⭐ ETAPA 9: El item ya viene con precio calculado (precio del cliente)
+        subtotal += item.precio * item.cantidad;
     });
     return subtotal + (subtotal * 0.16);
 }
