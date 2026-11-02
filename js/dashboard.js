@@ -4257,7 +4257,7 @@ async function procesarPagoTransferencia() {
         
         // 5. Construir datosVenta con los datos del SERVIDOR
         //    (para el PDF, el correo y el mensaje de éxito)
-       const productosParaPDF = result.productos.map(p => ({
+    const productosParaPDF = result.productos.map(p => ({
     nombre: p.nombre,
     cantidad: p.cantidad,
     precio: p.precio,
@@ -4470,23 +4470,29 @@ async function procesarPagoCredito() {
         }
         
         // 5. Construir datosVenta con los datos del SERVIDOR
-        const productosParaPDF = result.productos.map(p => ({
-            nombre: p.nombre,
-            cantidad: p.cantidad,
-            precio: p.precio,
-            descuento: p.descuento,
-            importe: p.importe
-        }));
-        
-              // ⭐ ETAPA 6 (fix): Calcular subtotal sin descuento y descuento total
-        let subtotalSinDescuentoPDF = 0;
-        let descuentoTotalPDF = 0;
-        productosParaPDF.forEach(p => {
-            const importeBase = p.precio * p.cantidad;
-            const descuentoItem = importeBase * (p.descuento / 100);
-            subtotalSinDescuentoPDF += importeBase;
-            descuentoTotalPDF += descuentoItem;
-        });
+       const productosParaPDF = result.productos.map(p => ({
+    nombre: p.nombre,
+    cantidad: p.cantidad,
+    precio: p.precio,
+    precioBase: p.precioBase,           // ⭐ ETAPA 9
+    descuento: p.descuento,
+    descuentoMonto: p.descuentoMonto,   // ⭐ ETAPA 9
+    tipoCalculo: p.tipoCalculo,         // ⭐ ETAPA 9
+    importe: p.importe
+}));
+
+// ⭐ ETAPA 9: Calcular subtotalSinDescuento y descuentoTotal usando precioBase
+let subtotalSinDescuentoPDF = 0;
+let descuentoTotalPDF = 0;
+productosParaPDF.forEach(p => {
+    const precioBaseItem = p.precioBase !== undefined ? p.precioBase : p.precio;
+    const descuentoMontoItem = p.descuentoMonto !== undefined 
+        ? p.descuentoMonto 
+        : (precioBaseItem * (p.descuento / 100));
+    
+    subtotalSinDescuentoPDF += precioBaseItem * p.cantidad;
+    descuentoTotalPDF += descuentoMontoItem * p.cantidad;
+});
         
         const datosVenta = {
             folio: result.folio,
