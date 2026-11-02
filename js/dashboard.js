@@ -1145,26 +1145,22 @@ async function cargarProductos() {
             const precioCompraProveedor3 = parseFloat(values[30]) || 0;
             
             // ⭐ ETAPA 9: columnas J, K, L, M, N (descuentos por giro)
-            const descuentoPublico = parseFloat(values[9]) || 0;         // J
-            const descuentoTrabajador = parseFloat(values[10]) || 0;     // K
-            const descuentoArquitecto = parseFloat(values[11]) || 0;     // L
-            const descuentoConstructora = parseFloat(values[12]) || 0;   // M
-            const descuentoDistribuidor = parseFloat(values[13]) || 0;   // N
             
             const requiereMinPiezas = minPiezasCondicion === 'SI';
             
-            productosGlobales.push({
+                       productosGlobales.push({
                 clave: clave,
                 nombre: nombre,
                 descripcion: descripcion,
                 precio: precio,
                 na: na,
                 precioCompra: precioCompra,
-                descuentoPublico: descuentoPublico,
-                descuentoTrabajador: descuentoTrabajador,
-                descuentoArquitecto: descuentoArquitecto,
-                descuentoConstructora: descuentoConstructora,
-                descuentoDistribuidor: descuentoDistribuidor,
+                // ⭐ ETAPA 9: descuentos por giro (columnas J-N)
+                descuentoPublico: descuentoPublico,               // J
+                descuentoTrabajador: descuentoTrabajador,         // K
+                descuentoArquitecto: descuentoArquitecto,         // L
+                descuentoConstructora: descuentoConstructora,     // M
+                descuentoDistribuidor: descuentoDistribuidor,     // N
                 pxv: pxv,
                 descuentoVolumenP: descuentoVolumenP,
                 descuentoVolumenQ: descuentoVolumenQ,
@@ -1175,18 +1171,12 @@ async function cargarProductos() {
                 permitido: permitido,
                 categoria: categoria,
                 imagen: imagen || '',
-                                             proveedorVertiz: proveedorVertiz,
+                proveedorVertiz: proveedorVertiz,
                 proveedorCoacalco: proveedorCoacalco,
                 marca: marca,               // ⭐ NUEVO (Etapa 1)
                 proveedor3: proveedor3,     // ⭐ NUEVO (Etapa 1)
-                                precioCompraProveedor2: precioCompraProveedor2,   // ⭐ Etapa 7
+                precioCompraProveedor2: precioCompraProveedor2,   // ⭐ Etapa 7
                 precioCompraProveedor3: precioCompraProveedor3,   // ⭐ Etapa 7
-                // ⭐ ETAPA 9: descuentos por giro (columnas J-N)
-                descuentoPublico: descuentoPublico,               // J
-                descuentoTrabajador: descuentoTrabajador,         // K
-                descuentoArquitecto: descuentoArquitecto,         // L
-                descuentoConstructora: descuentoConstructora,     // M
-                descuentoDistribuidor: descuentoDistribuidor,     // N
                 fila: i + 1
             });
         }
