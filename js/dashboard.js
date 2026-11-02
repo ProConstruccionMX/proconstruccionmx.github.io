@@ -2344,7 +2344,7 @@ function agregarAlCarrito(clave) {
     if (existente) {
         existente.cantidad += 1;
         actualizarItemCarrito(existente);
-        } else {
+               } else {
         // ⭐ ETAPA 9: Calcular proveedor primero, luego precio
         const proveedorElegido = seleccionarProveedorParaProducto(producto, carrito);
         const precioFinal = obtenerPrecioFinal(producto, proveedorElegido);
@@ -2352,9 +2352,6 @@ function agregarAlCarrito(clave) {
         
         // ⭐ ETAPA 9: El importe ahora se calcula con el precio del cliente (no con D × (1 - desc))
         const precioConDescuento = precioFinal.precio;
-        
-        // ⭐ ETAPA 3: Seleccionar proveedor para este producto
-        const proveedorElegido = seleccionarProveedorParaProducto(producto, carrito);
         
         carrito.push({
             clave: producto.clave,
