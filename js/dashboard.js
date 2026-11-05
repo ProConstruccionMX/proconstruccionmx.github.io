@@ -2673,7 +2673,7 @@ function renderizarCarrito() {
                            value="${item.cantidad}" min="1" 
                            onchange="cambiarCantidad('${escapeHtml(item.clave)}', parseInt(this.value))">
                 </td>
-                <td>${item.descuento}%</td>
+                              <td>${Number(item.descuento || 0).toFixed(2)}%</td>
                 <td>${formatoMexicano(importeFinal)}</td>
                 <td>
                     <button class="btn-eliminar" onclick="eliminarDelCarrito('${escapeHtml(item.clave)}')">
@@ -7516,12 +7516,12 @@ function calcularPrecioClienteFrontend(producto, cantidad, proveedorElegido) {
         }
     }
     
-    return {
+        return {
         precioBase: precioBaseD,
         precioCompra: precioCompraReal,
         precioCliente: precioCliente,
-        descuentoPorcentaje: descuentoPorcentaje,
-        descuentoMonto: descuentoMonto,
+        descuentoPorcentaje: Math.round(descuentoPorcentaje * 100) / 100,  // ⭐ 2 decimales
+        descuentoMonto: Math.round(descuentoMonto * 100) / 100,            // ⭐ 2 decimales
         tipoCalculo: tipoCalculo,
         personalizado: personalizado
     };
