@@ -93,6 +93,7 @@ let clienteData = null;
 let productosGlobales = [];
 let preciosEspecialesGlobales = [];
 let condicionesProveedorGlobales = [];   // ⭐ NUEVO (Etapa 1)
+let categoriasGlobales = [];              // ⭐ NUEVO (Etapa 10)
 let carrito = [];
 let pagoSeleccionado = null;
 let comprobanteBase64 = null;
@@ -333,7 +334,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     try {
                 await cargarDatosCliente(email);
         actualizarTexto()
-        await cargarProductos();
+               await cargarProductos();
+        actualizarTexto()
+        await cargarCategorias();          // ⭐ ETAPA 10
         actualizarTexto()
         await cargarPreciosEspeciales();
         actualizarTexto()
@@ -1260,6 +1263,49 @@ async function cargarCondicionesProveedor() {
         condicionesProveedorGlobales = [];
     }
 }
+// ============================================
+// ⭐ ETAPA 10: Cargar categorías jerárquicas de la hoja Categorias
+// ============================================
+async function cargarCategorias() {
+    try {
+        console.log('📥 Cargando categorías...');
+        
+        const url = `${WORKER_URL}/leer?tipo=categorias`;
+        const response = await fetchAutenticado(url);
+        const data = await response.json();
+        
+        if (!data.success) {
+            console.error('❌ No se pudieron cargar las categorías:', data.error);
+            categoriasGlobales = [];
+            return;
+        }
+        
+        categoriasGlobales = (data.categorias || []).map(c => ({
+            nivel1: String(c.nivel1 || '').trim(),
+            nivel2: String(c.nivel2 || '').trim(),
+            nivel3: String(c.nivel3 || '').trim(),
+            nivel4: String(c.nivel4 || '').trim(),
+            nivel5: String(c.nivel5 || '').trim(),
+            nivel6: String(c.nivel6 || '').trim(),
+            nivel7: String(c.nivel7 || '').trim(),
+            ultimoNivel: String(c.ultimoNivel || '').trim()
+        }));
+        
+        console.log(`📦 Categorías cargadas: ${categoriasGlobales.length}`);
+        
+        if (data.duplicados && data.duplicados.length > 0) {
+            console.warn('⚠️ Últimos niveles duplicados (ignorados):', data.duplicados);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error al cargar categorías:', error);
+        categoriasGlobales = [];
+    }
+}
+
+// ============================================
+// CARGA DE DIRECCIONES DEL CLIENTE (Fase 0.2)
+// ============================================
 // ============================================
 // CARGA DE DIRECCIONES DEL CLIENTE (Fase 0.2)
 // ============================================
