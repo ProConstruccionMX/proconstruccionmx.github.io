@@ -94,6 +94,7 @@ let productosGlobales = [];
 let preciosEspecialesGlobales = [];
 let condicionesProveedorGlobales = [];   // ⭐ NUEVO (Etapa 1)
 let categoriasGlobales = [];              // ⭐ NUEVO (Etapa 10)
+window.categoriaActivaRuta = [];          // ⭐ ETAPA 10: ruta de categorías seleccionada (array de niveles)
 let carrito = [];
 let pagoSeleccionado = null;
 let comprobanteBase64 = null;
@@ -6571,9 +6572,10 @@ function continuarConBusqueda() {
     document.getElementById('searchSection').style.display = 'block';
     document.getElementById('resultsSection').style.display = 'block';
     
-    // ⭐ ETAPA 2: Resetear categoría activa al cambiar de dirección
+     // ⭐ ETAPA 2: Resetear categoría activa al cambiar de dirección
     // (la categoría previa puede no tener productos en la nueva localidad)
     categoriaActiva = null;
+    window.categoriaActivaRuta = [];   // ⭐ ETAPA 10
     
         // Inicializar categorías
     renderizarMenuCategorias();
@@ -6614,46 +6616,190 @@ function abrirModalDireccionInicial() {
     modal.classList.add('active');
 }
 
-// ============================================
-// ⭐ ETAPA 3: MENÚ DE CATEGORÍAS
-// ============================================
-
+// ⭐ ETAPA 10: Menú de categorías jerárquico de N niveles
+// - Construye un árbol de categorías a partir de categoriasGlobales.
+// - Renderiza el Nivel 1 como botones principales.
+// - Al hacer clic en un Nivel 1, muestra sus subniveles (Nivel 2, 3, ...) como botones secundarios.
+// - El usuario navega hasta el último nivel disponible y ahí se filtran los productos.
+// - La ruta seleccionada se guarda en window.categoriaActivaRuta (array de niveles).
 function renderizarMenuCategorias() {
     const container = document.getElementById('botonesCategorias');
     if (!container) return;
     
-    // ⭐ ETAPA 2: Solo mostrar categorías que tengan al menos un producto elegible
+    if (!Array.isArray(categoriasGlobales) || categoriasGlobales.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-gray); font-size:0.85rem;">Cargando categorías...</p>';
+        return;
+    }
+    
     const productosElegibles = productosGlobales.filter(p => productoTieneProveedorElegible(p));
-    const categorias = [...new Set(productosElegibles.map(p => p.categoria))].sort();
+    
+    // Construir el árbol completo a partir de categoriasGlobales
+    // Estructura: { nombreNivel: { _esUltimo: bool, _ultimoNivel: str, _subniveles: { ... } } }
+    const arbol = {};
+    categoriasGlobales.forEach(cat => {
+        const niveles = [cat.nivel1, cat.nivel2, cat.nivel3, cat.nivel4, cat.nivel5, cat.nivel6, cat.nivel7].filter(n => n !== '');
+        if (niveles.length === 0) return;
+        
+        // Solo incluir si hay al menos un producto elegible en su último nivel
+        const tieneProductosElegibles = productosElegibles.some(p => p.categoria === cat.ultimoNivel);
+        if (!tieneProductosElegibles) return;
+        
+        let actual = arbol;
+        niveles.forEach((nivel, idx) => {
+            if (!actual[nivel]) {
+                actual[nivel] = {
+                    _esUltimo: (idx === niveles.length - 1),
+                    _ultimoNivel: cat.ultimoNivel,
+                    _subniveles: {}
+                };
+            }
+            actual = actual[nivel]._subniveles;
+        });
+    });
+    
+    const rutaActual = window.categoriaActivaRuta || [];
+    
+    // ============================================
+    // Renderizar Nivel 1 (botones principales)
+    // ============================================
+    const nivel1Keys = Object.keys(arbol).sort();
     
     let html = `
-        <button onclick="seleccionarCategoria(null)" 
-                class="btn-categoria ${categoriaActiva === null ? 'active' : ''}"
-                style="padding: 0.6rem 1.5rem; border-radius: 50px; border: 2px solid #e2e8f0; background: ${categoriaActiva === null ? 'var(--accent-orange)' : 'white'}; color: ${categoriaActiva === null ? 'white' : 'var(--primary-dark)'}; font-weight: 600; cursor: pointer; transition: all 0.3s; font-family: 'Inter', sans-serif;">
+        <button onclick="seleccionarCategoriaPorRuta([])" 
+                class="btn-categoria ${rutaActual.length === 0 ? 'active' : ''}"
+                style="padding: 0.6rem 1.5rem; border-radius: 50px; border: 2px solid #e2e8f0; background: ${rutaActual.length === 0 ? 'var(--accent-orange)' : 'white'}; color: ${rutaActual.length === 0 ? 'white' : 'var(--primary-dark)'}; font-weight: 600; cursor: pointer; transition: all 0.3s; font-family: 'Inter', sans-serif;">
             Todas
         </button>
     `;
     
-    categorias.forEach(cat => {
-        const activa = categoriaActiva === cat;
+    nivel1Keys.forEach(n1 => {
+        const nodo = arbol[n1];
+        const tieneSubniveles = Object.keys(nodo._subniveles).length > 0;
+        const estaEnRuta = rutaActual.length >= 1 && rutaActual[0] === n1;
+        const nuevaRuta = [n1];
+        const nuevaRutaJson = JSON.stringify(nuevaRuta).replace(/"/g, '&quot;');
+        
         html += `
-            <button onclick="seleccionarCategoria('${escapeHtml(cat)}')" 
-                    class="btn-categoria ${activa ? 'active' : ''}"
-                    style="padding: 0.6rem 1.5rem; border-radius: 50px; border: 2px solid #e2e8f0; background: ${activa ? 'var(--accent-orange)' : 'white'}; color: ${activa ? 'white' : 'var(--primary-dark)'}; font-weight: 600; cursor: pointer; transition: all 0.3s; font-family: 'Inter', sans-serif;">
-                ${escapeHtml(cat)}
+            <button onclick="seleccionarCategoriaPorRuta(${nuevaRutaJson})" 
+                    class="btn-categoria ${estaEnRuta ? 'active' : ''}"
+                    style="padding: 0.6rem 1.5rem; border-radius: 50px; border: 2px solid #e2e8f0; background: ${estaEnRuta ? 'var(--accent-orange)' : 'white'}; color: ${estaEnRuta ? 'white' : 'var(--primary-dark)'}; font-weight: 600; cursor: pointer; transition: all 0.3s; font-family: 'Inter', sans-serif;">
+                ${escapeHtml(n1)}
+                ${tieneSubniveles ? ' ▾' : ''}
             </button>
         `;
     });
     
+    // ============================================
+    // Renderizar subniveles de la ruta actual (Nivel 2, 3, 4, ...)
+    // ============================================
+    if (rutaActual.length > 0) {
+        // Recorrer el árbol para encontrar el nodo actual y sus subniveles
+        let nodoActual = null;
+        let nivel = 1;
+        
+        for (let i = 0; i < rutaActual.length; i++) {
+            const nivelNombre = rutaActual[i];
+            
+            if (i === 0) {
+                nodoActual = arbol[nivelNombre] || null;
+            } else if (nodoActual && nodoActual._subniveles && nodoActual._subniveles[nivelNombre]) {
+                nodoActual = nodoActual._subniveles[nivelNombre];
+            } else {
+                nodoActual = null;
+                break;
+            }
+            nivel++;
+        }
+        
+        // Mostrar los subniveles del nodo actual
+        if (nodoActual && nodoActual._subniveles && Object.keys(nodoActual._subniveles).length > 0) {
+            const subKeys = Object.keys(nodoActual._subniveles).sort();
+            
+            html += `
+                <div style="width:100%; margin-top:0.75rem; padding-top:0.75rem; border-top:1px dashed #e2e8f0;">
+                    <p style="font-size:0.75rem; color:var(--text-gray); margin-bottom:0.5rem; font-weight:600;">
+                        ${escapeHtml(rutaActual.join(' › '))} › Subcategorías:
+                    </p>
+                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            `;
+            
+            subKeys.forEach(sub => {
+                const nodoSub = nodoActual._subniveles[sub];
+                const tieneSubsub = Object.keys(nodoSub._subniveles).length > 0;
+                const estaEnRuta = rutaActual.length > nivel - 1 && rutaActual[nivel - 1] === sub;
+                
+                const nuevaRuta = [...rutaActual, sub];
+                const nuevaRutaJson = JSON.stringify(nuevaRuta).replace(/"/g, '&quot;');
+                
+                html += `
+                    <button onclick="seleccionarCategoriaPorRuta(${nuevaRutaJson})" 
+                            class="btn-categoria ${estaEnRuta ? 'active' : ''}"
+                            style="padding: 0.4rem 1rem; border-radius: 50px; border: 2px solid #e2e8f0; background: ${estaEnRuta ? 'var(--primary-blue)' : 'white'}; color: ${estaEnRuta ? 'white' : 'var(--text-gray)'}; font-weight: 500; cursor: pointer; transition: all 0.3s; font-family: 'Inter', sans-serif; font-size:0.85rem;">
+                        ${escapeHtml(sub)}
+                        ${tieneSubsub ? ' ▾' : ''}
+                    </button>
+                `;
+            });
+            
+            html += `</div></div>`;
+        }
+    }
+    
     container.innerHTML = html;
 }
 
-function seleccionarCategoria(cat) {
-    categoriaActiva = cat;
+// ⭐ ETAPA 10: Seleccionar una categoría por su ruta completa
+// - ruta = [] → "Todas" (sin filtro de categoría)
+// - ruta = ['Sistema de construcción ligera'] → muestra subniveles de ese Nivel 1
+// - ruta = ['Sistema de construcción ligera', 'Perfiles galvanizados'] → muestra subniveles de ese Nivel 2
+// - ruta = ['Sistema de construcción ligera', 'Perfiles galvanizados', 'Poste Estructural'] → filtra productos
+function seleccionarCategoriaPorRuta(ruta) {
+    if (!Array.isArray(ruta)) ruta = [];
+    window.categoriaActivaRuta = ruta;
+    
+    // Si la ruta está vacía, mostramos todos los productos
+    if (ruta.length === 0) {
+        categoriaActiva = null;
+        categoriaActivaNivel1 = null;
+        renderizarMenuCategorias();
+        renderizarFiltrosMarca();
+        buscarProductos();
+        return;
+    }
+    
+    // Determinar si la ruta corresponde a un "último nivel" (tiene productos) o a un nivel intermedio
+    const esUltimoNivel = categoriasGlobales.some(c => {
+        const nivelesCat = [c.nivel1, c.nivel2, c.nivel3, c.nivel4, c.nivel5, c.nivel6, c.nivel7].filter(n => n !== '');
+        if (ruta.length !== nivelesCat.length) return false;
+        for (let i = 0; i < ruta.length; i++) {
+            if (ruta[i] !== nivelesCat[i]) return false;
+        }
+        return true;
+    });
+    
+    if (esUltimoNivel) {
+        // Es un último nivel → filtrar productos por ese nombre
+        categoriaActiva = ruta[ruta.length - 1];
+    } else {
+        // Es un nivel intermedio → solo mostrar subniveles, no filtrar
+        categoriaActiva = null;
+    }
+    
+    categoriaActivaNivel1 = ruta[0];
+    
     renderizarMenuCategorias();
-    // ⭐ ETAPA 6 (fix): Refrescar filtro de marca según la nueva categoría
     renderizarFiltrosMarca();
-    buscarProductos(); // Refresca resultados con la categoría activa
+    buscarProductos();
+}
+
+// ⭐ ETAPA 10: Compatibilidad con el código viejo (botón "Limpiar", etc.)
+function seleccionarCategoria(cat) {
+    window.categoriaActivaRuta = cat ? [cat] : [];
+    categoriaActiva = cat;
+    categoriaActivaNivel1 = cat;
+    renderizarMenuCategorias();
+    renderizarFiltrosMarca();
+    buscarProductos();
 }
 // ============================================
 // ⭐ ETAPA 2: LOCALIDAD DEL CLIENTE Y PROVEEDORES ELEGIBLES
