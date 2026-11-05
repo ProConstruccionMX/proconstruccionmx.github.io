@@ -1185,13 +1185,46 @@ async function cargarProductos() {
             });
         }
         
-        console.log(`📦 Productos cargados: ${productosGlobales.length}`);
+              console.log(`📦 Productos cargados: ${productosGlobales.length}`);
         console.log(`⏭️ Filas saltadas (inactivas/encabezados): ${filasSaltadas}`);
         console.log(`⚠️ Productos activos sin categoría (excluidos): ${sinCategoria}`);
         console.log(`📂 Categorías detectadas:`, [...new Set(productosGlobales.map(p => p.categoria))]);
         
+        // ⭐ ETAPA 10C: Validar categorías huérfanas (en Y pero no en hoja Categorias)
+        // (se ejecuta después de que cargarCategorias() ya corrió en el DOMContentLoaded)
+        validarCategoriasHuerfanas();
+        
     } catch (error) {
         console.error('❌ Error al cargar productos:', error);
+    }
+}
+
+// ⭐ ETAPA 10C: Validar que todos los productos tengan una categoría que exista en la hoja Categorias
+// Si un producto tiene una categoría (columna Y) que no está en el último nivel de ninguna fila
+// de la hoja Categorias, se marca como "huérfana" y se advierte en consola.
+// Los productos huérfanos NO se muestran en el menú jerárquico (porque no hay nodo para ellos),
+// pero sí se pueden encontrar por búsqueda por texto.
+function validarCategoriasHuerfanas() {
+    if (!Array.isArray(categoriasGlobales) || categoriasGlobales.length === 0) {
+        // Si aún no cargaron las categorías, no validar (se validará en el siguiente ciclo)
+        return;
+    }
+    
+    const ultimosNiveles = new Set(categoriasGlobales.map(c => c.ultimoNivel));
+    const huerfanas = [];
+    
+    productosGlobales.forEach(p => {
+        if (p.categoria && !ultimosNiveles.has(p.categoria)) {
+            huerfanas.push({ clave: p.clave, nombre: p.nombre, categoria: p.categoria });
+        }
+    });
+    
+    if (huerfanas.length > 0) {
+        console.warn(`⚠️ ETAPA 10C: ${huerfanas.length} producto(s) con categoría huérfana (no existe en hoja Categorias):`);
+        huerfanas.forEach(h => console.warn(`   - [${h.clave}] ${h.nombre} → categoría "${h.categoria}"`));
+        console.warn('   Estos productos NO se mostrarán en el menú jerárquico, solo por búsqueda por texto.');
+    } else {
+        console.log('✅ ETAPA 10C: Todas las categorías de productos existen en la hoja Categorias.');
     }
 }
 
@@ -1294,9 +1327,12 @@ async function cargarCategorias() {
         
         console.log(`📦 Categorías cargadas: ${categoriasGlobales.length}`);
         
-        if (data.duplicados && data.duplicados.length > 0) {
+            if (data.duplicados && data.duplicados.length > 0) {
             console.warn('⚠️ Últimos niveles duplicados (ignorados):', data.duplicados);
         }
+        
+        // ⭐ ETAPA 10C: Revalidar categorías huérfanas ahora que las categorías están cargadas
+        validarCategoriasHuerfanas();
         
     } catch (error) {
         console.error('❌ Error al cargar categorías:', error);
